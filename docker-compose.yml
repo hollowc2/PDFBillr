@@ -10,7 +10,7 @@ services:
       - ./static/logos:/app/static/logos
     restart: unless-stopped
     environment:
-      - SECRET_KEY=change-me-in-production
+      - SECRET_KEY=${SECRET_KEY}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
