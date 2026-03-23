@@ -3,7 +3,7 @@
 {% block title %}PDFBillr — Create Invoice{% endblock %}
 
 {% block content %}
-<form id="invoice-form" action="/generate" method="POST" novalidate>
+<form id="invoice-form" action="{{ url_for('generate') }}" method="POST" novalidate>
 
   <h1 class="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Create Invoice</h1>
 
@@ -200,5 +200,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/form.js"></script>
+<script src="{{ url_for('static', filename='js/form.js') }}"></script>
 {% endblock %}

@@ -10,3 +10,4 @@ accesslog = "-"
 errorlog = "-"
 loglevel = "info"
 forwarded_allow_ips = "*"
+raw_env = ["SCRIPT_NAME=/pdfbillr"]
