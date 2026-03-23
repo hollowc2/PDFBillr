@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Invoice {{ invoice_number }}</title>
+<style>
+/* ── Page setup ─────────────────────────────────────────────────── */
+@page {
+  size: A4;
+  margin: 14mm 16mm 20mm 16mm;
+  @bottom-center {
+    content: "Page " counter(page) " of " counter(pages);
+    font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
+    font-size: 8pt;
+    color: #6b7280;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
+  font-size: 9.5pt;
+  color: #111827;
+  background: #ffffff;
+  line-height: 1.45;
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.invoice-header {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8mm;
+}
+.invoice-header td {
+  vertical-align: top;
+  padding: 0;
+}
+.header-left {
+  width: 55%;
+}
+.invoice-title {
+  font-size: 28pt;
+  font-weight: 700;
+  color: #1e3a8a;
+  letter-spacing: -0.5pt;
+  margin-bottom: 6pt;
+}
+.meta-table {
+  border-collapse: collapse;
+}
+.meta-table td {
+  padding: 1.5pt 8pt 1.5pt 0;
+  font-size: 9pt;
+}
+.meta-label {
+  color: #6b7280;
+  white-space: nowrap;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 7.5pt;
+  letter-spacing: 0.3pt;
+}
+.meta-value {
+  color: #111827;
+  font-weight: 400;
+}
+.header-right {
+  width: 45%;
+  text-align: right;
+}
+/* TODO: Premium — replace logo placeholder with uploaded logo <img> */
+.logo-placeholder {
+  display: inline-block;
+  width: 64pt;
+  height: 64pt;
+  background: #dbeafe;
+  border: 1.5pt solid #bfdbfe;
+  border-radius: 8pt;
+  margin-bottom: 6pt;
+}
+.company-name {
+  font-size: 13pt;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+/* ── Divider ─────────────────────────────────────────────────────── */
+.divider {
+  border: none;
+  border-top: 1.5pt solid #1e3a8a;
+  margin: 0 0 6mm 0;
+}
+.divider-light {
+  border: none;
+  border-top: 0.5pt solid #e5e7eb;
+  margin: 4mm 0;
+}
+
+/* ── Parties ─────────────────────────────────────────────────────── */
+.parties {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 7mm;
+}
+.parties td {
+  vertical-align: top;
+  padding: 0;
+  width: 50%;
+}
+.party-label {
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5pt;
+  color: #6b7280;
+  margin-bottom: 4pt;
+}
+.party-name {
+  font-size: 11pt;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 3pt;
+}
+.party-address {
+  font-size: 9pt;
+  color: #374151;
+  white-space: pre-wrap;
+  margin-bottom: 3pt;
+}
+.party-contact {
+  font-size: 8.5pt;
+  color: #6b7280;
+}
+
+/* ── Items table ─────────────────────────────────────────────────── */
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 6mm;
+  font-size: 9pt;
+}
+.items-table thead tr {
+  background-color: #1e3a8a;
+  color: #ffffff;
+}
+.items-table thead th {
+  padding: 5pt 8pt;
+  text-align: left;
+  font-weight: 600;
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.3pt;
+}
+.items-table thead th.right { text-align: right; }
+.items-table tbody tr {
+  page-break-inside: avoid;
+}
+.items-table tbody tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+.items-table tbody tr:nth-child(odd) {
+  background-color: #ffffff;
+}
+.items-table tbody td {
+  padding: 5pt 8pt;
+  color: #374151;
+  border-bottom: 0.5pt solid #e5e7eb;
+}
+.items-table tbody td.right {
+  text-align: right;
+  font-family: "Courier New", "Liberation Mono", monospace;
+  font-size: 9pt;
+}
+.items-table tbody td.center { text-align: center; }
+.col-desc { width: 52%; }
+.col-qty  { width: 12%; text-align: center; }
+.col-rate { width: 18%; text-align: right; }
+.col-amt  { width: 18%; text-align: right; }
+
+/* ── Totals section ──────────────────────────────────────────────── */
+.totals-section {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 7mm;
+}
+.totals-spacer { width: 55%; }
+.totals-box { width: 45%; }
+.totals-inner {
+  width: 100%;
+  border-collapse: collapse;
+  border: 0.5pt solid #e5e7eb;
+  border-radius: 4pt;
+}
+.totals-inner td {
+  padding: 4pt 8pt;
+  font-size: 9pt;
+}
+.totals-inner .t-label {
+  color: #6b7280;
+  text-align: left;
+}
+.totals-inner .t-value {
+  text-align: right;
+  font-family: "Courier New", "Liberation Mono", monospace;
+  color: #374151;
+}
+.totals-inner tr.total-row {
+  background-color: #1e3a8a;
+}
+.totals-inner tr.total-row td {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 10.5pt;
+}
+.totals-inner tr.total-row .t-value {
+  color: #ffffff;
+}
+
+/* ── Bottom section (notes + payment) ───────────────────────────── */
+.bottom-section {
+  width: 100%;
+  border-collapse: collapse;
+}
+.bottom-section td {
+  vertical-align: top;
+  padding: 0;
+  width: 50%;
+}
+.bottom-section td:first-child {
+  padding-right: 8mm;
+}
+.section-label {
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5pt;
+  color: #6b7280;
+  margin-bottom: 4pt;
+  border-bottom: 1pt solid #e5e7eb;
+  padding-bottom: 2pt;
+}
+.section-content {
+  font-size: 8.5pt;
+  color: #374151;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────── -->
+<table class="invoice-header">
+  <tr>
+    <td class="header-left">
+      <div class="invoice-title">INVOICE</div>
+      <table class="meta-table">
+        <tr>
+          <td class="meta-label">Invoice No.</td>
+          <td class="meta-value">{{ invoice_number }}</td>
+        </tr>
+        <tr>
+          <td class="meta-label">Date</td>
+          <td class="meta-value">{{ invoice_date }}</td>
+        </tr>
+        {% if due_date %}
+        <tr>
+          <td class="meta-label">Due Date</td>
+          <td class="meta-value">{{ due_date }}</td>
+        </tr>
+        {% endif %}
+      </table>
+    </td>
+    <td class="header-right">
+      <div class="logo-placeholder"></div>
+      {% if from_company %}
+      <div class="company-name">{{ from_company }}</div>
+      {% endif %}
+    </td>
+  </tr>
+</table>
+
+<hr class="divider" />
+
+<!-- ── Parties ─────────────────────────────────────────────────── -->
+<table class="parties">
+  <tr>
+    <td>
+      <div class="party-label">From</div>
+      {% if from_company %}<div class="party-name">{{ from_company }}</div>{% endif %}
+      {% if from_address %}<div class="party-address">{{ from_address }}</div>{% endif %}
+      {% if from_email %}<div class="party-contact">{{ from_email }}</div>{% endif %}
+      {% if from_phone %}<div class="party-contact">{{ from_phone }}</div>{% endif %}
+    </td>
+    <td>
+      <div class="party-label">Bill To</div>
+      {% if to_name %}<div class="party-name">{{ to_name }}</div>{% endif %}
+      {% if to_address %}<div class="party-address">{{ to_address }}</div>{% endif %}
+      {% if to_email %}<div class="party-contact">{{ to_email }}</div>{% endif %}
+    </td>
+  </tr>
+</table>
+
+<hr class="divider-light" />
+
+<!-- ── Line Items ──────────────────────────────────────────────── -->
+<table class="items-table">
+  <thead>
+    <tr>
+      <th class="col-desc">Description</th>
+      <th class="col-qty right">Qty</th>
+      <th class="col-rate right">Rate</th>
+      <th class="col-amt right">Amount</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in line_items %}
+    <tr>
+      <td class="col-desc">{{ item.description }}</td>
+      <td class="col-qty right">
+        {% if item.qty == item.qty | int %}{{ item.qty | int }}{% else %}{{ item.qty }}{% endif %}
+      </td>
+      <td class="col-rate right">${{ "%.2f" | format(item.rate) }}</td>
+      <td class="col-amt right">${{ "%.2f" | format(item.amount) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- ── Totals ──────────────────────────────────────────────────── -->
+<table class="totals-section">
+  <tr>
+    <td class="totals-spacer"></td>
+    <td class="totals-box">
+      <table class="totals-inner">
+        <tr>
+          <td class="t-label">Subtotal</td>
+          <td class="t-value">${{ "%.2f" | format(subtotal) }}</td>
+        </tr>
+        {% if tax_rate %}
+        <tr>
+          <td class="t-label">Tax ({{ tax_rate | int if tax_rate == tax_rate | int else tax_rate }}%)</td>
+          <td class="t-value">${{ "%.2f" | format(tax_amount) }}</td>
+        </tr>
+        {% endif %}
+        {% if discount %}
+        <tr>
+          <td class="t-label">Discount</td>
+          <td class="t-value">-${{ "%.2f" | format(discount) }}</td>
+        </tr>
+        {% endif %}
+        <tr class="total-row">
+          <td class="t-label">Total Due</td>
+          <td class="t-value">${{ "%.2f" | format(total) }}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- ── Notes + Payment ─────────────────────────────────────────── -->
+{% if notes or payment_info %}
+<table class="bottom-section">
+  <tr>
+    {% if notes %}
+    <td>
+      <div class="section-label">Notes</div>
+      <div class="section-content">{{ notes }}</div>
+    </td>
+    {% endif %}
+    {% if payment_info %}
+    <td>
+      <div class="section-label">Payment Information</div>
+      <div class="section-content">{{ payment_info }}</div>
+    </td>
+    {% endif %}
+  </tr>
+</table>
+{% endif %}
+
+</body>
+</html>

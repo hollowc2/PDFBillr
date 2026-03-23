@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en" class="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}PDFBillr — Free Invoice Generator{% endblock %}</title>
+  <script>
+    // Dark mode: apply before render to avoid flash
+    (function () {
+      const stored = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (stored === 'dark' || (!stored && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:  '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              300: '#93c5fd',
+              400: '#60a5fa',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
+
+  <!-- Sticky Nav -->
+  <nav class="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl font-black tracking-tight text-brand-700 dark:text-brand-400">
+          PDF<span class="text-gray-900 dark:text-white">Billr</span>
+        </span>
+        <span class="hidden sm:inline text-sm text-gray-500 dark:text-gray-400 font-medium">
+          — Free PDF Invoice Generator
+        </span>
+      </div>
+      <button
+        id="dark-toggle"
+        aria-label="Toggle dark mode"
+        class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+      >
+        <svg id="icon-sun" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+        </svg>
+        <svg id="icon-moon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Pro upgrade teaser banner -->
+  <div class="bg-brand-900 dark:bg-brand-950 text-white">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center gap-3 justify-between">
+      <div class="text-sm">
+        <span class="font-bold text-brand-300">PDFBillr Pro</span>
+        <span class="text-brand-200"> — $7/mo · </span>
+        <span class="text-gray-300">Custom logo · Client history · Email delivery · Recurring invoices · PDF templates</span>
+      </div>
+      <a href="#" class="shrink-0 text-xs font-semibold bg-brand-500 hover:bg-brand-400 px-4 py-2 rounded-lg transition-colors">
+        Upgrade →
+      </a>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 text-center text-xs text-gray-500 dark:text-gray-500 py-4">
+    Made with ❤️ on a VPS &nbsp;·&nbsp; PDFBillr &copy; 2026 &nbsp;·&nbsp; Free forever, no account required
+  </footer>
+
+  <!-- Dark mode toggle script -->
+  <script>
+    document.getElementById('dark-toggle').addEventListener('click', function () {
+      const html = document.documentElement;
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      } else {
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      }
+    });
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

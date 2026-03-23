@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}PDFBillr — Create Invoice{% endblock %}
+
+{% block content %}
+<form id="invoice-form" action="/generate" method="POST" novalidate>
+
+  <h1 class="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Create Invoice</h1>
+
+  <!-- ── From / To ──────────────────────────────────────────────── -->
+  <div class="grid md:grid-cols-2 gap-6 mb-6">
+
+    <!-- From -->
+    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">From</h2>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Company / Your Name</label>
+        <input type="text" name="from_company" placeholder="Acme Corp" class="input-field" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Address</label>
+        <textarea name="from_address" rows="3" placeholder="123 Main St&#10;City, State 00000" class="input-field resize-none"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+          <input type="email" name="from_email" placeholder="you@example.com" class="input-field" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</label>
+          <input type="tel" name="from_phone" placeholder="+1 555 000 0000" class="input-field" />
+        </div>
+      </div>
+    </div>
+
+    <!-- To -->
+    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Bill To</h2>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client Name</label>
+        <input type="text" name="to_name" placeholder="Client LLC" class="input-field" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Address</label>
+        <textarea name="to_address" rows="3" placeholder="456 Client Ave&#10;City, State 00000" class="input-field resize-none"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+        <input type="email" name="to_email" placeholder="client@example.com" class="input-field" />
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Invoice Details ────────────────────────────────────────── -->
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Invoice Details</h2>
+    <div class="grid sm:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Invoice Number</label>
+        <input type="text" name="invoice_number" value="INV-001" class="input-field" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Invoice Date</label>
+        <input type="date" name="invoice_date" value="{{ today }}" class="input-field" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Due Date</label>
+        <input type="date" name="due_date" class="input-field" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Line Items ─────────────────────────────────────────────── -->
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Line Items</h2>
+
+    <!-- Header row (hidden on mobile) -->
+    <div class="hidden md:grid grid-cols-12 gap-2 mb-2 px-1">
+      <div class="col-span-6 text-xs font-medium text-gray-500 dark:text-gray-400">Description</div>
+      <div class="col-span-2 text-xs font-medium text-gray-500 dark:text-gray-400">Qty</div>
+      <div class="col-span-2 text-xs font-medium text-gray-500 dark:text-gray-400">Rate</div>
+      <div class="col-span-1 text-xs font-medium text-gray-500 dark:text-gray-400 text-right">Amount</div>
+      <div class="col-span-1"></div>
+    </div>
+
+    <!-- Dynamic rows injected by JS -->
+    <div id="line-items" class="space-y-2"></div>
+
+    <button
+      type="button"
+      id="add-row-btn"
+      class="mt-4 text-sm font-medium text-brand-600 dark:text-brand-400 hover:text-brand-800 dark:hover:text-brand-300 flex items-center gap-1 transition-colors"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Add Row
+    </button>
+
+    <!-- Totals panel -->
+    <div class="flex justify-end mt-6">
+      <div class="w-full sm:w-80 space-y-2 text-sm">
+        <div class="flex justify-between items-center text-gray-600 dark:text-gray-400">
+          <span>Subtotal</span>
+          <span id="display-subtotal" class="font-mono">$0.00</span>
+        </div>
+        <div class="flex justify-between items-center text-gray-600 dark:text-gray-400">
+          <span class="flex items-center gap-2">
+            Tax
+            <input
+              type="number"
+              id="tax-input"
+              name="tax_rate"
+              value="0"
+              min="0"
+              max="100"
+              step="0.01"
+              class="w-14 px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center text-xs focus:ring-1 focus:ring-brand-500 focus:outline-none"
+            />
+            <span class="text-xs">%</span>
+          </span>
+          <span id="display-tax" class="font-mono">$0.00</span>
+        </div>
+        <div class="flex justify-between items-center text-gray-600 dark:text-gray-400">
+          <span class="flex items-center gap-2">
+            Discount
+            <span class="text-xs">$</span>
+            <input
+              type="number"
+              id="discount-input"
+              name="discount"
+              value="0"
+              min="0"
+              step="0.01"
+              class="w-20 px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center text-xs focus:ring-1 focus:ring-brand-500 focus:outline-none"
+            />
+          </span>
+          <span id="display-discount" class="font-mono">$0.00</span>
+        </div>
+        <div class="flex justify-between items-center border-t border-gray-200 dark:border-gray-700 pt-2 text-lg font-bold text-brand-700 dark:text-brand-400">
+          <span>Total</span>
+          <span id="display-total" class="font-mono">$0.00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Notes + Payment ────────────────────────────────────────── -->
+  <div class="grid md:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Notes</h2>
+      <textarea
+        name="notes"
+        rows="4"
+        placeholder="Thank you for your business! Payment within 30 days."
+        class="input-field resize-none"
+      ></textarea>
+    </div>
+    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Payment Info</h2>
+      <textarea
+        name="payment_info"
+        rows="4"
+        placeholder="Bank: Example Bank&#10;Account: 0000 0000&#10;Routing: 000000000"
+        class="input-field resize-none"
+      ></textarea>
+    </div>
+  </div>
+
+  <!-- ── Action Buttons ─────────────────────────────────────────── -->
+  <div class="flex flex-col sm:flex-row gap-3 justify-end">
+    <button
+      type="submit"
+      name="action"
+      value="preview"
+      id="btn-preview"
+      class="px-6 py-3 rounded-xl border-2 border-brand-600 text-brand-700 dark:text-brand-400 dark:border-brand-500 font-semibold text-sm hover:bg-brand-50 dark:hover:bg-brand-950 transition-colors"
+    >
+      Preview PDF
+    </button>
+    <button
+      type="submit"
+      name="action"
+      value="download"
+      id="btn-download"
+      class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition-colors shadow-sm"
+    >
+      Download PDF
+    </button>
+  </div>
+
+</form>
+
+<style>
+  .input-field {
+    @apply w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none transition-colors;
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/form.js"></script>
+{% endblock %}
