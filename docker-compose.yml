@@ -2,7 +2,7 @@ services:
   web:
     build: .
     ports:
-      - "8000:8000"
+      - "8080:8000"
     volumes:
       - ./instance:/app/instance
       - ./static/logos:/app/static/logos
