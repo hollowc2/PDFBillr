@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en" class="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDFBillr — Professional PDF Invoices in Seconds</title>
+  <meta name="description" content="Generate professional PDF invoices instantly. No account required. Free forever. Built for freelancers and small businesses." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script>
+    (function () {
+      const stored = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (stored === 'dark' || (!stored && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50:  '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              300: '#93c5fd',
+              400: '#60a5fa',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+              950: '#172554',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+
+    .hero-gradient {
+      background: linear-gradient(135deg, #eff6ff 0%, #ffffff 60%, #f0f9ff 100%);
+    }
+    .dark .hero-gradient {
+      background: linear-gradient(135deg, #0f172a 0%, #111827 60%, #0c1322 100%);
+    }
+
+    .card-hover {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(37, 99, 235, 0.12);
+    }
+    .dark .card-hover:hover {
+      box-shadow: 0 20px 40px rgba(37, 99, 235, 0.2);
+    }
+
+    .step-connector {
+      position: absolute;
+      top: 24px;
+      left: calc(50% + 40px);
+      width: calc(100% - 80px);
+      height: 2px;
+      background: linear-gradient(90deg, #2563eb, #3b82f6);
+      opacity: 0.3;
+    }
+
+    .invoice-mock {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+<body class="font-sans bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+
+  <!-- ── Sticky Nav ───────────────────────────────────────────── -->
+  <nav class="sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+
+      <!-- Logo -->
+      <a href="/" class="flex items-center gap-2 shrink-0">
+        <span class="text-2xl font-black tracking-tight text-brand-700 dark:text-brand-400">
+          PDF<span class="text-gray-900 dark:text-white">Billr</span>
+        </span>
+      </a>
+
+      <!-- Center links (hidden on mobile) -->
+      <div class="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600 dark:text-gray-400">
+        <a href="#features" class="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Features</a>
+        <a href="#how-it-works" class="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">How It Works</a>
+        <a href="#pricing" class="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Pricing</a>
+      </div>
+
+      <!-- Right: dark toggle + CTA -->
+      <div class="flex items-center gap-3">
+        <button
+          id="dark-toggle"
+          aria-label="Toggle dark mode"
+          class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        >
+          <svg id="icon-sun" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+          </svg>
+          <svg id="icon-moon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+          </svg>
+        </button>
+        <a href="/app"
+          class="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition-colors shadow-sm">
+          Generate Invoice
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>
+      </div>
+
+    </div>
+  </nav>
+
+  <!-- ── Hero ─────────────────────────────────────────────────── -->
+  <section class="hero-gradient">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-20 md:py-28 flex flex-col md:flex-row items-center gap-12 md:gap-16">
+
+      <!-- Left: copy -->
+      <div class="flex-1 text-center md:text-left">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-50 dark:bg-brand-900/30 border border-brand-200 dark:border-brand-800 text-brand-700 dark:text-brand-300 text-xs font-semibold mb-6">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+          </svg>
+          Free Forever · No Account Required
+        </div>
+
+        <h1 class="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-gray-900 dark:text-white leading-[1.1] mb-5">
+          Professional invoices<br class="hidden sm:block" />
+          <span class="text-brand-600 dark:text-brand-400">in 30 seconds.</span>
+        </h1>
+
+        <p class="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-xl mx-auto md:mx-0 mb-8 leading-relaxed">
+          No accounts. No subscriptions. Just fill in your details, hit generate, and send a polished PDF invoice to your client.
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
+          <a href="/app"
+            class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-base transition-colors shadow-lg shadow-brand-600/25">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Generate Your First Invoice
+          </a>
+          <a href="#how-it-works"
+            class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-brand-400 hover:text-brand-600 dark:hover:text-brand-400 font-semibold text-base transition-colors">
+            See how it works
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </a>
+        </div>
+
+        <p class="mt-5 text-xs text-gray-400 dark:text-gray-600">
+          No signup · No credit card · Works in your browser
+        </p>
+      </div>
+
+      <!-- Right: hero graphic -->
+      <div class="flex-1 flex justify-center md:justify-end w-full max-w-lg md:max-w-none">
+        <div class="relative w-full max-w-md">
+          <div class="absolute inset-0 rounded-2xl bg-brand-500 opacity-10 blur-2xl transform scale-105"></div>
+          <img
+            src="{{ url_for('static', filename='logos/landingpagegraphic.png') }}"
+            alt="PDFBillr invoice preview"
+            class="relative rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full object-cover"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+          />
+          <!-- Fallback: faux invoice if image missing -->
+          <div style="display:none" class="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6 invoice-mock">
+            <div class="flex justify-between items-start mb-6">
+              <div>
+                <div class="text-lg font-black text-brand-700 dark:text-brand-400">PDF<span class="text-gray-900 dark:text-white">Billr</span></div>
+                <div class="text-xs text-gray-500 mt-1">Your Company Name</div>
+                <div class="text-xs text-gray-400">hello@yourcompany.com</div>
+              </div>
+              <div class="text-right">
+                <div class="text-xl font-black text-gray-900 dark:text-white">INVOICE</div>
+                <div class="text-xs text-gray-500 mt-1">#INV-2026-001</div>
+                <div class="text-xs text-gray-400">Due: Apr 15, 2026</div>
+              </div>
+            </div>
+            <div class="border-t border-gray-100 dark:border-gray-800 pt-4 mb-4">
+              <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Bill To</div>
+              <div class="text-sm font-semibold text-gray-900 dark:text-white">Acme Corporation</div>
+              <div class="text-xs text-gray-500">billing@acmecorp.com</div>
+            </div>
+            <table class="w-full text-xs mb-4">
+              <thead>
+                <tr class="border-b border-gray-100 dark:border-gray-800">
+                  <th class="text-left text-gray-400 font-medium pb-1.5">Description</th>
+                  <th class="text-right text-gray-400 font-medium pb-1.5">Qty</th>
+                  <th class="text-right text-gray-400 font-medium pb-1.5">Rate</th>
+                  <th class="text-right text-gray-400 font-medium pb-1.5">Total</th>
+                </tr>
+              </thead>
+              <tbody class="text-gray-700 dark:text-gray-300">
+                <tr class="border-b border-gray-50 dark:border-gray-800/50">
+                  <td class="py-1.5">UI Design Work</td>
+                  <td class="text-right py-1.5">5</td>
+                  <td class="text-right py-1.5">$150</td>
+                  <td class="text-right py-1.5 font-medium">$750</td>
+                </tr>
+                <tr class="border-b border-gray-50 dark:border-gray-800/50">
+                  <td class="py-1.5">Development</td>
+                  <td class="text-right py-1.5">8</td>
+                  <td class="text-right py-1.5">$200</td>
+                  <td class="text-right py-1.5 font-medium">$1,600</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="flex justify-end">
+              <div class="text-right space-y-1">
+                <div class="flex gap-8 text-xs text-gray-500"><span>Subtotal</span><span>$2,350</span></div>
+                <div class="flex gap-8 text-xs text-gray-500"><span>Tax (10%)</span><span>$235</span></div>
+                <div class="flex gap-8 text-sm font-black text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-700 pt-1 mt-1"><span>Total</span><span>$2,585</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Social proof strip ────────────────────────────────────── -->
+  <div class="bg-gray-50 dark:bg-gray-900/60 border-y border-gray-200 dark:border-gray-800">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500 dark:text-gray-500">
+      <span class="flex items-center gap-1.5">
+        <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+        Unlimited free invoices
+      </span>
+      <span class="hidden sm:block text-gray-300 dark:text-gray-700">·</span>
+      <span class="flex items-center gap-1.5">
+        <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+        No data stored on our servers
+      </span>
+      <span class="hidden sm:block text-gray-300 dark:text-gray-700">·</span>
+      <span class="flex items-center gap-1.5">
+        <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+        PDF downloads in seconds
+      </span>
+      <span class="hidden sm:block text-gray-300 dark:text-gray-700">·</span>
+      <span class="flex items-center gap-1.5">
+        <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+        Works on any device
+      </span>
+    </div>
+  </div>
+
+  <!-- ── Features ──────────────────────────────────────────────── -->
+  <section id="features" class="py-20 md:py-28 bg-white dark:bg-gray-950">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+
+      <div class="text-center mb-14">
+        <h2 class="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white mb-4">
+          Everything you need.<br class="hidden sm:block" />Nothing you don't.
+        </h2>
+        <p class="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
+          PDFBillr strips away the bloat so you can focus on the work that actually pays.
+        </p>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <!-- Feature 1 -->
+        <div class="card-hover bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+          <div class="w-11 h-11 rounded-xl bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Instant PDF Generation</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            Fill a simple form and download a polished, print-ready PDF in under a second. No waiting, no rendering queues, no nonsense.
+          </p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="card-hover bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+          <div class="w-11 h-11 rounded-xl bg-green-100 dark:bg-green-900/40 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+          </div>
+          <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Zero Account Required</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            Your invoice data never touches our database. No signup, no email, no tracking — just open the page and bill your client.
+          </p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="card-hover bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+          <div class="w-11 h-11 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+          </div>
+          <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Fully Customizable</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            Add your company details, logo, line items, tax rates, discounts, and payment notes. Every field you need to look professional.
+          </p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="card-hover bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+          <div class="w-11 h-11 rounded-xl bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Auto Calculations</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            Subtotals, tax, and discounts calculate automatically as you type. No spreadsheet required — the math is always right.
+          </p>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="card-hover bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+          <div class="w-11 h-11 rounded-xl bg-pink-100 dark:bg-pink-900/40 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+          </div>
+          <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Preview Before Download</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            Preview your invoice directly in the browser before downloading. Catch mistakes before they reach your client.
+          </p>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="card-hover bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+          <div class="w-11 h-11 rounded-xl bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Works Everywhere</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            Desktop, tablet, or phone — PDFBillr is fully responsive. Invoice on the go, from any device, anywhere.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── How It Works ───────────────────────────────────────────── -->
+  <section id="how-it-works" class="py-20 md:py-28 bg-gray-50 dark:bg-gray-900/50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+
+      <div class="text-center mb-14">
+        <h2 class="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white mb-4">
+          Three steps. Thirty seconds.
+        </h2>
+        <p class="text-lg text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
+          We cut the friction so you can get back to what matters — the actual work.
+        </p>
+      </div>
+
+      <!-- Steps -->
+      <div class="grid md:grid-cols-3 gap-8 relative">
+
+        <div class="relative flex flex-col items-center text-center">
+          <div class="w-12 h-12 rounded-full bg-brand-600 text-white font-black text-lg flex items-center justify-center shadow-lg shadow-brand-600/30 mb-5 z-10">
+            1
+          </div>
+          <!-- connector line (hidden on mobile) -->
+          <div class="hidden md:block absolute top-6 left-[calc(50%+30px)] w-[calc(100%-60px)] h-0.5 bg-gradient-to-r from-brand-400 to-brand-200 dark:from-brand-700 dark:to-brand-900 opacity-50"></div>
+          <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Fill in your details</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed max-w-xs">
+            Enter your company info, client details, line items, and any notes. The form is fast, clean, and distraction-free.
+          </p>
+        </div>
+
+        <div class="relative flex flex-col items-center text-center">
+          <div class="w-12 h-12 rounded-full bg-brand-600 text-white font-black text-lg flex items-center justify-center shadow-lg shadow-brand-600/30 mb-5 z-10">
+            2
+          </div>
+          <div class="hidden md:block absolute top-6 left-[calc(50%+30px)] w-[calc(100%-60px)] h-0.5 bg-gradient-to-r from-brand-400 to-brand-200 dark:from-brand-700 dark:to-brand-900 opacity-50"></div>
+          <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Preview or download</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed max-w-xs">
+            Hit "Preview" to review in your browser, or "Download PDF" to get the file immediately. Your call.
+          </p>
+        </div>
+
+        <div class="flex flex-col items-center text-center">
+          <div class="w-12 h-12 rounded-full bg-brand-600 text-white font-black text-lg flex items-center justify-center shadow-lg shadow-brand-600/30 mb-5">
+            3
+          </div>
+          <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Send it — done</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed max-w-xs">
+            Attach the PDF to an email, share a link, or print it. You're done. Go get paid.
+          </p>
+        </div>
+
+      </div>
+
+      <div class="mt-12 text-center">
+        <a href="/app"
+          class="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-base transition-colors shadow-lg shadow-brand-600/25">
+          Try it now — it's free
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Live Invoice Mockup ────────────────────────────────────── -->
+  <section class="py-20 md:py-28 bg-white dark:bg-gray-950">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+
+      <div class="text-center mb-14">
+        <h2 class="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white mb-4">
+          What your invoice looks like
+        </h2>
+        <p class="text-lg text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
+          Clean, professional, and ready to impress — every time.
+        </p>
+      </div>
+
+      <!-- Faux invoice rendered in browser -->
+      <div class="max-w-2xl mx-auto">
+        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden invoice-mock">
+
+          <!-- Invoice header -->
+          <div class="bg-brand-700 dark:bg-brand-900 px-8 py-6 flex justify-between items-start">
+            <div>
+              <div class="text-xl font-black text-white">Your Company Name</div>
+              <div class="text-brand-200 text-sm mt-1">123 Main Street, City, State 12345</div>
+              <div class="text-brand-200 text-sm">hello@yourcompany.com · (555) 000-1234</div>
+            </div>
+            <div class="text-right">
+              <div class="text-3xl font-black text-white tracking-tight">INVOICE</div>
+              <div class="text-brand-200 text-sm mt-1">#INV-2026-042</div>
+            </div>
+          </div>
+
+          <div class="px-8 py-6">
+
+            <!-- Dates + Bill To -->
+            <div class="grid grid-cols-2 gap-6 mb-6">
+              <div>
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Bill To</div>
+                <div class="text-sm font-bold text-gray-900 dark:text-white">Acme Corporation</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">456 Client Ave, Suite 100</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">billing@acmecorp.com</div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Details</div>
+                <div class="text-xs text-gray-600 dark:text-gray-400">Invoice Date: <span class="font-medium text-gray-900 dark:text-white">Mar 23, 2026</span></div>
+                <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">Due Date: <span class="font-medium text-gray-900 dark:text-white">Apr 22, 2026</span></div>
+              </div>
+            </div>
+
+            <!-- Line items table -->
+            <table class="w-full text-sm mb-4">
+              <thead>
+                <tr class="border-b-2 border-gray-200 dark:border-gray-700">
+                  <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-2">Description</th>
+                  <th class="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider pb-2">Qty</th>
+                  <th class="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider pb-2">Rate</th>
+                  <th class="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider pb-2">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-gray-100 dark:border-gray-800">
+                  <td class="py-2.5 text-gray-800 dark:text-gray-200">UI/UX Design — Homepage Redesign</td>
+                  <td class="py-2.5 text-right text-gray-600 dark:text-gray-400">5</td>
+                  <td class="py-2.5 text-right text-gray-600 dark:text-gray-400">$150.00</td>
+                  <td class="py-2.5 text-right font-semibold text-gray-900 dark:text-white">$750.00</td>
+                </tr>
+                <tr class="border-b border-gray-100 dark:border-gray-800">
+                  <td class="py-2.5 text-gray-800 dark:text-gray-200">Frontend Development</td>
+                  <td class="py-2.5 text-right text-gray-600 dark:text-gray-400">8</td>
+                  <td class="py-2.5 text-right text-gray-600 dark:text-gray-400">$200.00</td>
+                  <td class="py-2.5 text-right font-semibold text-gray-900 dark:text-white">$1,600.00</td>
+                </tr>
+                <tr class="border-b border-gray-100 dark:border-gray-800">
+                  <td class="py-2.5 text-gray-800 dark:text-gray-200">Strategy Consultation</td>
+                  <td class="py-2.5 text-right text-gray-600 dark:text-gray-400">2</td>
+                  <td class="py-2.5 text-right text-gray-600 dark:text-gray-400">$250.00</td>
+                  <td class="py-2.5 text-right font-semibold text-gray-900 dark:text-white">$500.00</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Totals -->
+            <div class="flex justify-end mb-6">
+              <div class="w-56 space-y-1.5">
+                <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                  <span>Subtotal</span>
+                  <span>$2,850.00</span>
+                </div>
+                <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                  <span>Tax (10%)</span>
+                  <span>$285.00</span>
+                </div>
+                <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-1.5">
+                  <span>Discount</span>
+                  <span class="text-green-600">−$50.00</span>
+                </div>
+                <div class="flex justify-between text-base font-black text-gray-900 dark:text-white border-t-2 border-gray-300 dark:border-gray-600 pt-2 mt-1">
+                  <span>Total Due</span>
+                  <span class="text-brand-700 dark:text-brand-400">$3,085.00</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 mb-4">
+              <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Payment Info</div>
+              <div class="text-xs text-gray-600 dark:text-gray-400">Bank Transfer · Account: 0001-2345-6789 · Routing: 021000021</div>
+            </div>
+
+            <div class="text-center text-xs text-gray-400 dark:text-gray-600">
+              Generated with PDFBillr · Free PDF Invoice Generator
+            </div>
+
+          </div>
+        </div>
+
+        <p class="text-center text-sm text-gray-500 dark:text-gray-500 mt-4">
+          This is exactly what your client receives — clean and ready to send.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Pricing ────────────────────────────────────────────────── -->
+  <section id="pricing" class="py-20 md:py-28 bg-gray-50 dark:bg-gray-900/50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+
+      <div class="text-center mb-14">
+        <h2 class="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white mb-4">
+          Simple, honest pricing
+        </h2>
+        <p class="text-lg text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
+          The core tool is free forever. Pro adds the power features when you're ready to level up.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+
+        <!-- Free tier -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-700 p-8 flex flex-col">
+          <div class="mb-6">
+            <div class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Free</div>
+            <div class="flex items-end gap-2 mb-1">
+              <span class="text-4xl font-black text-gray-900 dark:text-white">$0</span>
+              <span class="text-gray-500 dark:text-gray-400 mb-1">/ forever</span>
+            </div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Everything you need to invoice clients today.</p>
+          </div>
+
+          <ul class="space-y-3 mb-8 flex-1">
+            <li class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300">
+              <svg class="w-4 h-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              Unlimited PDF invoices
+            </li>
+            <li class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300">
+              <svg class="w-4 h-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              All core fields (line items, tax, discount)
+            </li>
+            <li class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300">
+              <svg class="w-4 h-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              Browser preview
+            </li>
+            <li class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300">
+              <svg class="w-4 h-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              No account required
+            </li>
+            <li class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300">
+              <svg class="w-4 h-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              Dark mode
+            </li>
+          </ul>
+
+          <a href="/app"
+            class="w-full text-center py-3 rounded-xl border-2 border-brand-600 text-brand-600 dark:text-brand-400 dark:border-brand-500 font-bold hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+            Start Free →
+          </a>
+        </div>
+
+        <!-- Pro tier -->
+        <div class="relative bg-brand-700 dark:bg-brand-900 rounded-2xl border-2 border-brand-600 dark:border-brand-700 p-8 flex flex-col overflow-hidden">
+          <div class="absolute top-4 right-4 bg-brand-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+            Coming Soon
+          </div>
+
+          <div class="mb-6">
+            <div class="text-sm font-semibold text-brand-300 uppercase tracking-wider mb-2">Pro</div>
+            <div class="flex items-end gap-2 mb-1">
+              <span class="text-4xl font-black text-white">$7</span>
+              <span class="text-brand-300 mb-1">/ month</span>
+            </div>
+            <p class="text-sm text-brand-200">For freelancers who invoice regularly.</p>
+          </div>
+
+          <ul class="space-y-3 mb-8 flex-1">
+            <li class="flex items-center gap-2.5 text-sm text-brand-100">
+              <svg class="w-4 h-4 text-brand-300 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              Everything in Free
+            </li>
+            <li class="flex items-center gap-2.5 text-sm text-brand-100">
+              <svg class="w-4 h-4 text-brand-300 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              Custom logo upload
+            </li>
+            <li class="flex items-center gap-2.5 text-sm text-brand-100">
+              <svg class="w-4 h-4 text-brand-300 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              Client history &amp; saved invoices
+            </li>
+            <li class="flex items-center gap-2.5 text-sm text-brand-100">
+              <svg class="w-4 h-4 text-brand-300 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              Email delivery
+            </li>
+            <li class="flex items-center gap-2.5 text-sm text-brand-100">
+              <svg class="w-4 h-4 text-brand-300 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              Recurring invoices
+            </li>
+            <li class="flex items-center gap-2.5 text-sm text-brand-100">
+              <svg class="w-4 h-4 text-brand-300 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              Multiple PDF templates
+            </li>
+          </ul>
+
+          <button disabled class="w-full text-center py-3 rounded-xl bg-brand-500/50 text-brand-200 font-bold cursor-not-allowed">
+            Coming Soon
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Final CTA ──────────────────────────────────────────────── -->
+  <section class="py-20 bg-brand-700 dark:bg-brand-950">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+      <h2 class="text-3xl sm:text-4xl font-black text-white mb-4">
+        Stop stressing about invoices.
+      </h2>
+      <p class="text-lg text-brand-200 mb-8 max-w-lg mx-auto">
+        Open PDFBillr, fill in your details, download your PDF, send it. Done in under a minute.
+      </p>
+      <a href="/app"
+        class="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-white text-brand-700 font-black text-base hover:bg-brand-50 transition-colors shadow-xl">
+        Generate Your First Invoice — Free
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+        </svg>
+      </a>
+      <p class="mt-4 text-brand-300 text-sm">No signup · No credit card · Works instantly</p>
+    </div>
+  </section>
+
+  <!-- ── Footer ─────────────────────────────────────────────────── -->
+  <footer class="bg-gray-900 dark:bg-gray-950 border-t border-gray-800">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+      <div class="flex flex-col md:flex-row items-start justify-between gap-8 mb-8">
+
+        <!-- Brand -->
+        <div>
+          <div class="text-xl font-black tracking-tight text-brand-400 mb-2">
+            PDF<span class="text-white">Billr</span>
+          </div>
+          <p class="text-sm text-gray-500 max-w-xs">
+            Professional PDF invoices for freelancers and small businesses. Free forever, no account required.
+          </p>
+        </div>
+
+        <!-- Links -->
+        <div class="flex flex-wrap gap-x-10 gap-y-4">
+          <div>
+            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Product</div>
+            <ul class="space-y-2 text-sm text-gray-400">
+              <li><a href="#features" class="hover:text-white transition-colors">Features</a></li>
+              <li><a href="#how-it-works" class="hover:text-white transition-colors">How It Works</a></li>
+              <li><a href="#pricing" class="hover:text-white transition-colors">Pricing</a></li>
+            </ul>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Use It</div>
+            <ul class="space-y-2 text-sm text-gray-400">
+              <li><a href="/app" class="hover:text-white transition-colors">Generate Invoice</a></li>
+              <li><a href="/health" class="hover:text-white transition-colors">Status</a></li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-600">
+        <span>Made with ❤️ on a VPS</span>
+        <span>PDFBillr © 2026 · Free forever, no account required</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Dark mode toggle -->
+  <script>
+    document.getElementById('dark-toggle').addEventListener('click', function () {
+      const html = document.documentElement;
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      } else {
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      }
+    });
+  </script>
+
+</body>
+</html>

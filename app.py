@@ -9,6 +9,11 @@ app.secret_key = "change-me-in-production"
 
 
 @app.route("/")
+def landing():
+    return render_template("landing.html")
+
+
+@app.route("/app")
 def index():
     return render_template("form.html", today=date.today().isoformat())
 
