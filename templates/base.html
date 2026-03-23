@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}PDFBillr — Free Invoice Generator{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <script>
     // Dark mode: apply before render to avoid flash
     (function () {
@@ -20,6 +23,9 @@
       darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          },
           colors: {
             brand: {
               50:  '#eff6ff',
@@ -38,9 +44,40 @@
       }
     }
   </script>
+  <style>
+    .input-field {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid #9ca3af;
+      background-color: #f9fafb;
+      color: #111827;
+      font-size: 0.875rem;
+      font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      color-scheme: light;
+    }
+    .input-field::placeholder { color: #9ca3af; }
+    .input-field:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59,130,246,0.3);
+    }
+    .dark .input-field {
+      border-color: #4b5563;
+      background-color: #1f2937;
+      color: #f3f4f6;
+      color-scheme: dark;
+    }
+    .dark .input-field::placeholder { color: #6b7280; }
+    .dark .input-field:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59,130,246,0.3);
+    }
+  </style>
   {% block head %}{% endblock %}
 </head>
-<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
+<body class="font-sans bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
 
   <!-- Sticky Nav -->
   <nav class="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
