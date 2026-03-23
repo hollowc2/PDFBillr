@@ -117,7 +117,7 @@
               d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
           </svg>
         </button>
-        <a href="/app"
+        <a href="{{ url_for('index') }}"
           class="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition-colors shadow-sm">
           Generate Invoice
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,7 +152,7 @@
         </p>
 
         <div class="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
-          <a href="/app"
+          <a href="{{ url_for('index') }}"
             class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-base transition-colors shadow-lg shadow-brand-600/25">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -415,7 +415,7 @@
       </div>
 
       <div class="mt-12 text-center">
-        <a href="/app"
+        <a href="{{ url_for('index') }}"
           class="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-base transition-colors shadow-lg shadow-brand-600/25">
           Try it now — it's free
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -598,7 +598,7 @@
             </li>
           </ul>
 
-          <a href="/app"
+          <a href="{{ url_for('index') }}"
             class="w-full text-center py-3 rounded-xl border-2 border-brand-600 text-brand-600 dark:text-brand-400 dark:border-brand-500 font-bold hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
             Start Free →
           </a>
@@ -664,7 +664,7 @@
       <p class="text-lg text-brand-200 mb-8 max-w-lg mx-auto">
         Open PDFBillr, fill in your details, download your PDF, send it. Done in under a minute.
       </p>
-      <a href="/app"
+      <a href="{{ url_for('index') }}"
         class="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-white text-brand-700 font-black text-base hover:bg-brand-50 transition-colors shadow-xl">
         Generate Your First Invoice — Free
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -703,7 +703,7 @@
           <div>
             <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Use It</div>
             <ul class="space-y-2 text-sm text-gray-400">
-              <li><a href="/app" class="hover:text-white transition-colors">Generate Invoice</a></li>
+              <li><a href="{{ url_for('index') }}" class="hover:text-white transition-colors">Generate Invoice</a></li>
               <li><a href="/health" class="hover:text-white transition-colors">Status</a></li>
             </ul>
           </div>
