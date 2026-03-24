@@ -17,6 +17,10 @@
       }
     })();
   </script>
+  <!-- TODO(L-2): Tailwind Play CDN is not suitable for production.
+       Replace with a build-step output: npx tailwindcss -o static/css/tailwind.min.css
+       or pin to a versioned CDN URL with an SRI hash.
+       See: https://tailwindcss.com/docs/installation -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {

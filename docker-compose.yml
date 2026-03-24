@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
     environment:
       - SECRET_KEY=${SECRET_KEY}
+      - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
