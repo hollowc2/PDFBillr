@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}PDFBillr — Create Account{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-8">
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 shadow-sm">
+    <h1 class="text-2xl font-bold mb-1 text-gray-900 dark:text-white">Create account</h1>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Free forever — no credit card required.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="mb-4 px-4 py-3 rounded-lg text-sm
+          {% if category == 'error' %}bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800
+          {% else %}bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('auth.register') }}" novalidate class="space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+        <input type="email" name="email" required autocomplete="email"
+               class="input-field" placeholder="you@example.com" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Password</label>
+        <input type="password" name="password" required autocomplete="new-password" minlength="8"
+               class="input-field" placeholder="At least 8 characters" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Confirm password</label>
+        <input type="password" name="confirm_password" required autocomplete="new-password"
+               class="input-field" placeholder="Repeat password" />
+      </div>
+      <button type="submit"
+              class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm">
+        Create account
+      </button>
+    </form>
+
+    <p class="mt-5 text-center text-sm text-gray-500 dark:text-gray-400">
+      Already have an account?
+      <a href="{{ url_for('auth.login') }}" class="text-blue-600 dark:text-blue-400 hover:underline">Sign in</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

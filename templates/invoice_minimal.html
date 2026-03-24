@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Invoice {{ invoice_number }}</title>
+<style>
+:root { --accent: {{ accent_color | default('#111827') | e }}; }
+
+@page {
+  size: A4;
+  margin: 18mm 20mm 22mm 20mm;
+  @bottom-center {
+    content: "Page " counter(page) " of " counter(pages);
+    font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
+    font-size: 7.5pt;
+    color: #9ca3af;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
+  font-size: 9.5pt;
+  color: #374151;
+  background: #ffffff;
+  line-height: 1.5;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12mm;
+  border-bottom: 0.5pt solid #e5e7eb;
+  padding-bottom: 6mm;
+}
+
+.logo-img { max-width: 100pt; max-height: 50pt; display: block; margin-bottom: 4pt; }
+.logo-placeholder {
+  width: 50pt; height: 50pt;
+  background: #f3f4f6;
+  border-radius: 6pt;
+  display: inline-block;
+  margin-bottom: 4pt;
+}
+
+.invoice-title {
+  font-size: 9pt;
+  font-weight: 700;
+  letter-spacing: 2pt;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 4pt;
+}
+.invoice-number {
+  font-size: 20pt;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.meta { font-size: 8.5pt; color: #6b7280; margin-top: 3pt; }
+
+.parties { width: 100%; border-collapse: collapse; margin-bottom: 10mm; }
+.parties td { width: 50%; vertical-align: top; padding: 0; }
+.party-label { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8pt; color: #9ca3af; margin-bottom: 3pt; }
+.party-name { font-size: 10.5pt; font-weight: 700; color: #111827; margin-bottom: 2pt; }
+.party-info { font-size: 8.5pt; color: #6b7280; white-space: pre-wrap; }
+
+.items-table { width: 100%; border-collapse: collapse; margin-bottom: 8mm; font-size: 9pt; }
+.items-table thead th {
+  padding: 4pt 8pt;
+  text-align: left;
+  font-size: 7pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5pt;
+  color: #9ca3af;
+  border-bottom: 0.5pt solid #e5e7eb;
+}
+.items-table thead th.right { text-align: right; }
+.items-table tbody td {
+  padding: 5pt 8pt;
+  color: #374151;
+  border-bottom: 0.5pt solid #f3f4f6;
+}
+.items-table tbody td.right { text-align: right; font-family: "Courier New", monospace; }
+.items-table tbody td.center { text-align: center; }
+.col-desc { width: 52%; }
+.col-qty  { width: 12%; text-align: center; }
+.col-rate { width: 18%; text-align: right; }
+.col-amt  { width: 18%; text-align: right; }
+
+.totals-section { width: 100%; border-collapse: collapse; margin-bottom: 8mm; }
+.totals-spacer { width: 55%; }
+.totals-box { width: 45%; }
+.totals-inner { width: 100%; border-collapse: collapse; }
+.totals-inner td { padding: 3pt 8pt; font-size: 9pt; }
+.t-label { color: #6b7280; }
+.t-value { text-align: right; font-family: "Courier New", monospace; }
+.total-row td {
+  border-top: 1.5pt solid var(--accent);
+  font-weight: 700;
+  font-size: 11pt;
+  color: var(--accent);
+  padding-top: 5pt;
+}
+
+.bottom-section { width: 100%; border-collapse: collapse; }
+.bottom-section td { vertical-align: top; width: 50%; padding: 0; }
+.bottom-section td:first-child { padding-right: 8mm; }
+.section-label { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5pt; color: #9ca3af; margin-bottom: 3pt; }
+.section-content { font-size: 8.5pt; color: #374151; white-space: pre-wrap; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<table class="header" style="width:100%; border-collapse:collapse; border-bottom: 0.5pt solid #e5e7eb; margin-bottom:12mm; padding-bottom:6mm;">
+  <tr>
+    <td style="vertical-align:top;">
+      {% if logo_url %}
+      <img src="{{ logo_url }}" alt="Company logo" class="logo-img" />
+      {% else %}
+      <div class="logo-placeholder"></div>
+      {% endif %}
+      {% if from_company %}<div style="font-size:11pt; font-weight:700; color:#111827;">{{ from_company | e }}</div>{% endif %}
+    </td>
+    <td style="vertical-align:top; text-align:right;">
+      <div class="invoice-title">Invoice</div>
+      <div class="invoice-number">{{ invoice_number | e }}</div>
+      <div class="meta">{{ invoice_date | e }}{% if due_date %} · Due {{ due_date | e }}{% endif %}</div>
+    </td>
+  </tr>
+</table>
+
+<table class="parties">
+  <tr>
+    <td>
+      <div class="party-label">From</div>
+      {% if from_company %}<div class="party-name">{{ from_company | e }}</div>{% endif %}
+      {% if from_address %}<div class="party-info">{{ from_address | e }}</div>{% endif %}
+      {% if from_email %}<div class="party-info">{{ from_email | e }}</div>{% endif %}
+      {% if from_phone %}<div class="party-info">{{ from_phone | e }}</div>{% endif %}
+    </td>
+    <td>
+      <div class="party-label">Bill To</div>
+      {% if to_name %}<div class="party-name">{{ to_name | e }}</div>{% endif %}
+      {% if to_address %}<div class="party-info">{{ to_address | e }}</div>{% endif %}
+      {% if to_email %}<div class="party-info">{{ to_email | e }}</div>{% endif %}
+    </td>
+  </tr>
+</table>
+
+<table class="items-table">
+  <thead>
+    <tr>
+      <th class="col-desc">Description</th>
+      <th class="col-qty right">Qty</th>
+      <th class="col-rate right">Rate</th>
+      <th class="col-amt right">Amount</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in line_items %}
+    <tr>
+      <td class="col-desc">{{ item.description | e }}</td>
+      <td class="col-qty center">{% if item.qty == item.qty | int %}{{ item.qty | int }}{% else %}{{ item.qty }}{% endif %}</td>
+      <td class="col-rate right">${{ "%.2f" | format(item.rate) }}</td>
+      <td class="col-amt right">${{ "%.2f" | format(item.amount) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<table class="totals-section">
+  <tr>
+    <td class="totals-spacer"></td>
+    <td class="totals-box">
+      <table class="totals-inner">
+        <tr><td class="t-label">Subtotal</td><td class="t-value">${{ "%.2f" | format(subtotal) }}</td></tr>
+        {% if tax_rate %}<tr><td class="t-label">Tax ({{ tax_rate | int if tax_rate == tax_rate | int else tax_rate }}%)</td><td class="t-value">${{ "%.2f" | format(tax_amount) }}</td></tr>{% endif %}
+        {% if discount %}<tr><td class="t-label">Discount</td><td class="t-value">-${{ "%.2f" | format(discount) }}</td></tr>{% endif %}
+        <tr class="total-row"><td class="t-label">Total Due</td><td class="t-value">${{ "%.2f" | format(total) }}</td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+{% if notes or payment_info %}
+<table class="bottom-section">
+  <tr>
+    {% if notes %}<td><div class="section-label">Notes</div><div class="section-content">{{ notes | e }}</div></td>{% endif %}
+    {% if payment_info %}<td><div class="section-label">Payment</div><div class="section-content">{{ payment_info | e }}</div></td>{% endif %}
+  </tr>
+</table>
+{% endif %}
+
+</body>
+</html>

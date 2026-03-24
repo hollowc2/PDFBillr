@@ -1,0 +1,20 @@
+Hi {% if invoice.to_name %}{{ invoice.to_name }}{% else %}there{% endif %},
+
+Please find attached invoice {{ invoice.invoice_number }} from {{ sender_name }}.
+
+  Invoice #: {{ invoice.invoice_number }}
+  Date:      {{ invoice.invoice_date or 'N/A' }}
+  {% if invoice.due_date %}Due Date:  {{ invoice.due_date }}{% endif %}
+  Total Due: ${{ "%.2f" | format(invoice.total) }}
+
+{% if invoice.payment_info %}Payment information:
+{{ invoice.payment_info }}{% endif %}
+{% if invoice.notes %}Notes:
+{{ invoice.notes }}{% endif %}
+
+Thank you for your business.
+
+—{{ sender_name }}
+
+---
+Invoice generated with PDFBillr (https://pdfbillr.com)

@@ -57,27 +57,60 @@
   <nav class="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
     <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <span class="text-2xl font-black tracking-tight text-blue-700 dark:text-blue-400">
+        <a href="{{ url_for('public.landing') }}" class="text-2xl font-black tracking-tight text-blue-700 dark:text-blue-400 hover:opacity-80 transition-opacity">
           PDF<span class="text-gray-900 dark:text-white">Billr</span>
-        </span>
+        </a>
         <span class="hidden sm:inline text-sm text-gray-500 dark:text-gray-400 font-medium">
           — Free PDF Invoice Generator
         </span>
       </div>
-      <button
-        id="dark-toggle"
-        aria-label="Toggle dark mode"
-        class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-      >
-        <svg id="icon-sun" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
-        </svg>
-        <svg id="icon-moon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-        </svg>
-      </button>
+
+      <div class="flex items-center gap-2">
+        {% if current_user.is_authenticated %}
+          <a href="{{ url_for('public.index') }}"
+             class="hidden sm:inline text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+            New Invoice
+          </a>
+          <a href="{{ url_for('dashboard.index') }}"
+             class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+            Dashboard
+          </a>
+          {% if not is_pro() %}
+          <a href="{{ url_for('billing.upgrade') }}"
+             class="hidden sm:inline text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+            Upgrade
+          </a>
+          {% endif %}
+          <a href="{{ url_for('auth.logout') }}"
+             class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+            Sign out
+          </a>
+        {% else %}
+          <a href="{{ url_for('auth.login') }}"
+             class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+            Sign in
+          </a>
+          <a href="{{ url_for('auth.register') }}"
+             class="text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+            Register
+          </a>
+        {% endif %}
+
+        <button
+          id="dark-toggle"
+          aria-label="Toggle dark mode"
+          class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        >
+          <svg id="icon-sun" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+          </svg>
+          <svg id="icon-moon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+          </svg>
+        </button>
+      </div>
     </div>
   </nav>
 
@@ -86,19 +119,22 @@
     {% block content %}{% endblock %}
   </main>
 
-  <!-- Pro upgrade teaser banner -->
+  <!-- Pro upgrade teaser banner — hidden for Pro users -->
+  {% if not (current_user.is_authenticated and is_pro()) %}
   <div class="bg-blue-900 dark:bg-blue-950 text-white">
     <div class="max-w-5xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center gap-3 justify-between">
       <div class="text-sm">
         <span class="font-bold text-blue-300">PDFBillr Pro</span>
         <span class="text-blue-200"> — $7/mo · </span>
-        <span class="text-gray-300">Custom logo · Client history · Email delivery · Recurring invoices · PDF templates</span>
+        <span class="text-gray-300">Custom logo · Client history · Email delivery · PDF templates</span>
       </div>
-      <a href="#" class="shrink-0 text-xs font-semibold bg-blue-500 hover:bg-blue-400 px-4 py-2 rounded-lg transition-colors">
+      <a href="{{ url_for('billing.upgrade') }}"
+         class="shrink-0 text-xs font-semibold bg-blue-500 hover:bg-blue-400 px-4 py-2 rounded-lg transition-colors">
         Upgrade →
       </a>
     </div>
   </div>
+  {% endif %}
 
   <!-- Footer -->
   <footer class="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 text-center text-xs text-gray-500 dark:text-gray-500 py-4">

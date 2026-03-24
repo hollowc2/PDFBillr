@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}PDFBillr — Custom Branding{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center gap-3">
+  <a href="{{ url_for('dashboard.index') }}"
+     class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+    ← My Invoices
+  </a>
+</div>
+
+<h1 class="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Custom Branding</h1>
+<p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Personalize your invoices with a logo, accent color, and more.</p>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-sm
+      {% if category == 'error' %}bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800
+      {% else %}bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800{% endif %}">
+      {{ message }}
+    </div>
+  {% endfor %}
+{% endwith %}
+
+<form method="POST" action="{{ url_for('dashboard.branding') }}" enctype="multipart/form-data"
+      class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 space-y-6">
+
+  <!-- Logo upload -->
+  <div>
+    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Company Logo</label>
+    {% if profile and profile.logo_filename %}
+    <div class="mb-3">
+      <img src="{{ url_for('static', filename='logos/' + profile.logo_filename) }}"
+           alt="Current logo" class="max-h-16 rounded border border-gray-200 dark:border-gray-700" />
+      <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Current logo — upload a new file to replace it.</p>
+    </div>
+    {% endif %}
+    <input type="file" name="logo" accept=".png,.jpg,.jpeg,.gif,.webp"
+           class="block w-full text-sm text-gray-700 dark:text-gray-300
+                  file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
+                  file:text-sm file:font-semibold file:bg-blue-50 dark:file:bg-blue-950
+                  file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900" />
+    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">PNG, JPG, GIF, WebP · Max 2 MB</p>
+  </div>
+
+  <!-- Accent color -->
+  <div>
+    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Accent Color</label>
+    <div class="flex items-center gap-3">
+      <input type="color" name="accent_color"
+             value="{{ profile.accent_color if profile else '#1e3a8a' }}"
+             class="w-10 h-10 rounded cursor-pointer border border-gray-200 dark:border-gray-700 p-0.5" />
+      <input type="text" id="accent_hex"
+             value="{{ profile.accent_color if profile else '#1e3a8a' }}"
+             class="input-field max-w-[120px] font-mono text-sm"
+             placeholder="#1e3a8a" maxlength="7" />
+    </div>
+    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Used for invoice header, dividers, and totals row.</p>
+  </div>
+
+  <!-- Remove footer -->
+  <div>
+    <label class="flex items-center gap-3 cursor-pointer">
+      <input type="checkbox" name="remove_footer"
+             {% if profile and profile.remove_footer %}checked{% endif %}
+             class="w-4 h-4 rounded text-blue-600 border-gray-300" />
+      <div>
+        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Remove "PDFBillr Pro" footer branding</span>
+        <p class="text-xs text-gray-400 dark:text-gray-500">Hides the PDFBillr upgrade banner from your invoices.</p>
+      </div>
+    </label>
+  </div>
+
+  <div class="pt-2">
+    <button type="submit"
+            class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm">
+      Save Branding
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Sync color picker ↔ hex input
+  var picker = document.querySelector('input[type="color"]');
+  var hexInput = document.getElementById('accent_hex');
+  var nameAttr = picker.getAttribute('name');
+
+  picker.addEventListener('input', function () {
+    hexInput.value = picker.value;
+  });
+  hexInput.addEventListener('input', function () {
+    if (/^#[0-9a-fA-F]{6}$/.test(hexInput.value)) {
+      picker.value = hexInput.value;
+    }
+    // Mirror value to the real form field (color picker)
+    picker.dispatchEvent(new Event('change'));
+  });
+  // Ensure the hidden color input always submits the hex value
+  hexInput.addEventListener('change', function () {
+    if (/^#[0-9a-fA-F]{6}$/.test(hexInput.value)) {
+      picker.value = hexInput.value;
+    }
+  });
+  // Before submit, copy hex input to color picker name field
+  document.querySelector('form').addEventListener('submit', function () {
+    if (/^#[0-9a-fA-F]{6}$/.test(hexInput.value)) {
+      picker.value = hexInput.value;
+    }
+  });
+</script>
+{% endblock %}

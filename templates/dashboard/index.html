@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}PDFBillr — My Invoices{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-3xl font-bold text-gray-900 dark:text-white">My Invoices</h1>
+  <a href="{{ url_for('public.index') }}"
+     class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm">
+    + New Invoice
+  </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-sm
+      {% if category == 'error' %}bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800
+      {% elif category == 'success' %}bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800
+      {% else %}bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% endif %}">
+      {{ message }}
+    </div>
+  {% endfor %}
+{% endwith %}
+
+<!-- Pro feature shortcuts -->
+<div class="flex flex-wrap gap-3 mb-6">
+  <a href="{{ url_for('dashboard.branding') if is_pro() else url_for('billing.upgrade') }}"
+     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    {% if not is_pro() %}<span class="text-yellow-500">🔒</span>{% endif %}
+    Custom Branding
+  </a>
+  {% if is_pro() %}
+  <a href="{{ url_for('billing.portal') }}"
+     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    Manage Subscription
+  </a>
+  {% else %}
+  <a href="{{ url_for('billing.upgrade') }}"
+     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950 text-sm font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors">
+    Upgrade to Pro →
+  </a>
+  {% endif %}
+</div>
+
+<!-- Search -->
+<form method="GET" action="{{ url_for('dashboard.index') }}" class="mb-4">
+  <div class="flex gap-2">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by invoice # or client…"
+           class="input-field max-w-sm" />
+    <button type="submit"
+            class="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+      Search
+    </button>
+    {% if q %}
+    <a href="{{ url_for('dashboard.index') }}"
+       class="px-4 py-2 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+      Clear
+    </a>
+    {% endif %}
+  </div>
+</form>
+
+<!-- Invoice table -->
+{% if pagination.items %}
+<div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <tr>
+        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">Invoice #</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider hidden sm:table-cell">Client</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider hidden md:table-cell">Date</th>
+        <th class="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">Total</th>
+        <th class="text-center px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider hidden sm:table-cell">Status</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+      {% for inv in pagination.items %}
+      <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+        <td class="px-4 py-3 font-medium text-blue-600 dark:text-blue-400">
+          <a href="{{ url_for('dashboard.invoice_detail', invoice_id=inv.id) }}" class="hover:underline">
+            {{ inv.invoice_number }}
+          </a>
+        </td>
+        <td class="px-4 py-3 text-gray-700 dark:text-gray-300 hidden sm:table-cell">
+          {{ inv.to_name or '—' }}
+        </td>
+        <td class="px-4 py-3 text-gray-500 dark:text-gray-400 hidden md:table-cell">
+          {{ inv.invoice_date or '—' }}
+        </td>
+        <td class="px-4 py-3 text-right font-mono font-medium text-gray-900 dark:text-gray-100">
+          ${{ "%.2f" | format(inv.total) }}
+        </td>
+        <td class="px-4 py-3 text-center hidden sm:table-cell">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+            {% if inv.status == 'sent' %}bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300
+            {% elif inv.status == 'finalized' %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300
+            {% else %}bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400{% endif %}">
+            {{ inv.status }}
+          </span>
+        </td>
+        <td class="px-4 py-3 text-right">
+          <a href="{{ url_for('dashboard.invoice_download', invoice_id=inv.id) }}"
+             class="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mr-3">
+            Download
+          </a>
+          <a href="{{ url_for('dashboard.invoice_detail', invoice_id=inv.id) }}"
+             class="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+            View
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<div class="flex justify-center gap-2 mt-6">
+  {% if pagination.has_prev %}
+  <a href="{{ url_for('dashboard.index', page=pagination.prev_num, q=q) }}"
+     class="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    Previous
+  </a>
+  {% endif %}
+  <span class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+    Page {{ pagination.page }} of {{ pagination.pages }}
+  </span>
+  {% if pagination.has_next %}
+  <a href="{{ url_for('dashboard.index', page=pagination.next_num, q=q) }}"
+     class="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    Next
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="text-center py-16 text-gray-400 dark:text-gray-600">
+  <svg class="w-12 h-12 mx-auto mb-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+  </svg>
+  {% if q %}
+  <p class="text-sm">No invoices match "{{ q }}".</p>
+  {% else %}
+  <p class="text-sm">No invoices yet.</p>
+  <a href="{{ url_for('public.index') }}"
+     class="inline-block mt-4 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors">
+    Create your first invoice →
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

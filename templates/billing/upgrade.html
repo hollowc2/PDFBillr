@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}PDFBillr Pro — Upgrade{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-8">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="mb-4 px-4 py-3 rounded-lg text-sm
+        {% if category == 'error' %}bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800
+        {% elif category == 'warning' %}bg-yellow-50 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800
+        {% else %}bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="text-center mb-10">
+    <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-3">
+      Upgrade to <span class="text-blue-600 dark:text-blue-400">Pro</span>
+    </h1>
+    <p class="text-lg text-gray-500 dark:text-gray-400">Everything in free, plus the tools serious freelancers need.</p>
+  </div>
+
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border-2 border-blue-500 p-8 shadow-lg mb-6">
+    <div class="flex items-baseline gap-2 mb-6">
+      <span class="text-5xl font-black text-gray-900 dark:text-white">$7</span>
+      <span class="text-gray-500 dark:text-gray-400">/month</span>
+    </div>
+
+    <ul class="space-y-3 mb-8">
+      {% set features = [
+        ("Custom logo on every invoice", true),
+        ("Accent color & remove footer branding", true),
+        ("Invoice history — browse, duplicate, re-download", true),
+        ("Send invoices directly via email", true),
+        ("4 PDF templates / themes", true),
+        ("All free features included", true),
+      ] %}
+      {% for feature, included in features %}
+      <li class="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+        <svg class="w-5 h-5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+        </svg>
+        {{ feature }}
+      </li>
+      {% endfor %}
+    </ul>
+
+    {% if current_user.is_authenticated %}
+    <form method="POST" action="{{ url_for('billing.create_checkout_session') }}">
+      <button type="submit"
+              class="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition-colors shadow-sm">
+        Upgrade now →
+      </button>
+    </form>
+    {% else %}
+    <a href="{{ url_for('auth.register') }}"
+       class="block w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base text-center transition-colors shadow-sm">
+      Create free account to upgrade →
+    </a>
+    {% endif %}
+
+    <p class="text-center text-xs text-gray-400 dark:text-gray-500 mt-3">
+      Cancel any time. Powered by Stripe.
+    </p>
+  </div>
+
+  <div class="text-center">
+    <a href="{{ url_for('public.index') }}"
+       class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+      Continue with free plan →
+    </a>
+  </div>
+</div>
+{% endblock %}
