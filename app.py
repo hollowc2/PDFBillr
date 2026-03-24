@@ -189,7 +189,24 @@ def generate():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok"})
+    # Check PDF engine
+    pdf_ok = True
+    try:
+        from weasyprint import HTML as _HTML  # noqa: F401
+    except Exception:
+        pdf_ok = False
+
+    checks = {
+        "web_server": True,
+        "pdf_engine": pdf_ok,
+    }
+    overall = "ok" if all(checks.values()) else "degraded"
+
+    # Return JSON for API/monitoring clients
+    if request.accept_mimetypes.best_match(["application/json", "text/html"]) == "application/json":
+        return jsonify({"status": overall, "checks": checks})
+
+    return render_template("health.html", status=overall, checks=checks)
 
 
 if __name__ == "__main__":
