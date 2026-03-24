@@ -17,37 +17,7 @@
       }
     })();
   </script>
-  <!-- TODO(L-2): Tailwind Play CDN is not suitable for production.
-       Replace with a build-step output: npx tailwindcss -o static/css/tailwind.min.css
-       or pin to a versioned CDN URL with an SRI hash.
-       See: https://tailwindcss.com/docs/installation -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-          },
-          colors: {
-            brand: {
-              50:  '#eff6ff',
-              100: '#dbeafe',
-              200: '#bfdbfe',
-              300: '#93c5fd',
-              400: '#60a5fa',
-              500: '#3b82f6',
-              600: '#2563eb',
-              700: '#1d4ed8',
-              800: '#1e40af',
-              900: '#1e3a8a',
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.min.css') }}" />
   <style>
     .input-field {
       width: 100%;
@@ -87,7 +57,7 @@
   <nav class="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
     <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <span class="text-2xl font-black tracking-tight text-brand-700 dark:text-brand-400">
+        <span class="text-2xl font-black tracking-tight text-blue-700 dark:text-blue-400">
           PDF<span class="text-gray-900 dark:text-white">Billr</span>
         </span>
         <span class="hidden sm:inline text-sm text-gray-500 dark:text-gray-400 font-medium">
@@ -117,14 +87,14 @@
   </main>
 
   <!-- Pro upgrade teaser banner -->
-  <div class="bg-brand-900 dark:bg-brand-950 text-white">
+  <div class="bg-blue-900 dark:bg-blue-950 text-white">
     <div class="max-w-5xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center gap-3 justify-between">
       <div class="text-sm">
-        <span class="font-bold text-brand-300">PDFBillr Pro</span>
-        <span class="text-brand-200"> — $7/mo · </span>
+        <span class="font-bold text-blue-300">PDFBillr Pro</span>
+        <span class="text-blue-200"> — $7/mo · </span>
         <span class="text-gray-300">Custom logo · Client history · Email delivery · Recurring invoices · PDF templates</span>
       </div>
-      <a href="#" class="shrink-0 text-xs font-semibold bg-brand-500 hover:bg-brand-400 px-4 py-2 rounded-lg transition-colors">
+      <a href="#" class="shrink-0 text-xs font-semibold bg-blue-500 hover:bg-blue-400 px-4 py-2 rounded-lg transition-colors">
         Upgrade →
       </a>
     </div>

@@ -22,11 +22,12 @@ if not _secret:
 app.secret_key = _secret
 
 # H-2: Rate limiter
+_ratelimit_uri = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,
     default_limits=[],
-    storage_uri="memory://",  # for multi-worker scale: use redis://
+    storage_uri=_ratelimit_uri,
 )
 
 # H-1: Field length constants
@@ -75,7 +76,7 @@ def _add_security_headers(response):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; "
+        "script-src 'self' 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data:; "
@@ -143,6 +144,7 @@ def generate():
         })
 
     tax_amount = subtotal * (tax_rate / 100)
+    discount = min(discount, subtotal + tax_amount)
     total = subtotal + tax_amount - discount
 
     context = {

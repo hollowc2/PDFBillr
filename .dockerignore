@@ -1,0 +1,10 @@
+.git
+.claude
+.env
+*.env
+__pycache__
+*.pyc
+instance/
+.pytest_cache/
+.coverage
+htmlcov/

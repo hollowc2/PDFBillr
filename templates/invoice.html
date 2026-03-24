@@ -258,16 +258,16 @@ body {
       <table class="meta-table">
         <tr>
           <td class="meta-label">Invoice No.</td>
-          <td class="meta-value">{{ invoice_number }}</td>
+          <td class="meta-value">{{ invoice_number | e }}</td>
         </tr>
         <tr>
           <td class="meta-label">Date</td>
-          <td class="meta-value">{{ invoice_date }}</td>
+          <td class="meta-value">{{ invoice_date | e }}</td>
         </tr>
         {% if due_date %}
         <tr>
           <td class="meta-label">Due Date</td>
-          <td class="meta-value">{{ due_date }}</td>
+          <td class="meta-value">{{ due_date | e }}</td>
         </tr>
         {% endif %}
       </table>
@@ -275,7 +275,7 @@ body {
     <td class="header-right">
       <div class="logo-placeholder"></div>
       {% if from_company %}
-      <div class="company-name">{{ from_company }}</div>
+      <div class="company-name">{{ from_company | e }}</div>
       {% endif %}
     </td>
   </tr>
@@ -288,16 +288,16 @@ body {
   <tr>
     <td>
       <div class="party-label">From</div>
-      {% if from_company %}<div class="party-name">{{ from_company }}</div>{% endif %}
-      {% if from_address %}<div class="party-address">{{ from_address }}</div>{% endif %}
-      {% if from_email %}<div class="party-contact">{{ from_email }}</div>{% endif %}
-      {% if from_phone %}<div class="party-contact">{{ from_phone }}</div>{% endif %}
+      {% if from_company %}<div class="party-name">{{ from_company | e }}</div>{% endif %}
+      {% if from_address %}<div class="party-address">{{ from_address | e }}</div>{% endif %}
+      {% if from_email %}<div class="party-contact">{{ from_email | e }}</div>{% endif %}
+      {% if from_phone %}<div class="party-contact">{{ from_phone | e }}</div>{% endif %}
     </td>
     <td>
       <div class="party-label">Bill To</div>
-      {% if to_name %}<div class="party-name">{{ to_name }}</div>{% endif %}
-      {% if to_address %}<div class="party-address">{{ to_address }}</div>{% endif %}
-      {% if to_email %}<div class="party-contact">{{ to_email }}</div>{% endif %}
+      {% if to_name %}<div class="party-name">{{ to_name | e }}</div>{% endif %}
+      {% if to_address %}<div class="party-address">{{ to_address | e }}</div>{% endif %}
+      {% if to_email %}<div class="party-contact">{{ to_email | e }}</div>{% endif %}
     </td>
   </tr>
 </table>
@@ -317,7 +317,7 @@ body {
   <tbody>
     {% for item in line_items %}
     <tr>
-      <td class="col-desc">{{ item.description }}</td>
+      <td class="col-desc">{{ item.description | e }}</td>
       <td class="col-qty right">
         {% if item.qty == item.qty | int %}{{ item.qty | int }}{% else %}{{ item.qty }}{% endif %}
       </td>
@@ -366,13 +366,13 @@ body {
     {% if notes %}
     <td>
       <div class="section-label">Notes</div>
-      <div class="section-content">{{ notes }}</div>
+      <div class="section-content">{{ notes | e }}</div>
     </td>
     {% endif %}
     {% if payment_info %}
     <td>
       <div class="section-label">Payment Information</div>
-      <div class="section-content">{{ payment_info }}</div>
+      <div class="section-content">{{ payment_info | e }}</div>
     </td>
     {% endif %}
   </tr>

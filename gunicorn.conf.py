@@ -1,8 +1,10 @@
 import os
 
 bind = "0.0.0.0:8000"
-workers = 2
-threads = 4
+# Single worker is safe with in-memory rate limiting.
+# To scale: set workers > 1 AND provide RATELIMIT_STORAGE_URI=redis://...
+workers = 1
+threads = 8
 worker_class = "gthread"
 timeout = 120
 keepalive = 5
