@@ -109,6 +109,7 @@ body {
 .bottom-section td:first-child { padding-right: 8mm; }
 .section-label { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5pt; color: #6b7280; margin-bottom: 3pt; border-bottom: 1pt solid #e5e7eb; padding-bottom: 2pt; }
 .section-content { font-size: 8.5pt; color: #374151; white-space: pre-wrap; line-height: 1.5; }
+.pdf-footer { margin-top: 10mm; text-align: center; font-size: 7pt; color: #9ca3af; }
 </style>
 </head>
 <body>
@@ -202,6 +203,10 @@ body {
     {% if payment_info %}<td><div class="section-label">Payment Information</div><div class="section-content">{{ payment_info | e }}</div></td>{% endif %}
   </tr>
 </table>
+{% endif %}
+
+{% if not remove_footer %}
+<div class="pdf-footer">Generated with PDFBillr &middot; pdfbillr.com</div>
 {% endif %}
 
 </div>

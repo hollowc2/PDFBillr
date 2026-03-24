@@ -112,10 +112,12 @@ def context_from_invoice(invoice) -> dict:
     tax_amount = invoice.subtotal * (invoice.tax_rate / 100) if invoice.tax_rate else 0.0
     logo_url   = _logo_data_uri(invoice.logo_filename) if invoice.logo_filename else None
 
-    # Pull accent color from user's branding profile if available
+    # Pull branding profile fields if available
     accent_color = "#1e3a8a"
+    remove_footer = False
     if invoice.user and invoice.user.branding:
         accent_color = invoice.user.branding.accent_color or "#1e3a8a"
+        remove_footer = bool(invoice.user.branding.remove_footer)
 
     return {
         "invoice_number": invoice.invoice_number,
@@ -138,6 +140,7 @@ def context_from_invoice(invoice) -> dict:
         "payment_info":   invoice.payment_info,
         "logo_url":       logo_url,
         "accent_color":   accent_color,
+        "remove_footer":  remove_footer,
     }
 
 

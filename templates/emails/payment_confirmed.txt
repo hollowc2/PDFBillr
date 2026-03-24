@@ -1,0 +1,15 @@
+Hi {{ user.email }},
+
+Your PDFBillr Pro subscription is now active. Welcome to Pro!
+
+You now have access to:
+  - Custom branding (logo, accent color, remove footer)
+  - Premium invoice themes (Minimal, Corporate, Creative)
+  - Send invoices directly to clients by email
+
+Manage your subscription or update payment details at any time:
+https://pdfbillr.com/billing/portal
+
+Thank you for subscribing.
+
+—The PDFBillr Team

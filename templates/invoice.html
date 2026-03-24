@@ -254,6 +254,12 @@ body {
   white-space: pre-wrap;
   line-height: 1.5;
 }
+.pdf-footer {
+  margin-top: 10mm;
+  text-align: center;
+  font-size: 7pt;
+  color: #9ca3af;
+}
 </style>
 </head>
 <body>
@@ -389,6 +395,10 @@ body {
     {% endif %}
   </tr>
 </table>
+{% endif %}
+
+{% if not remove_footer %}
+<div class="pdf-footer">Generated with PDFBillr &middot; pdfbillr.com</div>
 {% endif %}
 
 </body>

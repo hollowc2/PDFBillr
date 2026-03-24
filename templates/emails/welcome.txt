@@ -1,0 +1,14 @@
+Hi {{ user.email }},
+
+Welcome to PDFBillr! Your account is ready.
+
+Get started by creating your first invoice:
+https://pdfbillr.com/app
+
+With a free account you can generate and download invoices anytime.
+Upgrade to Pro to unlock custom branding, premium themes, and sending
+invoices directly to clients by email.
+
+If you have any questions, just reply to this email.
+
+—The PDFBillr Team

@@ -61,6 +61,7 @@ def register():
         db.session.commit()
 
         login_user(user, remember=True)
+        _send_welcome_email(user)
         flash("Account created! Welcome to PDFBillr.", "success")
         return redirect(url_for("dashboard.index"))
 
@@ -144,6 +145,19 @@ def _send_reset_email(user: User) -> None:
         mail.send(msg)
     except Exception:
         pass  # Fail silently to prevent email enumeration
+
+
+def _send_welcome_email(user: User) -> None:
+    from flask_mail import Message
+    msg = Message(
+        subject="Welcome to PDFBillr",
+        recipients=[user.email],
+        body=render_template("emails/welcome.txt", user=user),
+    )
+    try:
+        mail.send(msg)
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------

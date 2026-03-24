@@ -7,7 +7,9 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
-from extensions import db
+from flask_mail import Message
+
+from extensions import db, mail
 from models import Subscription, User
 
 bp = Blueprint("billing", __name__, url_prefix="/billing")
@@ -141,7 +143,23 @@ def _handle_checkout_completed(session_obj) -> None:
         user.stripe_customer_id = customer_id
 
     sub_id = session_obj.get("subscription")
-    _upsert_subscription(user, sub_id, status="active")
+    if sub_id:
+        # Retrieve full subscription to capture period_end and price_id immediately
+        sub_obj = _stripe().Subscription.retrieve(sub_id)
+        price_id = None
+        items_data = sub_obj.get("items", {}).get("data", [])
+        if items_data:
+            price_id = items_data[0].get("price", {}).get("id")
+        _upsert_subscription(
+            user, sub_id,
+            status=sub_obj.get("status", "active"),
+            period_end=sub_obj.get("current_period_end"),
+            price_id=price_id,
+        )
+    else:
+        _upsert_subscription(user, sub_id, status="active")
+
+    _send_billing_email(user, "emails/payment_confirmed.txt")
     db.session.commit()
 
 
@@ -169,6 +187,7 @@ def _handle_subscription_deleted(sub_obj) -> None:
     if sub:
         sub.status = "canceled"
         sub.updated_at = datetime.now(timezone.utc)
+        _send_billing_email(user, "emails/subscription_canceled.txt")
         db.session.commit()
 
 
@@ -180,6 +199,7 @@ def _handle_payment_failed(invoice_obj) -> None:
     if sub:
         sub.status = "past_due"
         sub.updated_at = datetime.now(timezone.utc)
+        _send_billing_email(user, "emails/payment_failed.txt")
         db.session.commit()
 
 
@@ -191,6 +211,23 @@ def _user_by_customer(customer_id: str | None) -> User | None:
     if not customer_id:
         return None
     return User.query.filter_by(stripe_customer_id=customer_id).first()
+
+
+_BILLING_EMAIL_SUBJECTS = {
+    "emails/payment_confirmed.txt":      "Your PDFBillr Pro subscription is active",
+    "emails/payment_failed.txt":         "Action required: PDFBillr payment failed",
+    "emails/subscription_canceled.txt":  "Your PDFBillr Pro subscription has ended",
+}
+
+
+def _send_billing_email(user: User, template: str) -> None:
+    subject = _BILLING_EMAIL_SUBJECTS.get(template, "PDFBillr account update")
+    msg = Message(subject=subject, recipients=[user.email],
+                  body=render_template(template, user=user))
+    try:
+        mail.send(msg)
+    except Exception as exc:
+        current_app.logger.warning("Billing email failed for user %s (%s): %s", user.id, template, exc)
 
 
 def _upsert_subscription(
