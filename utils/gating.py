@@ -12,8 +12,12 @@ def is_pro(user=None) -> bool:
     sub = u.subscription
     if not sub or sub.status not in ("active", "trialing"):
         return False
-    if sub.current_period_end and sub.current_period_end < datetime.now(timezone.utc):
-        return False
+    if sub.current_period_end:
+        period_end = sub.current_period_end
+        if period_end.tzinfo is None:
+            period_end = period_end.replace(tzinfo=timezone.utc)
+        if period_end < datetime.now(timezone.utc):
+            return False
     return True
 
 
