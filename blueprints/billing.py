@@ -160,7 +160,7 @@ def _handle_checkout_completed(session_obj) -> None:
         _upsert_subscription(
             user, sub_id,
             status=sub_obj.get("status", "active"),
-            period_end=sub_obj.get("current_period_end"),
+            period_end=_period_end_from_sub(sub_obj),
             price_id=price_id,
         )
     else:
@@ -175,7 +175,7 @@ def _handle_subscription_updated(sub_obj) -> None:
     if not user:
         return
     status = sub_obj.get("status", "active")
-    period_end = sub_obj.get("current_period_end")
+    period_end = _period_end_from_sub(sub_obj)
     _upsert_subscription(
         user,
         sub_obj["id"],
@@ -219,7 +219,7 @@ def _handle_invoice_paid(invoice_obj) -> None:
     if not sub_id or not user.subscription:
         return
     sub_obj = _stripe().Subscription.retrieve(sub_id)
-    period_end = sub_obj.get("current_period_end")
+    period_end = _period_end_from_sub(sub_obj)
     if period_end is not None:
         user.subscription.current_period_end = datetime.fromtimestamp(period_end, tz=timezone.utc)
         user.subscription.status = sub_obj.get("status", "active")
@@ -230,6 +230,21 @@ def _handle_invoice_paid(invoice_obj) -> None:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _period_end_from_sub(sub_obj) -> int | None:
+    """Extract current_period_end from a Stripe subscription object.
+
+    Stripe API >= 2024-09-30 moved current_period_end from the top-level
+    subscription onto each SubscriptionItem.
+    """
+    period_end = sub_obj.get("current_period_end")
+    if period_end is not None:
+        return period_end
+    items = sub_obj.get("items", {}).get("data", [])
+    if items:
+        return items[0].get("current_period_end")
+    return None
+
 
 def _user_by_customer(customer_id: str | None) -> User | None:
     if not customer_id:
