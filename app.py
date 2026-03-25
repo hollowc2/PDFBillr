@@ -15,6 +15,9 @@ def create_app(config_class: type = Config) -> Flask:
     if app.config["SECRET_KEY"] == "dev-only-insecure-default-do-not-use-in-production":
         warnings.warn("SECRET_KEY env var not set. Using insecure default.", stacklevel=1)
 
+    if not app.config.get("STRIPE_WEBHOOK_SECRET"):
+        warnings.warn("STRIPE_WEBHOOK_SECRET env var not set. Webhook signature verification will fail.", stacklevel=1)
+
     # Proxy fix for reverse-proxy deployments
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 

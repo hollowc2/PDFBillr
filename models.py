@@ -89,6 +89,14 @@ class Invoice(db.Model):
     user = db.relationship("User", back_populates="invoices")
 
 
+class ProcessedStripeEvent(db.Model):
+    """Tracks processed Stripe event IDs to ensure webhook idempotency."""
+    __tablename__ = "processed_stripe_events"
+
+    stripe_event_id = db.Column(db.String(255), primary_key=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=_now)
+
+
 class BrandingProfile(db.Model):
     __tablename__ = "branding_profiles"
 

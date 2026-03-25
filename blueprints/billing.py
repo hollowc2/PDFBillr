@@ -10,7 +10,7 @@ from flask_login import current_user, login_required
 from flask_mail import Message
 
 from extensions import db, mail
-from models import Subscription, User
+from models import ProcessedStripeEvent, Subscription, User
 
 bp = Blueprint("billing", __name__, url_prefix="/billing")
 
@@ -26,10 +26,7 @@ def _stripe():
 
 @bp.route("/upgrade")
 def upgrade():
-    return render_template(
-        "billing/upgrade.html",
-        publishable_key=current_app.config["STRIPE_PUBLISHABLE_KEY"],
-    )
+    return render_template("billing/upgrade.html")
 
 
 # ---------------------------------------------------------------------------
@@ -69,7 +66,7 @@ def create_checkout_session():
 @bp.route("/success")
 @login_required
 def success():
-    flash("Subscription activated! Welcome to Pro.", "success")
+    flash("Payment received! Your Pro subscription will be active within a few seconds.", "success")
     return redirect(url_for("dashboard.index"))
 
 
@@ -110,6 +107,12 @@ def webhook():
     except (ValueError, stripe.SignatureVerificationError):
         return jsonify({"error": "invalid signature"}), 400
 
+    # Idempotency: skip events already processed
+    event_id = event["id"]
+    if db.session.get(ProcessedStripeEvent, event_id):
+        return jsonify({"received": True}), 200
+    db.session.add(ProcessedStripeEvent(stripe_event_id=event_id))
+
     etype = event["type"]
     data  = event["data"]["object"]
 
@@ -121,6 +124,10 @@ def webhook():
         _handle_subscription_deleted(data)
     elif etype == "invoice.payment_failed":
         _handle_payment_failed(data)
+    elif etype == "invoice.paid":
+        _handle_invoice_paid(data)
+    else:
+        db.session.commit()
 
     return jsonify({"received": True}), 200
 
@@ -200,6 +207,23 @@ def _handle_payment_failed(invoice_obj) -> None:
         sub.status = "past_due"
         sub.updated_at = datetime.now(timezone.utc)
         _send_billing_email(user, "emails/payment_failed.txt")
+        db.session.commit()
+
+
+def _handle_invoice_paid(invoice_obj) -> None:
+    """Refresh period_end on successful renewal payment."""
+    user = _user_by_customer(invoice_obj.get("customer"))
+    if not user:
+        return
+    sub_id = invoice_obj.get("subscription")
+    if not sub_id or not user.subscription:
+        return
+    sub_obj = _stripe().Subscription.retrieve(sub_id)
+    period_end = sub_obj.get("current_period_end")
+    if period_end is not None:
+        user.subscription.current_period_end = datetime.fromtimestamp(period_end, tz=timezone.utc)
+        user.subscription.status = sub_obj.get("status", "active")
+        user.subscription.updated_at = datetime.now(timezone.utc)
         db.session.commit()
 
 
