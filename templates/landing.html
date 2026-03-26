@@ -8,15 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <script>
-    (function () {
-      const stored = localStorage.getItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (stored === 'dark' || (!stored && prefersDark)) {
-        document.documentElement.classList.add('dark');
-      }
-    })();
-  </script>
+  <script src="{{ url_for('static', filename='js/darkmode.js') }}"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.min.css') }}" />
   <style>
     html { scroll-behavior: smooth; }
@@ -150,14 +142,8 @@
       <div class="flex-1 flex justify-center md:justify-end w-full max-w-lg md:max-w-none">
         <div class="relative w-full max-w-md">
           <div class="absolute inset-0 rounded-2xl bg-blue-500 opacity-10 blur-2xl transform scale-105"></div>
-          <img
-            src="{{ url_for('static', filename='logos/landingpagegraphic.png') }}"
-            alt="PDFBillr invoice preview"
-            class="relative rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full object-cover"
-            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-          />
-          <!-- Fallback: faux invoice if image missing -->
-          <div style="display:none" class="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6 invoice-mock">
+          <!-- Faux invoice preview -->
+          <div class="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6 invoice-mock">
             <div class="flex justify-between items-start mb-6">
               <div>
                 <div class="text-lg font-black text-blue-700 dark:text-blue-400">PDF<span class="text-gray-900 dark:text-white">Billr</span></div>
@@ -581,14 +567,11 @@
 
         <!-- Pro tier -->
         <div class="relative bg-blue-700 dark:bg-blue-900 rounded-2xl border-2 border-blue-600 dark:border-blue-700 p-8 flex flex-col overflow-hidden">
-          <div class="absolute top-4 right-4 bg-blue-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-            Coming Soon
-          </div>
 
           <div class="mb-6">
             <div class="text-sm font-semibold text-blue-300 uppercase tracking-wider mb-2">Pro</div>
             <div class="flex items-end gap-2 mb-1">
-              <span class="text-4xl font-black text-white">$7</span>
+              <span class="text-4xl font-black text-white">$5</span>
               <span class="text-blue-300 mb-1">/ month</span>
             </div>
             <p class="text-sm text-blue-200">For freelancers who invoice regularly.</p>
@@ -621,9 +604,9 @@
             </li>
           </ul>
 
-          <button disabled class="w-full text-center py-3 rounded-xl bg-blue-500/50 text-blue-200 font-bold cursor-not-allowed">
-            Coming Soon
-          </button>
+          <a href="{{ url_for('billing.upgrade') }}" class="w-full text-center py-3 rounded-xl bg-white text-blue-700 font-bold hover:bg-blue-50 transition-colors block">
+            Upgrade to Pro
+          </a>
         </div>
 
       </div>
@@ -693,19 +676,6 @@
     </div>
   </footer>
 
-  <!-- Dark mode toggle -->
-  <script>
-    document.getElementById('dark-toggle').addEventListener('click', function () {
-      const html = document.documentElement;
-      if (html.classList.contains('dark')) {
-        html.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-      } else {
-        html.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-      }
-    });
-  </script>
 
 </body>
 </html>
