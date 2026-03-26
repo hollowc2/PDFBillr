@@ -61,7 +61,7 @@
 
 <!-- Invoice table -->
 {% if pagination.items %}
-<div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+<div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-x-auto">
   <table class="w-full text-sm">
     <thead class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
       <tr>
@@ -77,7 +77,7 @@
       {% for inv in pagination.items %}
       <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
         <td class="px-4 py-3 font-medium text-blue-600 dark:text-blue-400">
-          <a href="{{ url_for('dashboard.invoice_detail', invoice_id=inv.id) }}" class="hover:underline">
+          <a href="{{ url_for('dashboard.invoice_detail', invoice_id=inv.id) }}" class="hover:underline truncate block max-w-[120px]">
             {{ inv.invoice_number }}
           </a>
         </td>
@@ -98,7 +98,7 @@
             {{ inv.status }}
           </span>
         </td>
-        <td class="px-4 py-3 text-right">
+        <td class="px-4 py-3 text-right w-20 whitespace-nowrap">
           <a href="{{ url_for('dashboard.invoice_download', invoice_id=inv.id) }}"
              class="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mr-3">
             Download

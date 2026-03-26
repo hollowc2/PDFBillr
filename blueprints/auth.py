@@ -1,8 +1,8 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
-from extensions import db, mail, login_manager
+from extensions import db, limiter, mail, login_manager
 from models import User
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -30,6 +30,7 @@ def load_user(user_id: str):
 # ---------------------------------------------------------------------------
 
 @bp.route("/register", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def register():
     if current_user.is_authenticated:
         return redirect(url_for("dashboard.index"))
@@ -52,7 +53,10 @@ def register():
             return render_template("auth/register.html")
 
         if User.query.filter_by(email=email).first():
-            flash("An account with that email already exists.", "error")
+            current_app.logger.info(
+                "Blocked duplicate registration: email=%s ip=%s", email, request.remote_addr
+            )
+            flash("Registration failed. Please check your details.", "error")
             return render_template("auth/register.html")
 
         user = User(email=email)
@@ -73,6 +77,7 @@ def register():
 # ---------------------------------------------------------------------------
 
 @bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def login():
     if current_user.is_authenticated:
         return redirect(url_for("dashboard.index"))
@@ -84,6 +89,9 @@ def login():
 
         user = User.query.filter_by(email=email).first()
         if not user or not user.check_password(password):
+            current_app.logger.warning(
+                "Failed login: email=%s ip=%s", email, request.remote_addr
+            )
             flash("Invalid email or password.", "error")
             return render_template("auth/login.html")
 
@@ -119,6 +127,7 @@ def logout():
 # ---------------------------------------------------------------------------
 
 @bp.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def forgot_password():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()

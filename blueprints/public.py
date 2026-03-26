@@ -1,6 +1,9 @@
 import json
+import re as _re
 from datetime import date
 from urllib.parse import quote
+
+_HEX_RE = _re.compile(r'^#[0-9a-fA-F]{6}$')
 
 from flask import (
     Blueprint, jsonify, make_response, render_template, request,
@@ -23,7 +26,7 @@ def landing():
 
 @bp.route("/app")
 def index():
-    return render_template("form.html", today=date.today().isoformat())
+    return render_template("form.html", today=date.today().isoformat(), form_data=None)
 
 
 @bp.route("/generate", methods=["POST"])
@@ -38,7 +41,8 @@ def generate():
         branding: BrandingProfile | None = current_user.branding
         if branding and is_pro():
             logo_filename = branding.logo_filename
-            accent_color  = branding.accent_color or "#1e3a8a"
+            raw_accent    = branding.accent_color or "#1e3a8a"
+            accent_color  = raw_accent if _HEX_RE.match(raw_accent) else "#1e3a8a"
             remove_footer = branding.remove_footer
 
     # Determine theme (Pro only for non-default)
@@ -49,7 +53,13 @@ def generate():
     context = build_invoice_context(request.form, logo_filename=logo_filename, accent_color=accent_color)
     context["remove_footer"] = remove_footer
 
-    # Sprint 5: save invoice to DB for authenticated users
+    # Validate at least one non-empty line item exists
+    if not context.get("line_items"):
+        from flask import flash
+        flash("Please add at least one line item with a description.", "error")
+        return render_template("form.html", today=date.today().isoformat(), form_data=request.form)
+
+    # Save invoice to DB for authenticated users
     if current_user.is_authenticated:
         _save_invoice(context, theme)
 

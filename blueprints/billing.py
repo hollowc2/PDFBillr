@@ -9,15 +9,10 @@ from flask_login import current_user, login_required
 
 from flask_mail import Message
 
-from extensions import db, mail
+from extensions import csrf, db, mail
 from models import ProcessedStripeEvent, Subscription, User
 
 bp = Blueprint("billing", __name__, url_prefix="/billing")
-
-
-def _stripe():
-    stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
-    return stripe
 
 
 # ---------------------------------------------------------------------------
@@ -36,14 +31,13 @@ def upgrade():
 @bp.route("/create-checkout-session", methods=["POST"])
 @login_required
 def create_checkout_session():
-    s = _stripe()
     price_id = current_app.config["STRIPE_PRICE_ID_PRO"]
     if not price_id:
         flash("Billing is not configured yet.", "error")
         return redirect(url_for("billing.upgrade"))
 
     try:
-        session = s.checkout.Session.create(
+        session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             mode="subscription",
             line_items=[{"price": price_id, "quantity": 1}],
@@ -77,12 +71,11 @@ def success():
 @bp.route("/portal")
 @login_required
 def portal():
-    s = _stripe()
     if not current_user.stripe_customer_id:
         flash("No billing account found.", "error")
         return redirect(url_for("dashboard.index"))
     try:
-        session = s.billing_portal.Session.create(
+        session = stripe.billing_portal.Session.create(
             customer=current_user.stripe_customer_id,
             return_url=url_for("dashboard.index", _external=True),
         )
@@ -97,14 +90,16 @@ def portal():
 # ---------------------------------------------------------------------------
 
 @bp.route("/webhook", methods=["POST"])
+@csrf.exempt
 def webhook():
     payload    = request.get_data()
     sig_header = request.headers.get("Stripe-Signature", "")
     secret     = current_app.config["STRIPE_WEBHOOK_SECRET"]
 
     try:
-        event = _stripe().Webhook.construct_event(payload, sig_header, secret)
-    except (ValueError, stripe.SignatureVerificationError):
+        event = stripe.Webhook.construct_event(payload, sig_header, secret)
+    except (ValueError, stripe.SignatureVerificationError) as exc:
+        current_app.logger.warning("Webhook signature failure: %s", exc)
         return jsonify({"error": "invalid signature"}), 400
 
     # Idempotency: skip events already processed
@@ -152,7 +147,7 @@ def _handle_checkout_completed(session_obj) -> None:
     sub_id = session_obj.get("subscription")
     if sub_id:
         # Retrieve full subscription to capture period_end and price_id immediately
-        sub_obj = _stripe().Subscription.retrieve(sub_id)
+        sub_obj = stripe.Subscription.retrieve(sub_id)
         price_id = None
         items_data = sub_obj.get("items", {}).get("data", [])
         if items_data:
@@ -218,7 +213,7 @@ def _handle_invoice_paid(invoice_obj) -> None:
     sub_id = invoice_obj.get("subscription")
     if not sub_id or not user.subscription:
         return
-    sub_obj = _stripe().Subscription.retrieve(sub_id)
+    sub_obj = stripe.Subscription.retrieve(sub_id)
     period_end = _period_end_from_sub(sub_obj)
     if period_end is not None:
         user.subscription.current_period_end = datetime.fromtimestamp(period_end, tz=timezone.utc)

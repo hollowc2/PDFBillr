@@ -18,6 +18,7 @@
     {% endwith %}
 
     <form method="POST" action="{{ url_for('auth.register') }}" novalidate class="space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
         <input type="email" name="email" required autocomplete="email"
@@ -32,6 +33,7 @@
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Confirm password</label>
         <input type="password" name="confirm_password" required autocomplete="new-password"
                class="input-field" placeholder="Repeat password" />
+        <span id="pw-match-error" class="text-xs text-red-500 hidden mt-1 block">Passwords do not match.</span>
       </div>
       <button type="submit"
               class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm">
@@ -45,4 +47,8 @@
     </p>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 {% endblock %}

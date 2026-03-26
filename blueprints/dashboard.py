@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from urllib.parse import quote
@@ -192,10 +193,12 @@ def branding():
             profile = BrandingProfile(user_id=current_user.id)
             db.session.add(profile)
 
-        # Accent color
+        # Accent color — validate strict hex to prevent CSS injection
         accent = request.form.get("accent_color", "#1e3a8a").strip()
-        if len(accent) <= 20:
-            profile.accent_color = accent
+        if not re.match(r'^#[0-9a-fA-F]{6}$', accent):
+            flash("Invalid accent color. Use a 6-digit hex color (e.g. #1e3a8a).", "error")
+            return render_template("dashboard/branding.html", profile=profile)
+        profile.accent_color = accent
 
         # Remove footer toggle
         profile.remove_footer = bool(request.form.get("remove_footer"))
@@ -227,12 +230,52 @@ def branding():
 
 
 # ---------------------------------------------------------------------------
+# Save Draft (no PDF generation)
+# ---------------------------------------------------------------------------
+
+@bp.route("/save-draft", methods=["POST"])
+@login_required
+def save_draft():
+    from blueprints.public import _HEX_RE, _save_invoice
+    from utils.pdf import ALLOWED_THEMES, build_invoice_context
+
+    logo_filename = None
+    accent_color  = "#1e3a8a"
+    remove_footer = False
+
+    branding = current_user.branding
+    if branding and is_pro():
+        logo_filename = branding.logo_filename
+        raw_accent    = branding.accent_color or "#1e3a8a"
+        accent_color  = raw_accent if _HEX_RE.match(raw_accent) else "#1e3a8a"
+        remove_footer = branding.remove_footer
+
+    theme = request.form.get("theme", "default")
+    if theme not in ALLOWED_THEMES or (theme != "default" and not is_pro()):
+        theme = "default"
+
+    context = build_invoice_context(request.form, logo_filename=logo_filename, accent_color=accent_color)
+    context["remove_footer"] = remove_footer
+
+    if not context.get("line_items"):
+        flash("Please add at least one line item to save a draft.", "error")
+        return redirect(url_for("public.index"))
+
+    _save_invoice(context, theme)
+    flash("Draft saved.", "success")
+    return redirect(url_for("dashboard.index"))
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 def _own_invoice(invoice_id: int) -> Invoice:
     inv = db.session.get(Invoice, invoice_id)
     if inv is None or inv.user_id != current_user.id:
+        current_app.logger.warning(
+            "Unauthorized invoice access: user=%s invoice=%s", current_user.id, invoice_id
+        )
         abort(404)
     return inv
 

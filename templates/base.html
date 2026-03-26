@@ -3,20 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="{{ csrf_token() }}" />
   <title>{% block title %}PDFBillr — Free Invoice Generator{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <script>
-    // Dark mode: apply before render to avoid flash
-    (function () {
-      const stored = localStorage.getItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (stored === 'dark' || (!stored && prefersDark)) {
-        document.documentElement.classList.add('dark');
-      }
-    })();
-  </script>
+  <script src="{{ url_for('static', filename='js/darkmode.js') }}"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.min.css') }}" />
   <style>
     .input-field {
@@ -125,7 +117,7 @@
     <div class="max-w-5xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center gap-3 justify-between">
       <div class="text-sm">
         <span class="font-bold text-blue-300">PDFBillr Pro</span>
-        <span class="text-blue-200"> — $7/mo · </span>
+        <span class="text-blue-200"> — $5/mo · </span>
         <span class="text-gray-300">Custom logo · Client history · Email delivery · PDF templates</span>
       </div>
       <a href="{{ url_for('billing.upgrade') }}"
@@ -140,20 +132,6 @@
   <footer class="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 text-center text-xs text-gray-500 dark:text-gray-500 py-4">
     Made with ❤️ on a VPS &nbsp;·&nbsp; PDFBillr &copy; 2026 &nbsp;·&nbsp; Free forever, no account required
   </footer>
-
-  <!-- Dark mode toggle script -->
-  <script>
-    document.getElementById('dark-toggle').addEventListener('click', function () {
-      const html = document.documentElement;
-      if (html.classList.contains('dark')) {
-        html.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-      } else {
-        html.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-      }
-    });
-  </script>
 
   {% block scripts %}{% endblock %}
 </body>

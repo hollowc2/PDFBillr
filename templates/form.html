@@ -4,6 +4,7 @@
 
 {% block content %}
 <form id="invoice-form" action="{{ url_for('public.generate') }}" method="POST" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
   <h1 class="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Create Invoice</h1>
 
@@ -15,20 +16,23 @@
       <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">From</h2>
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Company / Your Name</label>
-        <input type="text" name="from_company" placeholder="Acme Corp" class="input-field" />
+        <input type="text" name="from_company" placeholder="Acme Corp" class="input-field"
+               value="{{ form_data.get('from_company', '') if form_data else '' }}" />
       </div>
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Address</label>
-        <textarea name="from_address" rows="3" placeholder="123 Main St&#10;City, State 00000" class="input-field resize-none"></textarea>
+        <textarea name="from_address" rows="3" placeholder="123 Main St&#10;City, State 00000" class="input-field resize-none">{{ form_data.get('from_address', '') if form_data else '' }}</textarea>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
-          <input type="email" name="from_email" placeholder="you@example.com" class="input-field" />
+          <input type="email" name="from_email" placeholder="you@example.com" class="input-field"
+                 value="{{ form_data.get('from_email', '') if form_data else '' }}" />
         </div>
         <div>
           <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</label>
-          <input type="tel" name="from_phone" placeholder="+1 555 000 0000" class="input-field" />
+          <input type="tel" name="from_phone" placeholder="+1 555 000 0000" class="input-field"
+                 value="{{ form_data.get('from_phone', '') if form_data else '' }}" />
         </div>
       </div>
     </div>
@@ -38,15 +42,17 @@
       <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Bill To</h2>
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client Name</label>
-        <input type="text" name="to_name" placeholder="Client LLC" class="input-field" />
+        <input type="text" name="to_name" placeholder="Client LLC" class="input-field"
+               value="{{ form_data.get('to_name', '') if form_data else '' }}" />
       </div>
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Address</label>
-        <textarea name="to_address" rows="3" placeholder="456 Client Ave&#10;City, State 00000" class="input-field resize-none"></textarea>
+        <textarea name="to_address" rows="3" placeholder="456 Client Ave&#10;City, State 00000" class="input-field resize-none">{{ form_data.get('to_address', '') if form_data else '' }}</textarea>
       </div>
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
-        <input type="email" name="to_email" placeholder="client@example.com" class="input-field" />
+        <input type="email" name="to_email" placeholder="client@example.com" class="input-field"
+               value="{{ form_data.get('to_email', '') if form_data else '' }}" />
       </div>
     </div>
 
@@ -58,15 +64,18 @@
     <div class="grid sm:grid-cols-3 gap-4">
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Invoice Number</label>
-        <input type="text" name="invoice_number" value="INV-001" class="input-field" />
+        <input type="text" name="invoice_number" class="input-field"
+               value="{{ form_data.get('invoice_number', 'INV-001') if form_data else 'INV-001' }}" />
       </div>
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Invoice Date</label>
-        <input type="date" name="invoice_date" value="{{ today }}" class="input-field" />
+        <input type="date" name="invoice_date" class="input-field"
+               value="{{ form_data.get('invoice_date', today) if form_data else today }}" />
       </div>
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Due Date</label>
-        <input type="date" name="due_date" class="input-field" />
+        <input type="date" name="due_date" class="input-field"
+               value="{{ form_data.get('due_date', '') if form_data else '' }}" />
       </div>
     </div>
   </div>
@@ -155,7 +164,7 @@
         rows="4"
         placeholder="Thank you for your business! Payment within 30 days."
         class="input-field resize-none"
-      ></textarea>
+      >{{ form_data.get('notes', '') if form_data else '' }}</textarea>
     </div>
     <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
       <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Payment Info</h2>
@@ -164,7 +173,7 @@
         rows="4"
         placeholder="Bank: Example Bank&#10;Account: 0000 0000&#10;Routing: 000000000"
         class="input-field resize-none"
-      ></textarea>
+      >{{ form_data.get('payment_info', '') if form_data else '' }}</textarea>
     </div>
   </div>
 
@@ -273,6 +282,16 @@
 
   <!-- ── Action Buttons ─────────────────────────────────────────── -->
   <div class="flex flex-col sm:flex-row gap-3 justify-end">
+    {% if current_user.is_authenticated %}
+    <button
+      type="submit"
+      id="btn-save-draft"
+      formaction="{{ url_for('dashboard.save_draft') }}"
+      class="px-6 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 font-semibold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+    >
+      Save Draft
+    </button>
+    {% endif %}
     <button
       type="submit"
       name="action"
@@ -293,223 +312,18 @@
     </button>
   </div>
 
+  {% if form_data %}
+  <script id="form-prefill" type="application/json">
+  {"descriptions": {{ form_data.getlist('description[]') | tojson }},
+   "qtys": {{ form_data.getlist('qty[]') | tojson }},
+   "rates": {{ form_data.getlist('rate[]') | tojson }}}
+  </script>
+  {% endif %}
+
 </form>
 
 {% endblock %}
 
 {% block scripts %}
-<script>
-(function () {
-  'use strict';
-
-  var rowCounter = 0;
-
-  function parseNum(val) {
-    var n = parseFloat(val);
-    return isNaN(n) ? 0 : n;
-  }
-
-  function fmt(n) {
-    return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  }
-
-  function makeInput(type, name, placeholder, extraClasses) {
-    var inp = document.createElement('input');
-    inp.type = type;
-    if (name) inp.name = name;
-    if (placeholder) inp.placeholder = placeholder;
-    inp.className = 'input-field' + (extraClasses ? ' ' + extraClasses : '');
-    return inp;
-  }
-
-  function makeCell(colClass) {
-    var div = document.createElement('div');
-    div.className = colClass;
-    return div;
-  }
-
-  function createRow(id) {
-    var row = document.createElement('div');
-    row.className = 'line-item-row grid grid-cols-12 gap-2 items-center';
-    row.dataset.id = id;
-
-    var descCell = makeCell('col-span-12 md:col-span-6');
-    var descInput = makeInput('text', 'description[]', 'Service or product description', null);
-    descCell.appendChild(descInput);
-
-    var qtyCell = makeCell('col-span-4 md:col-span-2');
-    var qtyInput = makeInput('number', 'qty[]', '1', null);
-    qtyInput.min = '0';
-    qtyInput.step = 'any';
-    qtyCell.appendChild(qtyInput);
-
-    var rateCell = makeCell('col-span-4 md:col-span-2');
-    var rateWrap = document.createElement('div');
-    rateWrap.className = 'relative';
-    var ratePfx = document.createElement('span');
-    ratePfx.className = 'absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm select-none pointer-events-none';
-    ratePfx.textContent = '$';
-    var rateInput = makeInput('number', 'rate[]', '0.00', 'pl-6');
-    rateInput.min = '0';
-    rateInput.step = '0.01';
-    rateWrap.appendChild(ratePfx);
-    rateWrap.appendChild(rateInput);
-    rateCell.appendChild(rateWrap);
-
-    var amtCell = makeCell('col-span-2 md:col-span-1 text-right');
-    var amtSpan = document.createElement('span');
-    amtSpan.className = 'amount-display text-sm font-mono text-gray-700 dark:text-gray-300';
-    amtSpan.textContent = '$0.00';
-    amtCell.appendChild(amtSpan);
-
-    var rmCell = makeCell('col-span-2 md:col-span-1 flex justify-end');
-    var rmBtn = document.createElement('button');
-    rmBtn.type = 'button';
-    rmBtn.className = 'remove-btn p-1.5 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded';
-    rmBtn.setAttribute('aria-label', 'Remove row');
-
-    var svgNS = 'http://www.w3.org/2000/svg';
-    var svg = document.createElementNS(svgNS, 'svg');
-    svg.setAttribute('class', 'w-4 h-4');
-    svg.setAttribute('fill', 'none');
-    svg.setAttribute('stroke', 'currentColor');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    var path = document.createElementNS(svgNS, 'path');
-    path.setAttribute('stroke-linecap', 'round');
-    path.setAttribute('stroke-linejoin', 'round');
-    path.setAttribute('stroke-width', '2');
-    path.setAttribute('d', 'M6 18L18 6M6 6l12 12');
-    svg.appendChild(path);
-    rmBtn.appendChild(svg);
-    rmCell.appendChild(rmBtn);
-
-    row.appendChild(descCell);
-    row.appendChild(qtyCell);
-    row.appendChild(rateCell);
-    row.appendChild(amtCell);
-    row.appendChild(rmCell);
-
-    function updateRowAmount() {
-      var amount = parseNum(qtyInput.value) * parseNum(rateInput.value);
-      amtSpan.textContent = fmt(amount);
-      recalcTotals();
-    }
-
-    qtyInput.addEventListener('input', updateRowAmount);
-    rateInput.addEventListener('input', updateRowAmount);
-
-    rmBtn.addEventListener('click', function () {
-      var container = document.getElementById('line-items');
-      var rows = container.querySelectorAll('.line-item-row');
-      if (rows.length <= 1) {
-        descInput.value = '';
-        qtyInput.value = '';
-        rateInput.value = '';
-        amtSpan.textContent = '$0.00';
-        recalcTotals();
-      } else {
-        row.remove();
-        recalcTotals();
-      }
-    });
-
-    return row;
-  }
-
-  function addRow() {
-    rowCounter++;
-    var row = createRow(rowCounter);
-    document.getElementById('line-items').appendChild(row);
-    row.querySelector('input[name="description[]"]').focus();
-  }
-
-  function recalcTotals() {
-    var subtotal = 0;
-    document.querySelectorAll('.line-item-row').forEach(function (row) {
-      var qty = parseNum(row.querySelector('input[name="qty[]"]').value);
-      var rate = parseNum(row.querySelector('input[name="rate[]"]').value);
-      subtotal += qty * rate;
-    });
-
-    var taxRate = parseNum(document.getElementById('tax-input').value);
-    var discount = parseNum(document.getElementById('discount-input').value);
-    var taxAmount = subtotal * (taxRate / 100);
-    var total = subtotal + taxAmount - discount;
-
-    document.getElementById('display-subtotal').textContent = fmt(subtotal);
-    document.getElementById('display-tax').textContent = fmt(taxAmount);
-    document.getElementById('display-discount').textContent = fmt(discount);
-    document.getElementById('display-total').textContent = fmt(total);
-  }
-
-  document.addEventListener('DOMContentLoaded', function () {
-    addRow();
-
-    document.getElementById('add-row-btn').addEventListener('click', addRow);
-    document.getElementById('tax-input').addEventListener('input', recalcTotals);
-    document.getElementById('discount-input').addEventListener('input', recalcTotals);
-
-    var form = document.getElementById('invoice-form');
-    var btnPreview = document.getElementById('btn-preview');
-    var btnDownload = document.getElementById('btn-download');
-
-    form.addEventListener('submit', function (e) {
-      var descriptions = form.querySelectorAll('input[name="description[]"]');
-      var hasItem = false;
-      descriptions.forEach(function (inp) {
-        if (inp.value.trim()) hasItem = true;
-      });
-
-      if (!hasItem) {
-        e.preventDefault();
-        alert('Please add at least one line item with a description.');
-        return;
-      }
-
-      btnPreview.disabled = true;
-      btnDownload.disabled = true;
-      btnPreview.textContent = 'Generating\u2026';
-      btnDownload.textContent = 'Generating\u2026';
-      btnPreview.classList.add('opacity-50', 'cursor-not-allowed');
-      btnDownload.classList.add('opacity-50', 'cursor-not-allowed');
-
-      setTimeout(function () {
-        btnPreview.disabled = false;
-        btnDownload.disabled = false;
-        btnPreview.textContent = 'Preview PDF';
-        btnDownload.textContent = 'Download PDF';
-        btnPreview.classList.remove('opacity-50', 'cursor-not-allowed');
-        btnDownload.classList.remove('opacity-50', 'cursor-not-allowed');
-      }, 10000);
-    });
-  });
-})();
-</script>
-
-<script>
-// Theme card highlight
-(function () {
-  var cards = document.querySelectorAll('.theme-card');
-  function updateHighlight() {
-    cards.forEach(function (label) {
-      var radio = label.querySelector('input[type="radio"]');
-      var inner = label.querySelector('.theme-card-inner');
-      if (radio && inner) {
-        if (radio.checked) {
-          inner.classList.add('border-blue-600', 'dark:border-blue-400');
-          inner.classList.remove('border-transparent');
-        } else {
-          inner.classList.remove('border-blue-600', 'dark:border-blue-400');
-          inner.classList.add('border-transparent');
-        }
-      }
-    });
-  }
-  cards.forEach(function (label) {
-    var radio = label.querySelector('input[type="radio"]');
-    if (radio) radio.addEventListener('change', updateHighlight);
-  });
-  updateHighlight();
-})();
-</script>
+<script src="{{ url_for('static', filename='js/form.js') }}"></script>
 {% endblock %}

@@ -4,7 +4,7 @@ from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config
-from extensions import db, limiter, login_manager, mail
+from extensions import csrf, db, limiter, login_manager, mail
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -29,6 +29,11 @@ def create_app(config_class: type = Config) -> Flask:
     login_manager.login_message_category = "info"
     mail.init_app(app)
     limiter.init_app(app)
+    csrf.init_app(app)
+
+    # Set Stripe API key once at startup
+    import stripe as _stripe_module
+    _stripe_module.api_key = app.config.get("STRIPE_SECRET_KEY", "")
 
     # Blueprints
     from blueprints.public import bp as public_bp
@@ -54,7 +59,7 @@ def create_app(config_class: type = Config) -> Flask:
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
+            "script-src 'self'; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data:; "

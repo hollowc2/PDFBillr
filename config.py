@@ -27,3 +27,8 @@ class Config:
 
     # File uploads (2 MB max)
     MAX_CONTENT_LENGTH = 2 * 1024 * 1024
+
+    # Session cookie security
+    SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() == "true"
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"

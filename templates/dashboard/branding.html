@@ -24,6 +24,7 @@
 
 <form method="POST" action="{{ url_for('dashboard.branding') }}" enctype="multipart/form-data"
       class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 space-y-6">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
   <!-- Logo upload -->
   <div>
@@ -81,33 +82,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-  // Sync color picker ↔ hex input
-  var picker = document.querySelector('input[type="color"]');
-  var hexInput = document.getElementById('accent_hex');
-  var nameAttr = picker.getAttribute('name');
-
-  picker.addEventListener('input', function () {
-    hexInput.value = picker.value;
-  });
-  hexInput.addEventListener('input', function () {
-    if (/^#[0-9a-fA-F]{6}$/.test(hexInput.value)) {
-      picker.value = hexInput.value;
-    }
-    // Mirror value to the real form field (color picker)
-    picker.dispatchEvent(new Event('change'));
-  });
-  // Ensure the hidden color input always submits the hex value
-  hexInput.addEventListener('change', function () {
-    if (/^#[0-9a-fA-F]{6}$/.test(hexInput.value)) {
-      picker.value = hexInput.value;
-    }
-  });
-  // Before submit, copy hex input to color picker name field
-  document.querySelector('form').addEventListener('submit', function () {
-    if (/^#[0-9a-fA-F]{6}$/.test(hexInput.value)) {
-      picker.value = hexInput.value;
-    }
-  });
-</script>
+<script src="{{ url_for('static', filename='js/branding.js') }}"></script>
 {% endblock %}

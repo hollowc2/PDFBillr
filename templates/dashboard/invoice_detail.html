@@ -74,6 +74,7 @@
     </a>
 
     <form method="POST" action="{{ url_for('dashboard.invoice_duplicate', invoice_id=invoice.id) }}" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <button type="submit"
               class="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
         Duplicate
@@ -82,7 +83,7 @@
 
     <!-- Send via email (Pro only) -->
     {% if is_pro() %}
-    <button type="button" onclick="document.getElementById('send-modal').classList.remove('hidden')"
+    <button type="button" id="btn-send-email"
             class="px-4 py-2 rounded-xl border border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950 text-sm font-medium text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900 transition-colors">
       Send via Email
     </button>
@@ -96,6 +97,7 @@
     <form method="POST" action="{{ url_for('dashboard.invoice_delete', invoice_id=invoice.id) }}"
           class="inline ml-auto"
           onsubmit="return confirm('Delete this invoice? This cannot be undone.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <button type="submit"
               class="px-4 py-2 rounded-xl text-sm font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors">
         Delete
@@ -110,6 +112,7 @@
   <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 w-full max-w-md shadow-xl">
     <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Send Invoice by Email</h2>
     <form method="POST" action="{{ url_for('dashboard.invoice_send', invoice_id=invoice.id) }}" class="space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Recipient email</label>
         <input type="email" name="recipient_email" required
@@ -121,8 +124,7 @@
                 class="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors">
           Send
         </button>
-        <button type="button"
-                onclick="document.getElementById('send-modal').classList.add('hidden')"
+        <button type="button" id="btn-send-cancel"
                 class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
           Cancel
         </button>
@@ -131,4 +133,8 @@
   </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

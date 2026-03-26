@@ -2,9 +2,12 @@ import base64
 import json
 import mimetypes
 import os
+import re as _re
 
 from flask import current_app, render_template
 from weasyprint import HTML
+
+_HEX_RE = _re.compile(r'^#[0-9a-fA-F]{6}$')
 
 from utils.helpers import (
     MAX_DESC, MAX_ITEMS, MAX_LONG, MAX_SHORT,
@@ -116,7 +119,8 @@ def context_from_invoice(invoice) -> dict:
     accent_color = "#1e3a8a"
     remove_footer = False
     if invoice.user and invoice.user.branding:
-        accent_color = invoice.user.branding.accent_color or "#1e3a8a"
+        raw_accent = invoice.user.branding.accent_color or "#1e3a8a"
+        accent_color = raw_accent if _HEX_RE.match(raw_accent) else "#1e3a8a"
         remove_footer = bool(invoice.user.branding.remove_footer)
 
     return {
