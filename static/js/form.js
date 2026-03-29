@@ -220,49 +220,91 @@
     var btnDownload = document.getElementById('btn-download');
     var btnDraft    = document.getElementById('btn-save-draft');
 
-    // U1: spinner on submit
-    form.addEventListener('submit', function (e) {
+    function setSpinner(btn) {
+      btn.disabled = true;
+      btn.classList.add('opacity-50', 'cursor-not-allowed');
+      var spinner = makeSpinner();
+      btn.insertBefore(spinner, btn.firstChild);
+      btn.dataset.originalText = btn.textContent.trim();
+      var textNode = btn.lastChild;
+      if (textNode && textNode.nodeType === 3) {
+        textNode.textContent = 'Generating\u2026';
+      }
+    }
+
+    function resetBtn(btn) {
+      btn.disabled = false;
+      btn.classList.remove('opacity-50', 'cursor-not-allowed');
+      var spinner = btn.querySelector('svg.animate-spin');
+      if (spinner) spinner.remove();
+      if (btn.dataset.originalText) {
+        btn.textContent = btn.dataset.originalText;
+        delete btn.dataset.originalText;
+      }
+    }
+
+    function handlePdfButton(e, btn) {
+      e.preventDefault();
+
       var descriptions = form.querySelectorAll('input[name="description[]"]');
       var hasItem = false;
       descriptions.forEach(function (inp) {
         if (inp.value.trim()) hasItem = true;
       });
-
       if (!hasItem) {
-        e.preventDefault();
         alert('Please add at least one line item with a description.');
         return;
       }
 
-      var clicked = e.submitter;
-      // Don't spinner the Save Draft button (it goes to a different URL)
-      if (clicked && clicked.id !== 'btn-save-draft') {
-        clicked.disabled = true;
-        clicked.classList.add('opacity-50', 'cursor-not-allowed');
-        var spinner = makeSpinner();
-        clicked.insertBefore(spinner, clicked.firstChild);
-        clicked.dataset.originalText = clicked.textContent.trim();
-        // Update text node (last child after spinner insertion)
-        var textNode = clicked.lastChild;
-        if (textNode && textNode.nodeType === 3) {
-          textNode.textContent = 'Generating\u2026';
-        }
-      }
-    });
+      setSpinner(btn);
 
-    // U1: re-enable on back navigation (pageshow)
-    window.addEventListener('pageshow', function () {
-      [btnPreview, btnDownload].forEach(function (btn) {
-        if (!btn) return;
-        btn.disabled = false;
-        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-        var spinner = btn.querySelector('svg.animate-spin');
-        if (spinner) spinner.remove();
-        if (btn.dataset.originalText) {
-          btn.textContent = btn.dataset.originalText;
-          delete btn.dataset.originalText;
-        }
-      });
+      var formData = new FormData(form);
+      formData.set('action', btn.value);
+
+      fetch(form.getAttribute('action'), { method: 'POST', body: formData })
+        .then(function (response) {
+          if (!response.ok) throw new Error('Server error');
+          // Extract filename from Content-Disposition header
+          var cd = response.headers.get('Content-Disposition') || '';
+          var match = cd.match(/filename="([^"]+)"/);
+          var filename = match ? match[1] : 'invoice.pdf';
+          return response.blob().then(function (blob) {
+            return { blob: blob, filename: filename };
+          });
+        })
+        .then(function (result) {
+          var url = URL.createObjectURL(result.blob);
+          if (btn.value === 'preview') {
+            window.open(url, '_blank');
+          } else {
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = result.filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }
+          setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+        })
+        .catch(function () {
+          alert('Failed to generate PDF. Please try again.');
+        })
+        .finally(function () {
+          resetBtn(btn);
+        });
+    }
+
+    if (btnPreview)  btnPreview.addEventListener('click',  function (e) { handlePdfButton(e, btnPreview); });
+    if (btnDownload) btnDownload.addEventListener('click', function (e) { handlePdfButton(e, btnDownload); });
+
+    // U1: spinner on submit (Save Draft only — preview/download handled above)
+    form.addEventListener('submit', function (e) {
+      var clicked = e.submitter;
+      if (!clicked || clicked.id === 'btn-save-draft') return;
+      // preview/download are handled by click handlers above; prevent double-submit
+      if (clicked.id === 'btn-preview' || clicked.id === 'btn-download') {
+        e.preventDefault();
+      }
     });
 
     // U5: upgrade tooltip on locked theme links
