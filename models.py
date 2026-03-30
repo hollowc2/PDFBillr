@@ -86,6 +86,16 @@ class Invoice(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=_now)
     updated_at = db.Column(db.DateTime(timezone=True), default=_now, onupdate=_now)
 
+    # View tracking
+    view_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
+    viewed_at  = db.Column(db.DateTime(timezone=True), nullable=True)
+    view_count = db.Column(db.Integer, default=0)
+
+    # Payment reminder tracking (Pro)
+    reminder_3d_sent = db.Column(db.Boolean, default=False)  # 3 days before due
+    reminder_0d_sent = db.Column(db.Boolean, default=False)  # on due date
+    reminder_7d_sent = db.Column(db.Boolean, default=False)  # 7 days overdue
+
     user = db.relationship("User", back_populates="invoices")
 
 
@@ -95,6 +105,40 @@ class ProcessedStripeEvent(db.Model):
 
     stripe_event_id = db.Column(db.String(255), primary_key=True)
     created_at = db.Column(db.DateTime(timezone=True), default=_now)
+
+
+class RecurringInvoice(db.Model):
+    __tablename__ = "recurring_invoices"
+
+    id      = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    # Invoice template fields
+    invoice_number_prefix = db.Column(db.String(100), nullable=True)
+    from_company  = db.Column(db.String(200), nullable=True)
+    from_address  = db.Column(db.Text, nullable=True)
+    from_email    = db.Column(db.String(200), nullable=True)
+    from_phone    = db.Column(db.String(200), nullable=True)
+    to_name       = db.Column(db.String(200), nullable=True)
+    to_address    = db.Column(db.Text, nullable=True)
+    to_email      = db.Column(db.String(200), nullable=True)
+    line_items_json = db.Column(db.Text, nullable=True)
+    tax_rate      = db.Column(db.Float, default=0.0)
+    discount      = db.Column(db.Float, default=0.0)
+    notes         = db.Column(db.Text, nullable=True)
+    payment_info  = db.Column(db.Text, nullable=True)
+    theme         = db.Column(db.String(50), default="default")
+
+    # Schedule — interval: monthly | weekly | biweekly | quarterly
+    interval      = db.Column(db.String(20), nullable=False, default="monthly")
+    net_days      = db.Column(db.Integer, default=30)  # days until due on generated invoice
+    next_run_date = db.Column(db.Date, nullable=False)
+    last_run_date = db.Column(db.Date, nullable=True)
+    auto_send     = db.Column(db.Boolean, default=False)
+    is_active     = db.Column(db.Boolean, default=True)
+    created_at    = db.Column(db.DateTime(timezone=True), default=_now)
+
+    user = db.relationship("User", backref="recurring_invoices")
 
 
 class BrandingProfile(db.Model):

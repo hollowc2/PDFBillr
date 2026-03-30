@@ -12,6 +12,9 @@ Please find attached invoice {{ invoice.invoice_number }} from {{ sender_name }}
 {% if invoice.notes %}Notes:
 {{ invoice.notes }}{% endif %}
 
+View this invoice online:
+{{ view_url }}
+
 Thank you for your business.
 
 —{{ sender_name }}

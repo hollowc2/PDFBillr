@@ -1,12 +1,13 @@
 import json
 import re as _re
-from datetime import date
+import secrets
+from datetime import date, datetime, timezone
 from urllib.parse import quote
 
 _HEX_RE = _re.compile(r'^#[0-9a-fA-F]{6}$')
 
 from flask import (
-    Blueprint, jsonify, make_response, render_template, request,
+    Blueprint, abort, jsonify, make_response, render_template, request,
 )
 from flask_login import current_user
 
@@ -14,7 +15,7 @@ from extensions import db, limiter
 from models import BrandingProfile, Invoice
 from utils.gating import is_pro
 from utils.helpers import _safe_filename
-from utils.pdf import ALLOWED_THEMES, build_invoice_context, render_pdf
+from utils.pdf import ALLOWED_THEMES, build_invoice_context, context_from_invoice, render_pdf
 
 bp = Blueprint("public", __name__)
 
@@ -106,9 +107,23 @@ def _save_invoice(context: dict, theme: str) -> None:
         logo_filename  = cu.branding.logo_filename if cu.branding else None,
         theme          = theme,
         status         = "draft",
+        view_token     = secrets.token_urlsafe(32),
     )
     db.session.add(inv)
     db.session.commit()
+
+
+@bp.route("/invoice/view/<token>")
+def invoice_view(token: str):
+    """Public invoice view link — records when a client opens the invoice."""
+    inv = Invoice.query.filter_by(view_token=token).first_or_404()
+    # Record first view timestamp and increment count
+    if inv.viewed_at is None:
+        inv.viewed_at = datetime.now(timezone.utc)
+    inv.view_count = (inv.view_count or 0) + 1
+    db.session.commit()
+    context = context_from_invoice(inv)
+    return render_template("invoice_view.html", invoice=inv, **context)
 
 
 @bp.route("/health")

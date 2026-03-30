@@ -1,0 +1,19 @@
+Hi {% if invoice.to_name %}{{ invoice.to_name }}{% else %}there{% endif %},
+
+Invoice {{ invoice.invoice_number }} from {{ sender_name }} was due on
+{{ invoice.due_date }} and appears to be outstanding.
+
+  Invoice #: {{ invoice.invoice_number }}
+  Due Date:  {{ invoice.due_date }}
+  Total Due: ${{ "%.2f" | format(invoice.total) }}
+
+{% if invoice.payment_info %}Payment information:
+{{ invoice.payment_info }}{% endif %}
+
+View your invoice online:
+{{ view_url }}
+
+Please arrange payment at your earliest convenience, or reply to this
+email if you have any questions.
+
+—{{ sender_name }}

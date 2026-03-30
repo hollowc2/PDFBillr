@@ -29,6 +29,10 @@
     Custom Branding
   </a>
   {% if is_pro() %}
+  <a href="{{ url_for('dashboard.recurring_list') }}"
+     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    Recurring Invoices
+  </a>
   <a href="{{ url_for('billing.portal') }}"
      class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
     Manage Subscription

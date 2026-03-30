@@ -1,0 +1,18 @@
+Hi {% if invoice.to_name %}{{ invoice.to_name }}{% else %}there{% endif %},
+
+This is a friendly reminder that invoice {{ invoice.invoice_number }} from
+{{ sender_name }} is due in 3 days.
+
+  Invoice #: {{ invoice.invoice_number }}
+  Due Date:  {{ invoice.due_date }}
+  Total Due: ${{ "%.2f" | format(invoice.total) }}
+
+{% if invoice.payment_info %}Payment information:
+{{ invoice.payment_info }}{% endif %}
+
+View your invoice online:
+{{ view_url }}
+
+If you have already arranged payment, please disregard this message.
+
+—{{ sender_name }}

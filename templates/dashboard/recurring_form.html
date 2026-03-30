@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}PDFBillr — {{ 'Edit' if tmpl else 'New' }} Recurring Invoice{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <a href="{{ url_for('dashboard.recurring_list') }}" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+    ← Recurring Invoices
+  </a>
+  <h1 class="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+    {{ 'Edit Recurring Invoice' if tmpl else 'New Recurring Invoice' }}
+  </h1>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-sm
+      {% if category == 'error' %}bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800
+      {% elif category == 'success' %}bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800
+      {% else %}bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% endif %}">
+      {{ message }}
+    </div>
+  {% endfor %}
+{% endwith %}
+
+<form method="POST" class="space-y-6">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+  <!-- Schedule -->
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Schedule</h2>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Repeat</label>
+        <select name="interval" class="input-field">
+          {% for iv in ['weekly', 'biweekly', 'monthly', 'quarterly'] %}
+          <option value="{{ iv }}" {{ 'selected' if tmpl and tmpl.interval == iv else ('selected' if not tmpl and iv == 'monthly' else '') }}>
+            {{ iv | capitalize }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">First run date</label>
+        <input type="date" name="next_run_date" required
+               value="{{ tmpl.next_run_date.isoformat() if tmpl else '' }}"
+               class="input-field" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment terms (days)</label>
+        <input type="number" name="net_days" min="0" max="365"
+               value="{{ tmpl.net_days if tmpl else 30 }}"
+               class="input-field" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Invoice # prefix</label>
+        <input type="text" name="invoice_number_prefix" maxlength="50"
+               value="{{ tmpl.invoice_number_prefix if tmpl else 'INV' }}"
+               placeholder="INV"
+               class="input-field" />
+      </div>
+    </div>
+    <div class="mt-4 flex items-center gap-3">
+      <input type="checkbox" id="auto_send" name="auto_send" value="1"
+             {{ 'checked' if tmpl and tmpl.auto_send else '' }}
+             class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+      <label for="auto_send" class="text-sm text-gray-700 dark:text-gray-300">
+        Auto-send to client when generated
+        <span class="text-gray-400 dark:text-gray-500 font-normal">(requires client email)</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- From -->
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">From</h2>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Company / Name</label>
+        <input type="text" name="from_company" maxlength="200"
+               value="{{ tmpl.from_company or '' }}"
+               class="input-field" placeholder="Your Company" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+        <input type="email" name="from_email" maxlength="200"
+               value="{{ tmpl.from_email or '' }}"
+               class="input-field" placeholder="you@example.com" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Address</label>
+        <textarea name="from_address" rows="2" maxlength="1000"
+                  class="input-field">{{ tmpl.from_address or '' }}</textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</label>
+        <input type="tel" name="from_phone" maxlength="200"
+               value="{{ tmpl.from_phone or '' }}"
+               class="input-field" placeholder="+1 555 000 0000" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Bill To -->
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Bill To</h2>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client Name</label>
+        <input type="text" name="to_name" maxlength="200"
+               value="{{ tmpl.to_name or '' }}"
+               class="input-field" placeholder="Client Name" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client Email</label>
+        <input type="email" name="to_email" maxlength="200"
+               value="{{ tmpl.to_email or '' }}"
+               class="input-field" placeholder="client@example.com" />
+      </div>
+      <div class="sm:col-span-2">
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client Address</label>
+        <textarea name="to_address" rows="2" maxlength="1000"
+                  class="input-field">{{ tmpl.to_address or '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Line Items -->
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Line Items</h2>
+    <div id="line-items-container" class="space-y-2 mb-3">
+      <!-- Populated by JS -->
+    </div>
+    <button type="button" id="add-line-item"
+            class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+      + Add line item
+    </button>
+    <input type="hidden" name="line_items_json" id="line_items_json"
+           value="{{ tmpl.line_items_json if tmpl else '[]' }}" />
+
+    <!-- Financials -->
+    <div class="grid sm:grid-cols-2 gap-4 mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tax rate (%)</label>
+        <input type="number" name="tax_rate" min="0" max="100" step="0.01"
+               value="{{ tmpl.tax_rate if tmpl else 0 }}"
+               class="input-field" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Discount ($)</label>
+        <input type="number" name="discount" min="0" step="0.01"
+               value="{{ tmpl.discount if tmpl else 0 }}"
+               class="input-field" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes -->
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Notes & Payment Info</h2>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
+        <textarea name="notes" rows="3" maxlength="2000" class="input-field">{{ tmpl.notes or '' }}</textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment Information</label>
+        <textarea name="payment_info" rows="3" maxlength="2000" class="input-field">{{ tmpl.payment_info or '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex gap-3">
+    <button type="submit"
+            class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm">
+      {{ 'Save Changes' if tmpl else 'Create Recurring Invoice' }}
+    </button>
+    <a href="{{ url_for('dashboard.recurring_list') }}"
+       class="px-6 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+      Cancel
+    </a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Simple line item editor for recurring invoice form
+(function () {
+  var container = document.getElementById('line-items-container');
+  var hiddenInput = document.getElementById('line_items_json');
+  var items = [];
+
+  try { items = JSON.parse(hiddenInput.value || '[]'); } catch(e) { items = []; }
+
+  function renderItems() {
+    container.innerHTML = '';
+    items.forEach(function(item, i) {
+      var row = document.createElement('div');
+      row.className = 'flex gap-2 items-start';
+      row.innerHTML =
+        '<input type="text" placeholder="Description" value="' + esc(item.description) + '" class="input-field flex-1" data-i="' + i + '" data-f="description" />' +
+        '<input type="number" placeholder="Qty" value="' + item.qty + '" min="0" step="0.01" class="input-field w-20" data-i="' + i + '" data-f="qty" />' +
+        '<input type="number" placeholder="Rate" value="' + item.rate + '" min="0" step="0.01" class="input-field w-24" data-i="' + i + '" data-f="rate" />' +
+        '<button type="button" class="mt-1 text-red-400 hover:text-red-600 dark:hover:text-red-300 px-1 text-lg leading-none" data-remove="' + i + '">&times;</button>';
+      container.appendChild(row);
+    });
+  }
+
+  function esc(s) { return (s||'').replace(/"/g,'&quot;'); }
+
+  function sync() {
+    hiddenInput.value = JSON.stringify(items);
+  }
+
+  container.addEventListener('input', function(e) {
+    var el = e.target;
+    var i = el.dataset.i;
+    var f = el.dataset.f;
+    if (i === undefined || !f) return;
+    i = parseInt(i);
+    if (f === 'description') items[i].description = el.value;
+    else if (f === 'qty') { items[i].qty = parseFloat(el.value) || 0; items[i].amount = items[i].qty * items[i].rate; }
+    else if (f === 'rate') { items[i].rate = parseFloat(el.value) || 0; items[i].amount = items[i].qty * items[i].rate; }
+    sync();
+  });
+
+  container.addEventListener('click', function(e) {
+    var ri = e.target.dataset.remove;
+    if (ri !== undefined) { items.splice(parseInt(ri), 1); renderItems(); sync(); }
+  });
+
+  document.getElementById('add-line-item').addEventListener('click', function() {
+    items.push({description: '', qty: 1, rate: 0, amount: 0});
+    renderItems();
+    sync();
+    var inputs = container.querySelectorAll('input[data-f="description"]');
+    if (inputs.length) inputs[inputs.length-1].focus();
+  });
+
+  renderItems();
+  sync();
+})();
+</script>
+{% endblock %}

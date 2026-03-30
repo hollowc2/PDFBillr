@@ -1,9 +1,12 @@
+import json
 import os
 import re
+import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from urllib.parse import quote
 
+from dateutil.relativedelta import relativedelta
 from flask import (
     Blueprint, abort, current_app, flash, make_response,
     redirect, render_template, request, url_for,
@@ -12,10 +15,12 @@ from flask_login import current_user, login_required
 from flask_mail import Message
 
 from extensions import db, mail
-from models import BrandingProfile, Invoice
+from models import BrandingProfile, Invoice, RecurringInvoice
 from utils.gating import is_pro, pro_required
 from utils.helpers import _safe_filename
 from utils.pdf import ALLOWED_THEMES, context_from_invoice, render_pdf
+
+_VALID_INTERVALS = {"weekly", "biweekly", "monthly", "quarterly"}
 
 bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
@@ -144,16 +149,22 @@ def invoice_send(invoice_id: int):
         flash("No recipient email address.", "error")
         return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
 
+    # Ensure this invoice has a view token for tracking
+    if not inv.view_token:
+        inv.view_token = secrets.token_urlsafe(32)
+
     context   = context_from_invoice(inv)
     pdf_bytes = render_pdf(context, theme=inv.theme or "default")
 
     safe_number = _safe_filename(inv.invoice_number)
     filename    = f"Invoice-{safe_number}.pdf"
+    view_url    = url_for("public.invoice_view", token=inv.view_token, _external=True)
 
     body = render_template(
         "emails/invoice_body.txt",
         invoice=inv,
         sender_name=inv.from_company or current_user.email,
+        view_url=view_url,
     )
 
     msg = Message(
@@ -267,6 +278,78 @@ def save_draft():
 
 
 # ---------------------------------------------------------------------------
+# Recurring Invoices (Pro only)
+# ---------------------------------------------------------------------------
+
+@bp.route("/recurring")
+@login_required
+@pro_required
+def recurring_list():
+    templates = (
+        RecurringInvoice.query
+        .filter_by(user_id=current_user.id)
+        .order_by(RecurringInvoice.created_at.desc())
+        .all()
+    )
+    return render_template("dashboard/recurring_list.html", templates=templates)
+
+
+@bp.route("/recurring/new", methods=["GET", "POST"])
+@login_required
+@pro_required
+def recurring_new():
+    if request.method == "POST":
+        tmpl = _save_recurring_template(None)
+        if tmpl:
+            flash("Recurring invoice created.", "success")
+            return redirect(url_for("dashboard.recurring_list"))
+        return render_template("dashboard/recurring_form.html", tmpl=None,
+                               intervals=_VALID_INTERVALS)
+
+    return render_template("dashboard/recurring_form.html", tmpl=None,
+                           intervals=_VALID_INTERVALS)
+
+
+@bp.route("/recurring/<int:tmpl_id>/edit", methods=["GET", "POST"])
+@login_required
+@pro_required
+def recurring_edit(tmpl_id: int):
+    tmpl = _own_recurring(tmpl_id)
+    if request.method == "POST":
+        updated = _save_recurring_template(tmpl)
+        if updated:
+            flash("Recurring invoice updated.", "success")
+            return redirect(url_for("dashboard.recurring_list"))
+        return render_template("dashboard/recurring_form.html", tmpl=tmpl,
+                               intervals=_VALID_INTERVALS)
+    return render_template("dashboard/recurring_form.html", tmpl=tmpl,
+                           intervals=_VALID_INTERVALS)
+
+
+@bp.route("/recurring/<int:tmpl_id>/toggle", methods=["POST"])
+@login_required
+@pro_required
+def recurring_toggle(tmpl_id: int):
+    tmpl = _own_recurring(tmpl_id)
+    tmpl.is_active = not tmpl.is_active
+    db.session.commit()
+    state = "activated" if tmpl.is_active else "paused"
+    flash(f"Recurring invoice {state}.", "success")
+    return redirect(url_for("dashboard.recurring_list"))
+
+
+@bp.route("/recurring/<int:tmpl_id>/delete", methods=["POST"])
+@login_required
+@pro_required
+def recurring_delete(tmpl_id: int):
+    tmpl = _own_recurring(tmpl_id)
+    db.session.delete(tmpl)
+    db.session.commit()
+    flash("Recurring invoice deleted.", "info")
+    return redirect(url_for("dashboard.recurring_list"))
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -285,3 +368,90 @@ def _is_user_logo(filename: str) -> bool:
     sample_names = {"logo.jpg", "landingpagegraphic.png", "filecabinet.png",
                     "banner.png", "pdficon.png", "pdficon2.png", "pdficon3.png", "pdficon4.png"}
     return filename not in sample_names
+
+
+def _own_recurring(tmpl_id: int) -> RecurringInvoice:
+    tmpl = db.session.get(RecurringInvoice, tmpl_id)
+    if tmpl is None or tmpl.user_id != current_user.id:
+        abort(404)
+    return tmpl
+
+
+def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice | None:
+    """Create or update a RecurringInvoice from the current POST request.
+
+    Returns the template on success, None on validation failure (flash set).
+    """
+    interval = request.form.get("interval", "monthly").strip()
+    if interval not in _VALID_INTERVALS:
+        flash("Invalid interval.", "error")
+        return None
+
+    try:
+        next_run_str = request.form.get("next_run_date", "").strip()
+        next_run = datetime.strptime(next_run_str, "%Y-%m-%d").date()
+    except ValueError:
+        flash("Invalid start date.", "error")
+        return None
+
+    try:
+        net_days = int(request.form.get("net_days", 30))
+        if net_days < 0:
+            raise ValueError
+    except ValueError:
+        flash("Net days must be a non-negative integer.", "error")
+        return None
+
+    # Validate and parse line items from JSON submitted by the form
+    line_items_raw = request.form.get("line_items_json", "[]").strip()
+    try:
+        line_items = json.loads(line_items_raw)
+        if not isinstance(line_items, list):
+            raise ValueError
+    except (ValueError, TypeError):
+        flash("Invalid line items.", "error")
+        return None
+
+    if not line_items:
+        flash("Please add at least one line item.", "error")
+        return None
+
+    try:
+        tax_rate = float(request.form.get("tax_rate", 0))
+        if not (0 <= tax_rate <= 100):
+            raise ValueError
+    except ValueError:
+        tax_rate = 0.0
+
+    try:
+        discount = float(request.form.get("discount", 0))
+        if discount < 0:
+            raise ValueError
+    except ValueError:
+        discount = 0.0
+
+    if tmpl is None:
+        tmpl = RecurringInvoice(user_id=current_user.id)
+        db.session.add(tmpl)
+
+    tmpl.invoice_number_prefix = request.form.get("invoice_number_prefix", "INV")[:50].strip() or "INV"
+    tmpl.from_company  = request.form.get("from_company", "")[:200]
+    tmpl.from_address  = request.form.get("from_address", "")[:1000]
+    tmpl.from_email    = request.form.get("from_email", "")[:200]
+    tmpl.from_phone    = request.form.get("from_phone", "")[:200]
+    tmpl.to_name       = request.form.get("to_name", "")[:200]
+    tmpl.to_address    = request.form.get("to_address", "")[:1000]
+    tmpl.to_email      = request.form.get("to_email", "")[:200]
+    tmpl.line_items_json = json.dumps(line_items)
+    tmpl.tax_rate      = tax_rate
+    tmpl.discount      = discount
+    tmpl.notes         = request.form.get("notes", "")[:2000]
+    tmpl.payment_info  = request.form.get("payment_info", "")[:2000]
+    tmpl.theme         = request.form.get("theme", "default")
+    tmpl.interval      = interval
+    tmpl.net_days      = net_days
+    tmpl.next_run_date = next_run
+    tmpl.auto_send     = bool(request.form.get("auto_send"))
+
+    db.session.commit()
+    return tmpl

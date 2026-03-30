@@ -1,3 +1,4 @@
+import logging
 import warnings
 
 from flask import Flask
@@ -5,6 +6,32 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config
 from extensions import csrf, db, limiter, login_manager, mail
+
+log = logging.getLogger(__name__)
+
+
+def _migrate_db(db_obj) -> None:
+    """Add new columns to existing tables that pre-date this schema version.
+
+    Uses raw SQL ALTER TABLE so it's safe to run on every startup — the
+    try/except swallows the 'duplicate column' error from SQLite/Postgres.
+    """
+    new_invoice_cols = [
+        ("view_token",       "VARCHAR(64)"),
+        ("viewed_at",        "DATETIME"),
+        ("view_count",       "INTEGER DEFAULT 0"),
+        ("reminder_3d_sent", "BOOLEAN DEFAULT 0"),
+        ("reminder_0d_sent", "BOOLEAN DEFAULT 0"),
+        ("reminder_7d_sent", "BOOLEAN DEFAULT 0"),
+    ]
+    for col, col_type in new_invoice_cols:
+        try:
+            db_obj.session.execute(
+                db_obj.text(f"ALTER TABLE invoices ADD COLUMN {col} {col_type}")
+            )
+            db_obj.session.commit()
+        except Exception:
+            db_obj.session.rollback()  # column already exists — ignore
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -46,9 +73,10 @@ def create_app(config_class: type = Config) -> Flask:
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(billing_bp)
 
-    # Create DB tables on first run
+    # Create DB tables on first run, then migrate any missing columns
     with app.app_context():
         db.create_all()
+        _migrate_db(db)
 
     # Security headers
     @app.after_request
@@ -73,6 +101,15 @@ def create_app(config_class: type = Config) -> Flask:
     @app.context_processor
     def inject_pro():
         return {"is_pro": is_pro}
+
+    # Background scheduler for reminders and recurring invoices
+    if not app.config.get("DISABLE_SCHEDULER") and not app.config.get("TESTING"):
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from utils.scheduler import send_payment_reminders, process_recurring_invoices
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(send_payment_reminders, "cron", hour=8, minute=0, args=[app])
+        scheduler.add_job(process_recurring_invoices, "cron", hour=8, minute=5, args=[app])
+        scheduler.start()
 
     return app
 

@@ -32,3 +32,6 @@ class Config:
     SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() == "true"
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+
+    # Scheduler — set DISABLE_SCHEDULER=true to turn off background jobs (dev/testing)
+    DISABLE_SCHEDULER = os.environ.get("DISABLE_SCHEDULER", "false").lower() == "true"
