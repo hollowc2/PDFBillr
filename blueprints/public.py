@@ -7,7 +7,7 @@ from urllib.parse import quote
 _HEX_RE = _re.compile(r'^#[0-9a-fA-F]{6}$')
 
 from flask import (
-    Blueprint, abort, jsonify, make_response, render_template, request,
+    Blueprint, jsonify, make_response, render_template, request,
 )
 from flask_login import current_user
 
@@ -15,6 +15,7 @@ from extensions import db, limiter
 from models import BrandingProfile, Invoice
 from utils.gating import is_pro
 from utils.helpers import _safe_filename
+from utils.invoice_calculations import InvoiceCalculationError
 from utils.pdf import ALLOWED_THEMES, build_invoice_context, context_from_invoice, render_pdf
 
 bp = Blueprint("public", __name__)
@@ -51,7 +52,21 @@ def generate():
     if theme not in ALLOWED_THEMES or (theme != "default" and not is_pro()):
         theme = "default"
 
-    context = build_invoice_context(request.form, logo_filename=logo_filename, accent_color=accent_color)
+    try:
+        context = build_invoice_context(
+            request.form,
+            logo_filename=logo_filename,
+            accent_color=accent_color,
+        )
+    except InvoiceCalculationError as exc:
+        from flask import flash
+
+        flash(str(exc), "error")
+        return render_template(
+            "form.html",
+            today=date.today().isoformat(),
+            form_data=request.form,
+        )
     context["remove_footer"] = remove_footer
 
     # Validate at least one non-empty line item exists
@@ -114,6 +129,7 @@ def _save_invoice(context: dict, theme: str) -> None:
 
 
 @bp.route("/invoice/view/<token>")
+@limiter.limit("60 per minute")
 def invoice_view(token: str):
     """Public invoice view link — records when a client opens the invoice."""
     inv = Invoice.query.filter_by(view_token=token).first_or_404()
@@ -138,11 +154,22 @@ def health():
     try:
         db.session.execute(db.text("SELECT 1"))
     except Exception:
+        db.session.rollback()
         db_ok = False
 
     checks  = {"web_server": True, "pdf_engine": pdf_ok, "database": db_ok}
     overall = "ok" if all(checks.values()) else "degraded"
+    status_code = 200 if overall == "ok" else 503
 
     if request.accept_mimetypes.best_match(["application/json", "text/html"]) == "application/json":
-        return jsonify({"status": overall, "checks": checks})
-    return render_template("health.html", status=overall, checks=checks)
+        return jsonify({"status": overall, "checks": checks}), status_code
+    return (
+        render_template("health.html", status=overall, checks=checks),
+        status_code,
+    )
+
+
+@bp.route("/health/live")
+def liveness():
+    """Process-only liveness check; does not probe external dependencies."""
+    return jsonify({"status": "ok"}), 200

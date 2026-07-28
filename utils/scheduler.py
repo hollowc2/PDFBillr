@@ -66,25 +66,31 @@ def send_payment_reminders(app) -> None:
             changed = False
 
             if days_delta == 3 and not inv.reminder_3d_sent:
-                _send_reminder(mail, Message, render_template, "emails/reminder_due_soon.txt",
-                               inv, sender_name, view_url,
-                               f"Invoice {inv.invoice_number} due in 3 days")
-                inv.reminder_3d_sent = True
-                changed = True
+                changed = _send_reminder(
+                    mail, Message, render_template, "emails/reminder_due_soon.txt",
+                    inv, sender_name, view_url,
+                    f"Invoice {inv.invoice_number} due in 3 days",
+                )
+                if changed:
+                    inv.reminder_3d_sent = True
 
             elif days_delta == 0 and not inv.reminder_0d_sent:
-                _send_reminder(mail, Message, render_template, "emails/reminder_due_today.txt",
-                               inv, sender_name, view_url,
-                               f"Invoice {inv.invoice_number} is due today")
-                inv.reminder_0d_sent = True
-                changed = True
+                changed = _send_reminder(
+                    mail, Message, render_template, "emails/reminder_due_today.txt",
+                    inv, sender_name, view_url,
+                    f"Invoice {inv.invoice_number} is due today",
+                )
+                if changed:
+                    inv.reminder_0d_sent = True
 
             elif days_delta == -7 and not inv.reminder_7d_sent:
-                _send_reminder(mail, Message, render_template, "emails/reminder_overdue.txt",
-                               inv, sender_name, view_url,
-                               f"Invoice {inv.invoice_number} is overdue")
-                inv.reminder_7d_sent = True
-                changed = True
+                changed = _send_reminder(
+                    mail, Message, render_template, "emails/reminder_overdue.txt",
+                    inv, sender_name, view_url,
+                    f"Invoice {inv.invoice_number} is overdue",
+                )
+                if changed:
+                    inv.reminder_7d_sent = True
 
             if changed:
                 sent_count += 1
@@ -100,9 +106,9 @@ def process_recurring_invoices(app) -> None:
         from extensions import db, mail
         from flask import render_template
         from flask_mail import Message
-        from models import Invoice, RecurringInvoice
-        from utils.pdf import render_pdf, context_from_invoice
-        from utils.helpers import _safe_filename
+        from models import RecurringInvoice
+        from utils.gating import is_pro
+        from utils.pdf import render_pdf
 
         today = date.today()
 
@@ -114,19 +120,43 @@ def process_recurring_invoices(app) -> None:
         )
 
         for tmpl in due_templates:
-            try:
-                _generate_from_template(
-                    tmpl, today, db, mail, Message,
-                    render_template, render_pdf, app,
+            if not tmpl.user or not is_pro(tmpl.user):
+                log.info(
+                    "Skipping recurring template %s because user %s is not Pro",
+                    tmpl.id,
+                    tmpl.user_id,
                 )
+                continue
+            try:
+                inv = _generate_from_template(tmpl, today, db)
+                # Commit the occurrence and advance its schedule before any
+                # external email side effect. A rerun cannot create it again.
+                db.session.commit()
             except Exception as exc:
+                db.session.rollback()
                 log.error(
                     "Failed to generate recurring invoice for template %s (user %s): %s",
                     tmpl.id, tmpl.user_id, exc,
                 )
+                continue
 
-        if due_templates:
-            db.session.commit()
+            if tmpl.auto_send and tmpl.to_email:
+                try:
+                    _send_generated_invoice(
+                        inv,
+                        mail,
+                        Message,
+                        render_template,
+                        render_pdf,
+                    )
+                    db.session.commit()
+                except Exception as exc:
+                    db.session.rollback()
+                    log.warning(
+                        "Auto-send failed for recurring invoice %s: %s",
+                        inv.invoice_number,
+                        exc,
+                    )
         log.info("Recurring invoices: processed %d template(s)", len(due_templates))
 
 
@@ -135,7 +165,7 @@ def process_recurring_invoices(app) -> None:
 # ---------------------------------------------------------------------------
 
 def _send_reminder(mail_obj, Message, render_template_fn, template,
-                   inv, sender_name, view_url, subject):
+                   inv, sender_name, view_url, subject) -> bool:
     body = render_template_fn(
         template,
         invoice=inv,
@@ -147,15 +177,17 @@ def _send_reminder(mail_obj, Message, render_template_fn, template,
         mail_obj.send(msg)
     except Exception as exc:
         log.warning("Reminder email failed for invoice %s: %s", inv.id, exc)
+        return False
+    return True
 
 
 def _view_url_for(app, inv) -> str:
     """Return the public view URL for an invoice, generating a token if needed."""
     if not inv.view_token:
         inv.view_token = secrets.token_urlsafe(32)
-    with app.test_request_context():
-        from flask import url_for
-        return url_for("public.invoice_view", token=inv.view_token, _external=True)
+    from utils.urls import external_url
+
+    return external_url("public.invoice_view", token=inv.view_token)
 
 
 def _next_run_date(current: date, interval: str) -> date:
@@ -163,23 +195,28 @@ def _next_run_date(current: date, interval: str) -> date:
     return current + delta
 
 
-def _generate_from_template(tmpl, today, db, mail_obj, Message,
-                             render_template_fn, render_pdf_fn, app):
-    """Create a new Invoice from a RecurringInvoice template and optionally send it."""
+def _generate_from_template(tmpl, today, db):
+    """Create and stage one Invoice occurrence from a recurring template."""
     from models import Invoice
-    from utils.helpers import _safe_filename
+    from utils.invoice_calculations import calculate_invoice
 
     line_items = json.loads(tmpl.line_items_json or "[]")
-    subtotal = sum(item.get("amount", 0.0) for item in line_items)
-    tax_amount = subtotal * (tmpl.tax_rate / 100) if tmpl.tax_rate else 0.0
-    discount = min(tmpl.discount or 0.0, subtotal + tax_amount)
-    total = subtotal + tax_amount - discount
+    calculated = calculate_invoice(
+        line_items,
+        tax_rate=tmpl.tax_rate,
+        discount=tmpl.discount,
+    )
+    financials = calculated.template_values()
 
     prefix = (tmpl.invoice_number_prefix or "INV").rstrip("-")
     existing_count = Invoice.query.filter_by(user_id=tmpl.user_id).count()
     invoice_number = f"{prefix}-{today.year}-{existing_count + 1:03d}"
 
-    due_date_obj = today + timedelta(days=tmpl.net_days) if tmpl.net_days else None
+    due_date_obj = (
+        today + timedelta(days=tmpl.net_days)
+        if tmpl.net_days is not None
+        else None
+    )
 
     inv = Invoice(
         user_id         = tmpl.user_id,
@@ -193,11 +230,11 @@ def _generate_from_template(tmpl, today, db, mail_obj, Message,
         to_name         = tmpl.to_name,
         to_address      = tmpl.to_address,
         to_email        = tmpl.to_email,
-        line_items_json = tmpl.line_items_json,
-        tax_rate        = tmpl.tax_rate,
-        discount        = tmpl.discount,
-        subtotal        = subtotal,
-        total           = total,
+        line_items_json = json.dumps(calculated.line_items),
+        tax_rate        = financials["tax_rate"],
+        discount        = financials["discount"],
+        subtotal        = financials["subtotal"],
+        total           = financials["total"],
         notes           = tmpl.notes,
         payment_info    = tmpl.payment_info,
         theme           = tmpl.theme or "default",
@@ -205,40 +242,42 @@ def _generate_from_template(tmpl, today, db, mail_obj, Message,
         view_token      = secrets.token_urlsafe(32),
     )
     db.session.add(inv)
-    db.session.flush()  # get inv.id assigned before potential send
-
-    if tmpl.auto_send and tmpl.to_email:
-        try:
-            from utils.pdf import context_from_invoice
-            context = context_from_invoice(inv)
-            pdf_bytes = render_pdf_fn(context, theme=inv.theme or "default")
-
-            safe_number = _safe_filename(inv.invoice_number)
-            filename = f"Invoice-{safe_number}.pdf"
-            sender_name = inv.from_company or (inv.user.email if inv.user else "PDFBillr")
-
-            with app.test_request_context():
-                from flask import url_for
-                view_url = url_for("public.invoice_view", token=inv.view_token, _external=True)
-
-            body = render_template_fn(
-                "emails/invoice_body.txt",
-                invoice=inv,
-                sender_name=sender_name,
-                view_url=view_url,
-            )
-            msg = Message(
-                subject=f"Invoice {inv.invoice_number} from {sender_name}",
-                recipients=[tmpl.to_email],
-                body=body,
-            )
-            msg.attach(filename, "application/pdf", pdf_bytes)
-            mail_obj.send(msg)
-
-            inv.status = "sent"
-            inv.sent_at = datetime.now(timezone.utc)
-        except Exception as exc:
-            log.warning("Auto-send failed for recurring invoice %s: %s", inv.invoice_number, exc)
+    db.session.flush()
 
     tmpl.last_run_date = today
     tmpl.next_run_date = _next_run_date(today, tmpl.interval)
+    return inv
+
+
+def _send_generated_invoice(
+    inv,
+    mail_obj,
+    Message,
+    render_template_fn,
+    render_pdf_fn,
+) -> None:
+    from utils.helpers import _safe_filename
+    from utils.pdf import context_from_invoice
+    from utils.urls import external_url
+
+    context = context_from_invoice(inv)
+    pdf_bytes = render_pdf_fn(context, theme=inv.theme or "default")
+    safe_number = _safe_filename(inv.invoice_number)
+    filename = f"Invoice-{safe_number}.pdf"
+    sender_name = inv.from_company or (inv.user.email if inv.user else "PDFBillr")
+    view_url = external_url("public.invoice_view", token=inv.view_token)
+    body = render_template_fn(
+        "emails/invoice_body.txt",
+        invoice=inv,
+        sender_name=sender_name,
+        view_url=view_url,
+    )
+    msg = Message(
+        subject=f"Invoice {inv.invoice_number} from {sender_name}",
+        recipients=[inv.to_email],
+        body=body,
+    )
+    msg.attach(filename, "application/pdf", pdf_bytes)
+    mail_obj.send(msg)
+    inv.status = "sent"
+    inv.sent_at = datetime.now(timezone.utc)

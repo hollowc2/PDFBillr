@@ -8,9 +8,12 @@ from flask import (
 from flask_login import current_user, login_required
 
 from flask_mail import Message
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from extensions import csrf, db, mail
+from extensions import csrf, db, limiter, mail
 from models import ProcessedStripeEvent, Subscription, User
+from utils.gating import is_pro
+from utils.urls import external_url
 
 bp = Blueprint("billing", __name__, url_prefix="/billing")
 
@@ -35,16 +38,29 @@ def create_checkout_session():
     if not price_id:
         flash("Billing is not configured yet.", "error")
         return redirect(url_for("billing.upgrade"))
+    if is_pro():
+        flash("Your Pro subscription is already active.", "info")
+        return redirect(url_for("dashboard.index"))
 
     try:
+        checkout_args = {
+            "payment_method_types": ["card"],
+            "mode": "subscription",
+            "line_items": [{"price": price_id, "quantity": 1}],
+            "client_reference_id": str(current_user.id),
+            "success_url": (
+                external_url("billing.success")
+                + "?session_id={CHECKOUT_SESSION_ID}"
+            ),
+            "cancel_url": external_url("billing.upgrade"),
+        }
+        if current_user.stripe_customer_id:
+            checkout_args["customer"] = current_user.stripe_customer_id
+        else:
+            checkout_args["customer_email"] = current_user.email
+
         session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            mode="subscription",
-            line_items=[{"price": price_id, "quantity": 1}],
-            client_reference_id=str(current_user.id),
-            customer_email=current_user.email,
-            success_url=url_for("billing.success", _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=url_for("billing.upgrade", _external=True),
+            **checkout_args,
         )
     except stripe.StripeError as e:
         flash(f"Stripe error: {e.user_message}", "error")
@@ -70,6 +86,7 @@ def success():
 
 @bp.route("/portal")
 @login_required
+@limiter.limit("10 per minute")
 def portal():
     if not current_user.stripe_customer_id:
         flash("No billing account found.", "error")
@@ -77,7 +94,7 @@ def portal():
     try:
         session = stripe.billing_portal.Session.create(
             customer=current_user.stripe_customer_id,
-            return_url=url_for("dashboard.index", _external=True),
+            return_url=external_url("dashboard.index"),
         )
     except stripe.StripeError as e:
         flash(f"Stripe error: {e.user_message}", "error")
@@ -102,27 +119,54 @@ def webhook():
         current_app.logger.warning("Webhook signature failure: %s", exc)
         return jsonify({"error": "invalid signature"}), 400
 
-    # Idempotency: skip events already processed
-    event_id = event["id"]
+    try:
+        event_id = str(event["id"])
+        event_type = str(event["type"])
+        event_created = int(event["created"])
+        if event_created <= 0:
+            raise ValueError
+        data = event["data"]["object"]
+    except (KeyError, TypeError, ValueError):
+        current_app.logger.warning("Malformed signed Stripe event")
+        return jsonify({"error": "malformed event"}), 400
+
     if db.session.get(ProcessedStripeEvent, event_id):
         return jsonify({"received": True}), 200
-    db.session.add(ProcessedStripeEvent(stripe_event_id=event_id))
 
-    etype = event["type"]
-    data  = event["data"]["object"]
-
-    if etype == "checkout.session.completed":
-        _handle_checkout_completed(data)
-    elif etype == "customer.subscription.updated":
-        _handle_subscription_updated(data)
-    elif etype == "customer.subscription.deleted":
-        _handle_subscription_deleted(data)
-    elif etype == "invoice.payment_failed":
-        _handle_payment_failed(data)
-    elif etype == "invoice.paid":
-        _handle_invoice_paid(data)
-    else:
+    notification = None
+    try:
+        notification = _process_event(
+            event_type,
+            data,
+            event_created=event_created,
+        )
+        # Effects and the processed marker become durable together. Email is
+        # deliberately deferred until after this commit.
+        db.session.add(ProcessedStripeEvent(stripe_event_id=event_id))
         db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        # A concurrent duplicate may have won the primary-key race.
+        if db.session.get(ProcessedStripeEvent, event_id):
+            return jsonify({"received": True}), 200
+        current_app.logger.exception(
+            "Stripe event idempotency conflict for event %s", event_id
+        )
+        return jsonify({"error": "temporary failure"}), 500
+    except (SQLAlchemyError, stripe.StripeError, KeyError, TypeError, ValueError):
+        db.session.rollback()
+        current_app.logger.exception(
+            "Stripe event processing failed: id=%s type=%s",
+            event_id,
+            event_type,
+        )
+        return jsonify({"error": "temporary failure"}), 500
+
+    if notification:
+        user_id, template = notification
+        user = db.session.get(User, user_id)
+        if user:
+            _send_billing_email(user, template)
 
     return jsonify({"received": True}), 200
 
@@ -131,95 +175,173 @@ def webhook():
 # Webhook handlers
 # ---------------------------------------------------------------------------
 
-def _handle_checkout_completed(session_obj) -> None:
+def _process_event(event_type, data, *, event_created):
+    if event_type == "checkout.session.completed":
+        return _handle_checkout_completed(data, event_created=event_created)
+    if event_type == "customer.subscription.updated":
+        return _handle_subscription_updated(data, event_created=event_created)
+    if event_type == "customer.subscription.deleted":
+        return _handle_subscription_deleted(data, event_created=event_created)
+    if event_type == "invoice.payment_failed":
+        return _handle_payment_failed(data, event_created=event_created)
+    if event_type == "invoice.paid":
+        return _handle_invoice_paid(data, event_created=event_created)
+    return None
+
+
+def _handle_checkout_completed(session_obj, *, event_created):
     user_id = session_obj.get("client_reference_id")
-    if not user_id:
-        return
-    user = db.session.get(User, int(user_id))
-    if not user:
-        return
-
-    # Store Stripe customer ID
-    customer_id = session_obj.get("customer")
-    if customer_id and not user.stripe_customer_id:
-        user.stripe_customer_id = customer_id
-
     sub_id = session_obj.get("subscription")
-    if sub_id:
-        # Retrieve full subscription to capture period_end and price_id immediately
-        sub_obj = stripe.Subscription.retrieve(sub_id)
-        price_id = None
-        items_data = sub_obj.get("items", {}).get("data", [])
-        if items_data:
-            price_id = items_data[0].get("price", {}).get("id")
-        _upsert_subscription(
-            user, sub_id,
-            status=sub_obj.get("status", "active"),
-            period_end=_period_end_from_sub(sub_obj),
-            price_id=price_id,
-        )
-    else:
-        _upsert_subscription(user, sub_id, status="active")
-
-    _send_billing_email(user, "emails/payment_confirmed.txt")
-    db.session.commit()
-
-
-def _handle_subscription_updated(sub_obj) -> None:
-    user = _user_by_customer(sub_obj.get("customer"))
+    customer_id = session_obj.get("customer")
+    if not user_id or not sub_id or not customer_id:
+        return None
+    try:
+        user = db.session.get(User, int(user_id))
+    except (TypeError, ValueError):
+        return None
     if not user:
-        return
-    status = sub_obj.get("status", "active")
-    period_end = _period_end_from_sub(sub_obj)
+        return None
+
+    if user.stripe_customer_id and user.stripe_customer_id != customer_id:
+        current_app.logger.warning(
+            "Ignored checkout with conflicting customer for user %s",
+            user.id,
+        )
+        return None
+
+    sub_obj = stripe.Subscription.retrieve(sub_id)
+    price_id = _price_id_from_sub(sub_obj)
+    if not _is_configured_price(price_id):
+        current_app.logger.warning(
+            "Ignored checkout with unconfigured price for user %s",
+            user.id,
+        )
+        return None
+    if (
+        user.subscription
+        and user.subscription.stripe_sub_id
+        and user.subscription.stripe_sub_id != sub_id
+        and user.subscription.status in {"active", "trialing", "past_due"}
+    ):
+        current_app.logger.warning(
+            "Ignored second subscription binding for user %s",
+            user.id,
+        )
+        return None
+
+    user.stripe_customer_id = customer_id
     _upsert_subscription(
         user,
-        sub_obj["id"],
-        status=status,
-        period_end=period_end,
-        price_id=sub_obj.get("items", {}).get("data", [{}])[0].get("price", {}).get("id"),
+        sub_id,
+        status=sub_obj.get("status", "active"),
+        period_end=_period_end_from_sub(sub_obj),
+        price_id=price_id,
+        event_created=event_created,
     )
-    db.session.commit()
+    return user.id, "emails/payment_confirmed.txt"
 
 
-def _handle_subscription_deleted(sub_obj) -> None:
+def _handle_subscription_updated(sub_obj, *, event_created):
     user = _user_by_customer(sub_obj.get("customer"))
     if not user:
-        return
+        return None
+    sub_id = sub_obj.get("id")
+    if not sub_id or _different_bound_subscription(user, sub_id):
+        return None
+    if user.subscription and _is_stale(user.subscription, event_created):
+        return None
+
+    status = sub_obj.get("status", "active")
+    period_end = _period_end_from_sub(sub_obj)
+    price_id = _price_id_from_sub(sub_obj)
+    if not _is_configured_price(price_id):
+        if user.subscription and user.subscription.stripe_sub_id == sub_id:
+            user.subscription.plan = "free"
+            user.subscription.status = status
+            user.subscription.stripe_price_id = price_id
+            _record_event_time(user.subscription, event_created)
+        current_app.logger.warning(
+            "Subscription %s uses an unconfigured price", sub_id
+        )
+        return None
+
+    _upsert_subscription(
+        user,
+        sub_id,
+        status=status,
+        period_end=period_end,
+        price_id=price_id,
+        event_created=event_created,
+    )
+    return None
+
+
+def _handle_subscription_deleted(sub_obj, *, event_created):
+    user = _user_by_customer(sub_obj.get("customer"))
+    if not user:
+        return None
     sub = user.subscription
-    if sub:
-        sub.status = "canceled"
-        sub.updated_at = datetime.now(timezone.utc)
-        _send_billing_email(user, "emails/subscription_canceled.txt")
-        db.session.commit()
+    if (
+        not sub
+        or _different_bound_subscription(user, sub_obj.get("id"))
+        or _is_stale(sub, event_created)
+    ):
+        return None
+    sub.plan = "free"
+    sub.status = "canceled"
+    sub.updated_at = datetime.now(timezone.utc)
+    _record_event_time(sub, event_created)
+    return user.id, "emails/subscription_canceled.txt"
 
 
-def _handle_payment_failed(invoice_obj) -> None:
+def _handle_payment_failed(invoice_obj, *, event_created):
     user = _user_by_customer(invoice_obj.get("customer"))
     if not user:
-        return
+        return None
     sub = user.subscription
-    if sub:
-        sub.status = "past_due"
-        sub.updated_at = datetime.now(timezone.utc)
-        _send_billing_email(user, "emails/payment_failed.txt")
-        db.session.commit()
+    invoice_sub_id = _invoice_subscription_id(invoice_obj)
+    if (
+        not sub
+        or not invoice_sub_id
+        or sub.stripe_sub_id != invoice_sub_id
+        or _is_stale(sub, event_created)
+    ):
+        return None
+    sub.status = "past_due"
+    sub.updated_at = datetime.now(timezone.utc)
+    _record_event_time(sub, event_created)
+    return user.id, "emails/payment_failed.txt"
 
 
-def _handle_invoice_paid(invoice_obj) -> None:
+def _handle_invoice_paid(invoice_obj, *, event_created):
     """Refresh period_end on successful renewal payment."""
     user = _user_by_customer(invoice_obj.get("customer"))
     if not user:
-        return
-    sub_id = invoice_obj.get("subscription")
-    if not sub_id or not user.subscription:
-        return
+        return None
+    sub_id = _invoice_subscription_id(invoice_obj)
+    if (
+        not sub_id
+        or not user.subscription
+        or user.subscription.stripe_sub_id != sub_id
+        or _is_stale(user.subscription, event_created)
+    ):
+        return None
     sub_obj = stripe.Subscription.retrieve(sub_id)
+    price_id = _price_id_from_sub(sub_obj)
+    if not _is_configured_price(price_id):
+        user.subscription.plan = "free"
+        user.subscription.stripe_price_id = price_id
+        _record_event_time(user.subscription, event_created)
+        return None
     period_end = _period_end_from_sub(sub_obj)
     if period_end is not None:
         user.subscription.current_period_end = datetime.fromtimestamp(period_end, tz=timezone.utc)
+        user.subscription.plan = "pro"
+        user.subscription.stripe_price_id = price_id
         user.subscription.status = sub_obj.get("status", "active")
         user.subscription.updated_at = datetime.now(timezone.utc)
-        db.session.commit()
+        _record_event_time(user.subscription, event_created)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -247,6 +369,50 @@ def _user_by_customer(customer_id: str | None) -> User | None:
     return User.query.filter_by(stripe_customer_id=customer_id).first()
 
 
+def _price_id_from_sub(sub_obj) -> str | None:
+    items = sub_obj.get("items", {}).get("data", [])
+    if not items:
+        return None
+    return items[0].get("price", {}).get("id")
+
+
+def _invoice_subscription_id(invoice_obj) -> str | None:
+    direct = invoice_obj.get("subscription")
+    if direct:
+        return direct
+    return (
+        invoice_obj.get("parent", {})
+        .get("subscription_details", {})
+        .get("subscription")
+    )
+
+
+def _is_configured_price(price_id: str | None) -> bool:
+    configured = current_app.config.get("STRIPE_PRICE_ID_PRO")
+    return bool(configured and price_id == configured)
+
+
+def _different_bound_subscription(user: User, stripe_sub_id: str | None) -> bool:
+    return bool(
+        user.subscription
+        and user.subscription.stripe_sub_id
+        and user.subscription.stripe_sub_id != stripe_sub_id
+    )
+
+
+def _is_stale(sub: Subscription, event_created: int) -> bool:
+    return bool(
+        event_created
+        and sub.last_stripe_event_created
+        and event_created < sub.last_stripe_event_created
+    )
+
+
+def _record_event_time(sub: Subscription, event_created: int) -> None:
+    if event_created:
+        sub.last_stripe_event_created = event_created
+
+
 _BILLING_EMAIL_SUBJECTS = {
     "emails/payment_confirmed.txt":      "Your PDFBillr Pro subscription is active",
     "emails/payment_failed.txt":         "Action required: PDFBillr payment failed",
@@ -256,8 +422,16 @@ _BILLING_EMAIL_SUBJECTS = {
 
 def _send_billing_email(user: User, template: str) -> None:
     subject = _BILLING_EMAIL_SUBJECTS.get(template, "PDFBillr account update")
-    msg = Message(subject=subject, recipients=[user.email],
-                  body=render_template(template, user=user))
+    msg = Message(
+        subject=subject,
+        recipients=[user.email],
+        body=render_template(
+            template,
+            user=user,
+            portal_url=external_url("billing.portal"),
+            upgrade_url=external_url("billing.upgrade"),
+        ),
+    )
     try:
         mail.send(msg)
     except Exception as exc:
@@ -270,6 +444,7 @@ def _upsert_subscription(
     status: str = "active",
     period_end: int | None = None,
     price_id: str | None = None,
+    event_created: int = 0,
 ) -> None:
     sub = user.subscription
     if sub is None:
@@ -284,3 +459,4 @@ def _upsert_subscription(
         sub.stripe_price_id = price_id
     if period_end is not None:
         sub.current_period_end = datetime.fromtimestamp(period_end, tz=timezone.utc)
+    _record_event_time(sub, event_created)

@@ -1,0 +1,23 @@
+[project]
+name = "pdfbillr"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+exclude = [".git", ".venv", "instance"]
+
+[tool.ruff.lint]
+select = ["E9", "F", "B"]
+ignore = ["B905", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"migrations/**" = ["E402"]

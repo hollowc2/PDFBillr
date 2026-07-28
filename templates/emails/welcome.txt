@@ -3,7 +3,7 @@ Hi {{ user.email }},
 Welcome to PDFBillr! Your account is ready.
 
 Get started by creating your first invoice:
-https://pdfbillr.com/app
+{{ app_url }}
 
 With a free account you can generate and download invoices anytime.
 Upgrade to Pro to unlock custom branding, premium themes, and sending

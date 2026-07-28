@@ -31,7 +31,7 @@
     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Company Logo</label>
     {% if profile and profile.logo_filename %}
     <div class="mb-3">
-      <img src="{{ url_for('static', filename='logos/' + profile.logo_filename) }}"
+      <img src="{{ url_for('dashboard.branding_logo') }}"
            alt="Current logo" class="max-h-16 rounded border border-gray-200 dark:border-gray-700" />
       <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Current logo — upload a new file to replace it.</p>
     </div>

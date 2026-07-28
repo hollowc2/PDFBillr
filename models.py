@@ -42,6 +42,7 @@ class Subscription(db.Model):
     # status: active | past_due | canceled | trialing
     status = db.Column(db.String(20), default="active", nullable=False)
     current_period_end = db.Column(db.DateTime(timezone=True), nullable=True)
+    last_stripe_event_created = db.Column(db.BigInteger, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=_now)
     updated_at = db.Column(db.DateTime(timezone=True), default=_now, onupdate=_now)
 

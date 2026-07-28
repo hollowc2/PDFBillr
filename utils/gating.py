@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from functools import wraps
 
-from flask import flash, g, redirect, url_for
+from flask import current_app, flash, g, redirect, url_for
 from flask_login import current_user
 
 
@@ -9,7 +9,14 @@ def _compute_is_pro(u) -> bool:
     if not u or not u.is_authenticated:
         return False
     sub = u.subscription
-    if not sub or sub.status not in ("active", "trialing"):
+    if (
+        not sub
+        or sub.plan != "pro"
+        or sub.status not in ("active", "trialing")
+    ):
+        return False
+    configured_price = current_app.config.get("STRIPE_PRICE_ID_PRO")
+    if configured_price and sub.stripe_price_id != configured_price:
         return False
     if sub.current_period_end:
         period_end = sub.current_period_end

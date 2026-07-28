@@ -1,22 +1,71 @@
+x-app-environment: &app-environment
+  APP_ENV: ${APP_ENV:-development}
+  SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY to a unique value of at least 32 characters}
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080/pdfbillr}
+  TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
+  TRUSTED_HOSTS: ${TRUSTED_HOSTS:-localhost,127.0.0.1}
+  FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+  DATABASE_URL: ${DATABASE_URL:-sqlite:///pdfbillr.db}
+  RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-memory://}
+  SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+  ENABLE_HSTS: ${ENABLE_HSTS:-false}
+  SCHEDULER_TIMEZONE: ${SCHEDULER_TIMEZONE:-UTC}
+  AUTO_CREATE_DB: "false"
+  STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+  STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+  STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+  STRIPE_PRICE_ID_PRO: ${STRIPE_PRICE_ID_PRO:-}
+  MAIL_SERVER: ${MAIL_SERVER:-localhost}
+  MAIL_PORT: ${MAIL_PORT:-587}
+  MAIL_USE_TLS: ${MAIL_USE_TLS:-true}
+  MAIL_USERNAME: ${MAIL_USERNAME:-}
+  MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+  MAIL_DEFAULT_SENDER: ${MAIL_DEFAULT_SENDER:-noreply@pdfbillr.com}
+  UPLOAD_FOLDER: ${UPLOAD_FOLDER:-/app/instance/uploads}
+  MAX_LOGO_PIXELS: ${MAX_LOGO_PIXELS:-10000000}
+  MAX_LOGO_DIMENSION: ${MAX_LOGO_DIMENSION:-4096}
+
+x-app-volumes: &app-volumes
+  - ./instance:/app/instance
+  - ./static/logos:/app/static/logos
+
 services:
+  migrate:
+    build: .
+    command: ["flask", "--app", "app", "db-upgrade"]
+    volumes: *app-volumes
+    environment:
+      <<: *app-environment
+      DISABLE_SCHEDULER: "true"
+    restart: "no"
+
   web:
     build: .
     ports:
       - "8080:8000"
-    volumes:
-      - ./instance:/app/instance
-      - ./static/logos:/app/static/logos
+    volumes: *app-volumes
     restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     environment:
-      - SECRET_KEY=${SECRET_KEY}
-      - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
-      - STRIPE_PRICE_ID_PRO=${STRIPE_PRICE_ID_PRO}
+      <<: *app-environment
+      DISABLE_SCHEDULER: "true"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/pdfbillr/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
+
+  scheduler:
+    build: .
+    command: ["python", "scheduler_worker.py"]
+    volumes: *app-volumes
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *app-environment
+      DISABLE_SCHEDULER: "false"

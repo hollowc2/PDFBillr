@@ -12,6 +12,10 @@
     return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
 
+  function roundMoney(n) {
+    return Math.round((n + Number.EPSILON) * 100) / 100;
+  }
+
   function makeInput(type, name, placeholder, extraClasses) {
     var inp = document.createElement('input');
     inp.type = type;
@@ -107,7 +111,7 @@
     row.appendChild(rmCell);
 
     function updateRowAmount() {
-      var amount = parseNum(qtyInput.value) * parseNum(rateInput.value);
+      var amount = roundMoney(parseNum(qtyInput.value) * parseNum(rateInput.value));
       amtSpan.textContent = fmt(amount);
       recalcTotals();
     }
@@ -144,12 +148,13 @@
     document.querySelectorAll('.line-item-row').forEach(function (row) {
       var qty = parseNum(row.querySelector('input[name="qty[]"]').value);
       var rate = parseNum(row.querySelector('input[name="rate[]"]').value);
-      subtotal += qty * rate;
+      subtotal += roundMoney(qty * rate);
     });
 
     var taxRate = parseNum(document.getElementById('tax-input').value);
     var discount = parseNum(document.getElementById('discount-input').value);
-    var taxAmount = subtotal * (taxRate / 100);
+    var taxAmount = roundMoney(subtotal * (taxRate / 100));
+    discount = Math.min(roundMoney(Math.max(0, discount)), subtotal + taxAmount);
     var total = subtotal + taxAmount - discount;
 
     document.getElementById('display-subtotal').textContent = fmt(subtotal);

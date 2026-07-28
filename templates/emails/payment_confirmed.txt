@@ -8,7 +8,7 @@ You now have access to:
   - Send invoices directly to clients by email
 
 Manage your subscription or update payment details at any time:
-https://pdfbillr.com/billing/portal
+{{ portal_url }}
 
 Thank you for subscribing.
 

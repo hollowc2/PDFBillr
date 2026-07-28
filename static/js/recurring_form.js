@@ -11,16 +11,34 @@
     items.forEach(function(item, i) {
       var row = document.createElement('div');
       row.className = 'flex gap-2 items-start';
-      row.innerHTML =
-        '<input type="text" placeholder="Description" value="' + esc(item.description) + '" class="input-field flex-1" data-i="' + i + '" data-f="description" />' +
-        '<input type="number" placeholder="Qty" value="' + item.qty + '" min="0" step="0.01" class="input-field w-20" data-i="' + i + '" data-f="qty" />' +
-        '<input type="number" placeholder="Rate" value="' + item.rate + '" min="0" step="0.01" class="input-field w-24" data-i="' + i + '" data-f="rate" />' +
-        '<button type="button" class="mt-1 text-red-400 hover:text-red-600 dark:hover:text-red-300 px-1 text-lg leading-none" data-remove="' + i + '">&times;</button>';
+      row.appendChild(makeInput('text', 'Description', item.description || '', i, 'description', 'input-field flex-1'));
+      row.appendChild(makeInput('number', 'Qty', item.qty, i, 'qty', 'input-field w-20'));
+      row.appendChild(makeInput('number', 'Rate', item.rate, i, 'rate', 'input-field w-24'));
+
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'mt-1 text-red-400 hover:text-red-600 dark:hover:text-red-300 px-1 text-lg leading-none';
+      remove.dataset.remove = i;
+      remove.textContent = '\u00d7';
+      row.appendChild(remove);
       container.appendChild(row);
     });
   }
 
-  function esc(s) { return (s||'').replace(/"/g,'&quot;'); }
+  function makeInput(type, placeholder, value, index, field, classes) {
+    var input = document.createElement('input');
+    input.type = type;
+    input.placeholder = placeholder;
+    input.value = value === undefined || value === null ? '' : String(value);
+    input.dataset.i = index;
+    input.dataset.f = field;
+    input.className = classes;
+    if (type === 'number') {
+      input.min = '0';
+      input.step = '0.01';
+    }
+    return input;
+  }
 
   function sync() {
     hiddenInput.value = JSON.stringify(items);

@@ -3,16 +3,19 @@ import json
 import mimetypes
 import os
 import re as _re
+from urllib.parse import urlsplit
 
 from flask import current_app, render_template
-from weasyprint import HTML
+from weasyprint import HTML, default_url_fetcher
 
 _HEX_RE = _re.compile(r'^#[0-9a-fA-F]{6}$')
 
 from utils.helpers import (
-    MAX_DESC, MAX_ITEMS, MAX_LONG, MAX_SHORT,
-    _safe_float, _truncate,
+    MAX_ITEMS, MAX_LONG, MAX_SHORT,
+    _truncate,
 )
+from utils.invoice_calculations import calculate_invoice, calculate_tax_amount
+from utils.uploads import resolve_logo_path
 
 ALLOWED_THEMES = {"default", "minimal", "corporate", "creative"}
 
@@ -31,8 +34,17 @@ def _logo_data_uri(filename: str) -> str | None:
     logos_dir = os.path.join(current_app.root_path, "static", "logos")
     # Prevent path traversal: only allow basename
     safe_name = os.path.basename(filename)
-    path = os.path.join(logos_dir, safe_name)
-    if not os.path.isfile(path):
+    path = resolve_logo_path(
+        safe_name,
+        upload_folder=current_app.config["UPLOAD_FOLDER"],
+        legacy_logo_folder=logos_dir,
+    )
+    if not path:
+        return None
+    if os.path.getsize(path) > current_app.config.get(
+        "MAX_CONTENT_LENGTH",
+        2 * 1024 * 1024,
+    ):
         return None
     mime, _ = mimetypes.guess_type(path)
     mime = mime or "image/png"
@@ -60,28 +72,24 @@ def build_invoice_context(form, logo_filename=None, accent_color="#1e3a8a"):
     notes        = _truncate(form.get("notes", ""), MAX_LONG)
     payment_info = _truncate(form.get("payment_info", ""), MAX_LONG)
 
-    tax_rate = _safe_float(form.get("tax_rate", 0), min_val=0.0, max_val=100.0)
-    discount = _safe_float(form.get("discount", 0), min_val=0.0)
-
     descriptions = form.getlist("description[]")[:MAX_ITEMS]
     qtys         = form.getlist("qty[]")[:MAX_ITEMS]
     rates        = form.getlist("rate[]")[:MAX_ITEMS]
 
-    line_items = []
-    subtotal = 0.0
-    for desc, qty_str, rate_str in zip(descriptions, qtys, rates):
-        desc = _truncate(desc, MAX_DESC)
-        if not desc.strip():
-            continue
-        qty    = _safe_float(qty_str, min_val=0.0)
-        rate   = _safe_float(rate_str, min_val=0.0)
-        amount = qty * rate
-        subtotal += amount
-        line_items.append({"description": desc, "qty": qty, "rate": rate, "amount": amount})
-
-    tax_amount = subtotal * (tax_rate / 100)
-    discount   = min(discount, subtotal + tax_amount)
-    total      = subtotal + tax_amount - discount
+    raw_items = [
+        {
+            "description": description,
+            "qty": qtys[index] if index < len(qtys) else "",
+            "rate": rates[index] if index < len(rates) else "",
+        }
+        for index, description in enumerate(descriptions)
+    ]
+    calculated = calculate_invoice(
+        raw_items,
+        tax_rate=form.get("tax_rate", 0),
+        discount=form.get("discount", 0),
+    )
+    financials = calculated.template_values()
 
     logo_url = _logo_data_uri(logo_filename) if logo_filename else None
 
@@ -96,12 +104,7 @@ def build_invoice_context(form, logo_filename=None, accent_color="#1e3a8a"):
         "to_name":        to_name,
         "to_address":     to_address,
         "to_email":       to_email,
-        "line_items":     line_items,
-        "tax_rate":       tax_rate,
-        "tax_amount":     tax_amount,
-        "discount":       discount,
-        "subtotal":       subtotal,
-        "total":          total,
+        **financials,
         "notes":          notes,
         "payment_info":   payment_info,
         "logo_url":       logo_url,
@@ -112,7 +115,7 @@ def build_invoice_context(form, logo_filename=None, accent_color="#1e3a8a"):
 def context_from_invoice(invoice) -> dict:
     """Reconstruct template context from a saved Invoice model instance."""
     line_items = json.loads(invoice.line_items_json or "[]")
-    tax_amount = invoice.subtotal * (invoice.tax_rate / 100) if invoice.tax_rate else 0.0
+    tax_amount = calculate_tax_amount(invoice.subtotal, invoice.tax_rate)
     logo_url   = _logo_data_uri(invoice.logo_filename) if invoice.logo_filename else None
 
     # Pull branding profile fields if available
@@ -151,4 +154,23 @@ def context_from_invoice(invoice) -> dict:
 def render_pdf(context: dict, theme: str = "default") -> bytes:
     template_name = _THEME_TEMPLATES.get(theme, "invoice.html")
     html_string = render_template(template_name, **context)
-    return HTML(string=html_string).write_pdf()
+    return HTML(string=html_string, url_fetcher=_restricted_url_fetcher).write_pdf()
+
+
+def _restricted_url_fetcher(url: str, *args, **kwargs):
+    """Permit only in-memory image data used by normalized company logos."""
+    parsed = urlsplit(url)
+    lowered = url.lower()
+    if (
+        parsed.scheme != "data"
+        or not lowered.startswith(
+            (
+                "data:image/png;base64,",
+                "data:image/jpeg;base64,",
+                "data:image/gif;base64,",
+                "data:image/webp;base64,",
+            )
+        )
+    ):
+        raise ValueError("External and local PDF resources are disabled.")
+    return default_url_fetcher(url, *args, **kwargs)

@@ -75,7 +75,7 @@
           </button>
         </form>
         <form method="POST" action="{{ url_for('dashboard.recurring_delete', tmpl_id=tmpl.id) }}" class="inline"
-              onsubmit="return confirm('Delete this recurring invoice? This cannot be undone.');">
+              data-confirm="Delete this recurring invoice? This cannot be undone.">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
           <button type="submit"
                   class="px-3 py-1.5 rounded-lg text-sm text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors">
@@ -102,4 +102,8 @@
   </a>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

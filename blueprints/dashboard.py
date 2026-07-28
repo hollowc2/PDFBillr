@@ -2,29 +2,36 @@ import json
 import os
 import re
 import secrets
-import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 from urllib.parse import quote
 
-from dateutil.relativedelta import relativedelta
 from flask import (
     Blueprint, abort, current_app, flash, make_response,
-    redirect, render_template, request, url_for,
+    redirect, render_template, request, send_file, url_for,
 )
 from flask_login import current_user, login_required
 from flask_mail import Message
+from sqlalchemy.exc import SQLAlchemyError
 
-from extensions import db, mail
+from extensions import db, limiter, mail
 from models import BrandingProfile, Invoice, RecurringInvoice
 from utils.gating import is_pro, pro_required
 from utils.helpers import _safe_filename
+from utils.invoice_calculations import InvoiceCalculationError, calculate_invoice
 from utils.pdf import ALLOWED_THEMES, context_from_invoice, render_pdf
+from utils.uploads import (
+    LogoValidationError,
+    delete_user_logo,
+    resolve_logo_path,
+    store_logo,
+)
+from utils.urls import external_url
+from utils.validation import is_valid_email, normalize_email
 
 _VALID_INTERVALS = {"weekly", "biweekly", "monthly", "quarterly"}
 
 bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
-_ALLOWED_LOGO_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 _PER_PAGE = 20
 
 
@@ -66,6 +73,7 @@ def invoice_detail(invoice_id: int):
 
 @bp.route("/invoice/<int:invoice_id>/download")
 @login_required
+@limiter.limit("10 per minute")
 def invoice_download(invoice_id: int):
     inv = _own_invoice(invoice_id)
     context = context_from_invoice(inv)
@@ -141,12 +149,15 @@ def invoice_delete(invoice_id: int):
 @bp.route("/invoice/<int:invoice_id>/send", methods=["POST"])
 @login_required
 @pro_required
+@limiter.limit("10 per hour")
 def invoice_send(invoice_id: int):
     inv = _own_invoice(invoice_id)
 
-    recipient = request.form.get("recipient_email", "").strip() or inv.to_email
-    if not recipient:
-        flash("No recipient email address.", "error")
+    recipient = normalize_email(
+        request.form.get("recipient_email", "").strip() or inv.to_email
+    )
+    if not is_valid_email(recipient):
+        flash("A valid recipient email address is required.", "error")
         return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
 
     # Ensure this invoice has a view token for tracking
@@ -158,7 +169,7 @@ def invoice_send(invoice_id: int):
 
     safe_number = _safe_filename(inv.invoice_number)
     filename    = f"Invoice-{safe_number}.pdf"
-    view_url    = url_for("public.invoice_view", token=inv.view_token, _external=True)
+    view_url    = external_url("public.invoice_view", token=inv.view_token)
 
     body = render_template(
         "emails/invoice_body.txt",
@@ -217,27 +228,65 @@ def branding():
         # Logo upload
         logo_file = request.files.get("logo")
         if logo_file and logo_file.filename:
-            ext = os.path.splitext(logo_file.filename)[1].lower()
-            if ext not in _ALLOWED_LOGO_EXTS:
-                flash("Logo must be a PNG, JPG, GIF, or WebP image.", "error")
+            try:
+                new_name = store_logo(
+                    logo_file,
+                    user_id=current_user.id,
+                    upload_folder=current_app.config["UPLOAD_FOLDER"],
+                    max_pixels=current_app.config["MAX_LOGO_PIXELS"],
+                    max_dimension=current_app.config["MAX_LOGO_DIMENSION"],
+                )
+            except LogoValidationError as exc:
+                flash(str(exc), "error")
                 return render_template("dashboard/branding.html", profile=profile)
-
-            logos_dir = os.path.join(current_app.root_path, "static", "logos")
-            # Delete old logo if it was user-uploaded (not the sample assets)
-            if profile.logo_filename:
-                old_path = os.path.join(logos_dir, profile.logo_filename)
-                if os.path.isfile(old_path) and _is_user_logo(profile.logo_filename):
-                    os.remove(old_path)
-
-            new_name = f"{current_user.id}_{uuid.uuid4().hex}{ext}"
-            logo_file.save(os.path.join(logos_dir, new_name))
+            old_name = profile.logo_filename
             profile.logo_filename = new_name
+        else:
+            old_name = None
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            if logo_file and logo_file.filename:
+                delete_user_logo(
+                    new_name,
+                    user_id=current_user.id,
+                    upload_folder=current_app.config["UPLOAD_FOLDER"],
+                )
+            current_app.logger.exception(
+                "Failed to save branding for user %s", current_user.id
+            )
+            flash("Branding could not be saved. Please try again.", "error")
+            return render_template("dashboard/branding.html", profile=profile)
+
+        if old_name:
+            delete_user_logo(
+                old_name,
+                user_id=current_user.id,
+                upload_folder=current_app.config["UPLOAD_FOLDER"],
+            )
         flash("Branding saved.", "success")
         return redirect(url_for("dashboard.branding"))
 
     return render_template("dashboard/branding.html", profile=profile)
+
+
+@bp.route("/branding/logo")
+@login_required
+@pro_required
+def branding_logo():
+    profile = current_user.branding
+    if not profile or not profile.logo_filename:
+        abort(404)
+    path = resolve_logo_path(
+        profile.logo_filename,
+        upload_folder=current_app.config["UPLOAD_FOLDER"],
+        legacy_logo_folder=os.path.join(current_app.root_path, "static", "logos"),
+    )
+    if not path:
+        abort(404)
+    return send_file(path, conditional=False)
 
 
 # ---------------------------------------------------------------------------
@@ -248,7 +297,7 @@ def branding():
 @login_required
 def save_draft():
     from blueprints.public import _HEX_RE, _save_invoice
-    from utils.pdf import ALLOWED_THEMES, build_invoice_context
+    from utils.pdf import build_invoice_context
 
     logo_filename = None
     accent_color  = "#1e3a8a"
@@ -265,7 +314,15 @@ def save_draft():
     if theme not in ALLOWED_THEMES or (theme != "default" and not is_pro()):
         theme = "default"
 
-    context = build_invoice_context(request.form, logo_filename=logo_filename, accent_color=accent_color)
+    try:
+        context = build_invoice_context(
+            request.form,
+            logo_filename=logo_filename,
+            accent_color=accent_color,
+        )
+    except InvoiceCalculationError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("public.index"))
     context["remove_footer"] = remove_footer
 
     if not context.get("line_items"):
@@ -363,13 +420,6 @@ def _own_invoice(invoice_id: int) -> Invoice:
     return inv
 
 
-def _is_user_logo(filename: str) -> bool:
-    """Return True only for logos uploaded by users (not static sample assets)."""
-    sample_names = {"logo.jpg", "landingpagegraphic.png", "filecabinet.png",
-                    "banner.png", "pdficon.png", "pdficon2.png", "pdficon3.png", "pdficon4.png"}
-    return filename not in sample_names
-
-
 def _own_recurring(tmpl_id: int) -> RecurringInvoice:
     tmpl = db.session.get(RecurringInvoice, tmpl_id)
     if tmpl is None or tmpl.user_id != current_user.id:
@@ -396,10 +446,10 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
 
     try:
         net_days = int(request.form.get("net_days", 30))
-        if net_days < 0:
+        if not 0 <= net_days <= 365:
             raise ValueError
     except ValueError:
-        flash("Net days must be a non-negative integer.", "error")
+        flash("Net days must be an integer from 0 to 365.", "error")
         return None
 
     # Validate and parse line items from JSON submitted by the form
@@ -417,18 +467,17 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
         return None
 
     try:
-        tax_rate = float(request.form.get("tax_rate", 0))
-        if not (0 <= tax_rate <= 100):
-            raise ValueError
-    except ValueError:
-        tax_rate = 0.0
-
-    try:
-        discount = float(request.form.get("discount", 0))
-        if discount < 0:
-            raise ValueError
-    except ValueError:
-        discount = 0.0
+        calculated = calculate_invoice(
+            line_items,
+            tax_rate=request.form.get("tax_rate", 0),
+            discount=request.form.get("discount", 0),
+        )
+    except InvoiceCalculationError as exc:
+        flash(str(exc), "error")
+        return None
+    if not calculated.line_items:
+        flash("Please add at least one line item.", "error")
+        return None
 
     if tmpl is None:
         tmpl = RecurringInvoice(user_id=current_user.id)
@@ -441,13 +490,18 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
     tmpl.from_phone    = request.form.get("from_phone", "")[:200]
     tmpl.to_name       = request.form.get("to_name", "")[:200]
     tmpl.to_address    = request.form.get("to_address", "")[:1000]
-    tmpl.to_email      = request.form.get("to_email", "")[:200]
-    tmpl.line_items_json = json.dumps(line_items)
-    tmpl.tax_rate      = tax_rate
-    tmpl.discount      = discount
+    to_email = normalize_email(request.form.get("to_email", ""))
+    if to_email and not is_valid_email(to_email):
+        flash("A valid client email address is required.", "error")
+        return None
+    tmpl.to_email      = to_email
+    tmpl.line_items_json = json.dumps(calculated.line_items)
+    tmpl.tax_rate      = float(calculated.tax_rate)
+    tmpl.discount      = float(calculated.discount)
     tmpl.notes         = request.form.get("notes", "")[:2000]
     tmpl.payment_info  = request.form.get("payment_info", "")[:2000]
-    tmpl.theme         = request.form.get("theme", "default")
+    theme = request.form.get("theme", "default")
+    tmpl.theme         = theme if theme in ALLOWED_THEMES else "default"
     tmpl.interval      = interval
     tmpl.net_days      = net_days
     tmpl.next_run_date = next_run

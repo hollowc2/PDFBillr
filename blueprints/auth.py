@@ -1,9 +1,16 @@
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+import hashlib
+
+from flask import (
+    Blueprint, current_app, flash, redirect, render_template, request, session,
+    url_for,
+)
 from flask_login import current_user, login_required, login_user, logout_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from extensions import db, limiter, mail, login_manager
 from models import User
+from utils.urls import external_url
+from utils.validation import is_valid_email, normalize_email
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -16,13 +23,21 @@ def _get_serializer():
     return URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
 
 
+def _password_token_version(user: User) -> str:
+    return hashlib.sha256(user.password_hash.encode()).hexdigest()[:16]
+
+
 # ---------------------------------------------------------------------------
 # Flask-Login user loader
 # ---------------------------------------------------------------------------
 
 @login_manager.user_loader
 def load_user(user_id: str):
-    return db.session.get(User, int(user_id))
+    try:
+        user = db.session.get(User, int(user_id))
+    except (TypeError, ValueError):
+        return None
+    return user if user and user.is_active else None
 
 
 # ---------------------------------------------------------------------------
@@ -36,12 +51,12 @@ def register():
         return redirect(url_for("dashboard.index"))
 
     if request.method == "POST":
-        email    = request.form.get("email", "").strip().lower()
+        email    = normalize_email(request.form.get("email"))
         password = request.form.get("password", "")
         confirm  = request.form.get("confirm_password", "")
 
-        if not email or not password:
-            flash("Email and password are required.", "error")
+        if not is_valid_email(email) or not password:
+            flash("A valid email and password are required.", "error")
             return render_template("auth/register.html")
 
         if len(password) < 8:
@@ -54,7 +69,7 @@ def register():
 
         if User.query.filter_by(email=email).first():
             current_app.logger.info(
-                "Blocked duplicate registration: email=%s ip=%s", email, request.remote_addr
+                "Blocked duplicate registration: ip=%s", request.remote_addr
             )
             flash("Registration failed. Please check your details.", "error")
             return render_template("auth/register.html")
@@ -64,6 +79,7 @@ def register():
         db.session.add(user)
         db.session.commit()
 
+        session.clear()
         login_user(user, remember=True)
         _send_welcome_email(user)
         flash("Account created! Welcome to PDFBillr.", "success")
@@ -83,14 +99,14 @@ def login():
         return redirect(url_for("dashboard.index"))
 
     if request.method == "POST":
-        email    = request.form.get("email", "").strip().lower()
+        email    = normalize_email(request.form.get("email"))
         password = request.form.get("password", "")
         remember = bool(request.form.get("remember"))
 
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(email=email).first() if is_valid_email(email) else None
         if not user or not user.check_password(password):
             current_app.logger.warning(
-                "Failed login: email=%s ip=%s", email, request.remote_addr
+                "Failed login: ip=%s", request.remote_addr
             )
             flash("Invalid email or password.", "error")
             return render_template("auth/login.html")
@@ -99,11 +115,17 @@ def login():
             flash("This account has been disabled.", "error")
             return render_template("auth/login.html")
 
+        session.clear()
         login_user(user, remember=remember)
         next_page = request.args.get("next") or url_for("dashboard.index")
-        # Prevent open redirect
-        from urllib.parse import urlparse
-        if urlparse(next_page).netloc:
+        # Accept only a local absolute path. Schemes, protocol-relative URLs,
+        # backslashes, and control characters are rejected.
+        if (
+            not next_page.startswith("/")
+            or next_page.startswith("//")
+            or "\\" in next_page
+            or any(ord(char) < 32 for char in next_page)
+        ):
             next_page = url_for("dashboard.index")
         return redirect(next_page)
 
@@ -130,8 +152,12 @@ def logout():
 @limiter.limit("10 per minute")
 def forgot_password():
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        user  = User.query.filter_by(email=email).first()
+        email = normalize_email(request.form.get("email"))
+        user = (
+            User.query.filter_by(email=email).first()
+            if is_valid_email(email)
+            else None
+        )
         # Always show success to prevent email enumeration
         if user:
             _send_reset_email(user)
@@ -143,8 +169,14 @@ def forgot_password():
 
 def _send_reset_email(user: User) -> None:
     from flask_mail import Message
-    token = _get_serializer().dumps(user.email, salt=_TOKEN_SALT)
-    reset_url = url_for("auth.reset_password", token=token, _external=True)
+    token = _get_serializer().dumps(
+        {
+            "email": user.email,
+            "password_version": _password_token_version(user),
+        },
+        salt=_TOKEN_SALT,
+    )
+    reset_url = external_url("auth.reset_password", token=token)
     msg = Message(
         subject="Reset your PDFBillr password",
         recipients=[user.email],
@@ -161,7 +193,11 @@ def _send_welcome_email(user: User) -> None:
     msg = Message(
         subject="Welcome to PDFBillr",
         recipients=[user.email],
-        body=render_template("emails/welcome.txt", user=user),
+        body=render_template(
+            "emails/welcome.txt",
+            user=user,
+            app_url=external_url("public.index"),
+        ),
     )
     try:
         mail.send(msg)
@@ -176,14 +212,25 @@ def _send_welcome_email(user: User) -> None:
 @bp.route("/reset-password/<token>", methods=["GET", "POST"])
 def reset_password(token: str):
     try:
-        email = _get_serializer().loads(token, salt=_TOKEN_SALT, max_age=_TOKEN_MAX_AGE)
+        payload = _get_serializer().loads(
+            token,
+            salt=_TOKEN_SALT,
+            max_age=_TOKEN_MAX_AGE,
+        )
     except (SignatureExpired, BadSignature):
         flash("This reset link is invalid or has expired.", "error")
         return redirect(url_for("auth.forgot_password"))
 
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        flash("User not found.", "error")
+    if not isinstance(payload, dict):
+        flash("This reset link is invalid or has expired.", "error")
+        return redirect(url_for("auth.forgot_password"))
+
+    user = User.query.filter_by(email=payload.get("email")).first()
+    if (
+        not user
+        or payload.get("password_version") != _password_token_version(user)
+    ):
+        flash("This reset link is invalid or has expired.", "error")
         return redirect(url_for("auth.forgot_password"))
 
     if request.method == "POST":

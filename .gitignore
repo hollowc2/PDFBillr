@@ -8,6 +8,11 @@ __pycache__/
 dist/
 build/
 .eggs/
+.coverage
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+uv.lock
 
 # Virtual environments
 .venv/
