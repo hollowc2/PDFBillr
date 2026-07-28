@@ -467,6 +467,7 @@ def _next_run_date(current: date, interval: str) -> date:
 
 def _generate_from_template(tmpl, scheduled_for, db):
     """Create and stage one Invoice occurrence from a recurring template."""
+    from utils.financial_shadow_values import invoice_shadow_values
     from utils.invoice_calculations import calculate_invoice
     from utils.invoice_numbers import next_available_invoice_number
 
@@ -495,6 +496,14 @@ def _generate_from_template(tmpl, scheduled_for, db):
         if tmpl.net_days is not None
         else None
     )
+    shadow_values = invoice_shadow_values(
+        invoice_date=scheduled_for,
+        due_date=due_date_obj,
+        tax_rate=calculated.tax_rate,
+        discount=calculated.discount,
+        subtotal=calculated.subtotal,
+        total=calculated.total,
+    )
 
     inv = Invoice(
         user_id         = tmpl.user_id,
@@ -513,6 +522,12 @@ def _generate_from_template(tmpl, scheduled_for, db):
         discount        = financials["discount"],
         subtotal        = financials["subtotal"],
         total           = financials["total"],
+        invoice_date_value=shadow_values["invoice_date_value"],
+        due_date_value=shadow_values["due_date_value"],
+        tax_rate_decimal=shadow_values["tax_rate_decimal"],
+        discount_decimal=shadow_values["discount_decimal"],
+        subtotal_decimal=shadow_values["subtotal_decimal"],
+        total_decimal=shadow_values["total_decimal"],
         notes           = tmpl.notes,
         payment_info    = tmpl.payment_info,
         theme           = tmpl.theme or "default",

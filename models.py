@@ -75,6 +75,10 @@ class Invoice(db.Model):
     invoice_number = db.Column(db.String(200), nullable=False)
     invoice_date = db.Column(db.String(50), nullable=True)
     due_date = db.Column(db.String(50), nullable=True)
+    # Nullable typed shadows support a staged, reversible data migration.
+    # Legacy columns remain authoritative until an explicit read-path switch.
+    invoice_date_value = db.Column(db.Date, nullable=True)
+    due_date_value = db.Column(db.Date, nullable=True)
 
     from_company = db.Column(db.String(200), nullable=True)
     from_address = db.Column(db.Text, nullable=True)
@@ -92,6 +96,10 @@ class Invoice(db.Model):
     discount = db.Column(db.Float, default=0.0)
     subtotal = db.Column(db.Float, default=0.0)
     total = db.Column(db.Float, default=0.0)
+    tax_rate_decimal = db.Column(db.Numeric(7, 4), nullable=True)
+    discount_decimal = db.Column(db.Numeric(18, 2), nullable=True)
+    subtotal_decimal = db.Column(db.Numeric(18, 2), nullable=True)
+    total_decimal = db.Column(db.Numeric(18, 2), nullable=True)
 
     notes = db.Column(db.Text, nullable=True)
     payment_info = db.Column(db.Text, nullable=True)
@@ -185,6 +193,8 @@ class RecurringInvoice(db.Model):
     line_items_json = db.Column(db.Text, nullable=True)
     tax_rate      = db.Column(db.Float, default=0.0)
     discount      = db.Column(db.Float, default=0.0)
+    tax_rate_decimal = db.Column(db.Numeric(7, 4), nullable=True)
+    discount_decimal = db.Column(db.Numeric(18, 2), nullable=True)
     notes         = db.Column(db.Text, nullable=True)
     payment_info  = db.Column(db.Text, nullable=True)
     theme         = db.Column(db.String(50), default="default")

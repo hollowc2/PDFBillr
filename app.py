@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 import uuid
@@ -136,6 +137,16 @@ def create_app(config_class: type = Config) -> Flask:
             err=True,
         )
         _run_database_bootstrap()
+
+    @app.cli.command("financial-data-audit")
+    def financial_data_audit_command():
+        """Read-only preflight for the typed financial-data migration."""
+        from utils.financial_data_audit import audit_legacy_financial_data
+
+        result = audit_legacy_financial_data(db.engine)
+        click.echo(json.dumps(result.as_dict(), sort_keys=True))
+        if result.blocker_count:
+            raise click.exceptions.Exit(1)
 
     # Development/test convenience only. Production runs the explicit command
     # once before starting web or scheduler processes.

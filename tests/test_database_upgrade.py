@@ -93,10 +93,29 @@ def test_fresh_database_bootstrap_reaches_head_and_is_rerunnable(tmp_path):
             )
         }
         assert "ix_billing_notification_deliveries_status" in billing_indexes
+        invoice_columns = {
+            column["name"] for column in inspector.get_columns("invoices")
+        }
+        assert {
+            "invoice_date_value",
+            "due_date_value",
+            "tax_rate_decimal",
+            "discount_decimal",
+            "subtotal_decimal",
+            "total_decimal",
+        } <= invoice_columns
+        recurring_columns = {
+            column["name"]
+            for column in inspector.get_columns("recurring_invoices")
+        }
+        assert {
+            "tax_rate_decimal",
+            "discount_decimal",
+        } <= recurring_columns
         revision = db.session.execute(
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
-        assert revision == "20260728_04"
+        assert revision == "20260728_05"
 
 
 def test_development_auto_create_uses_alembic_head(tmp_path):
@@ -111,7 +130,86 @@ def test_development_auto_create_uses_alembic_head(tmp_path):
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
 
-    assert revision == "20260728_04"
+    assert revision == "20260728_05"
+
+
+def test_financial_shadow_migration_is_additive_and_reversible(tmp_path):
+    application = _migration_app(tmp_path / "financial-shadows.db")
+    runner = application.test_cli_runner()
+    before = runner.invoke(args=["db", "upgrade", "20260728_04"])
+    assert before.exit_code == 0, before.output
+
+    with application.app_context():
+        with db.engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO users "
+                    "(id, email, password_hash, is_active, "
+                    "auth_session_version) "
+                    "VALUES (1, 'owner@example.test', 'hash', 1, 1)"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO invoices "
+                    "(id, user_id, invoice_number, invoice_date, due_date, "
+                    "tax_rate, discount, subtotal, total) "
+                    "VALUES (1, 1, 'INV-001', '2026-07-28', '2026-08-28', "
+                    "7.25, 1.00, 10.00, 9.73)"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO recurring_invoices "
+                    "(id, user_id, next_run_date, interval, tax_rate, discount) "
+                    "VALUES (1, 1, '2026-08-28', 'monthly', 5.5, 2.0)"
+                )
+            )
+
+    upgraded = runner.invoke(args=["db", "upgrade", "20260728_05"])
+    assert upgraded.exit_code == 0, upgraded.output
+    with application.app_context():
+        invoice = db.session.execute(
+            text(
+                "SELECT invoice_date, due_date, tax_rate, discount, "
+                "subtotal, total, invoice_date_value, due_date_value, "
+                "tax_rate_decimal, discount_decimal, subtotal_decimal, "
+                "total_decimal FROM invoices WHERE id = 1"
+            )
+        ).one()
+        assert tuple(invoice[:6]) == (
+            "2026-07-28",
+            "2026-08-28",
+            7.25,
+            1.0,
+            10.0,
+            9.73,
+        )
+        assert tuple(invoice[6:]) == (None, None, None, None, None, None)
+        recurring = db.session.execute(
+            text(
+                "SELECT tax_rate, discount, tax_rate_decimal, "
+                "discount_decimal FROM recurring_invoices WHERE id = 1"
+            )
+        ).one()
+        assert tuple(recurring) == (5.5, 2.0, None, None)
+
+    downgraded = runner.invoke(args=["db", "downgrade", "20260728_04"])
+    assert downgraded.exit_code == 0, downgraded.output
+    with application.app_context():
+        inspector = inspect(db.engine)
+        invoice_columns = {
+            column["name"] for column in inspector.get_columns("invoices")
+        }
+        recurring_columns = {
+            column["name"]
+            for column in inspector.get_columns("recurring_invoices")
+        }
+        assert "invoice_date_value" not in invoice_columns
+        assert "tax_rate_decimal" not in recurring_columns
+        assert db.session.execute(
+            text("SELECT invoice_number FROM invoices WHERE id = 1")
+        ).scalar_one() == "INV-001"
 
 
 def test_sqlite_connections_enforce_declared_foreign_keys(app):

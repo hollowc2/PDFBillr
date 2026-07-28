@@ -75,6 +75,12 @@ configuration, disabled rate limits/scheduler startup, a temporary upload
 directory, and a deterministic test-only secret. They must not call live Stripe,
 SMTP, or external URLs.
 
+`tests/integration/test_postgresql.py` is opt-in and skips unless
+`POSTGRES_TEST_DATABASE_URL` is set. For safety, it refuses databases whose name
+does not contain `test`, creates a random isolated schema, verifies migrations,
+timezone behavior and uniqueness, then removes only that schema. CI runs this
+test against its dedicated PostgreSQL 16 service.
+
 ## Dependency locking and audits
 
 `requirements.txt` and `requirements-dev.txt` are the short, directly pinned
@@ -240,12 +246,31 @@ remember cookies created before deployment. Users sign in once after the
 upgrade; subsequent password changes and resets revoke all of that user's
 existing sessions.
 
-Money remains stored in legacy `Float` columns and invoice/due dates remain
-legacy strings even though authoritative calculations use `Decimal`. Converting
-them safely requires an inventory of malformed legacy rows, shadow
-`Numeric`/`Date` columns, a validated and reversible backfill, application
-dual-read compatibility, and only then a constraint/cutover migration. That
-data-dependent conversion is intentionally not performed automatically.
+Money/date migration is staged rather than converted in place. Revision
+`20260728_05` adds nullable `Numeric`/`Date` shadow columns, and all new invoice,
+duplicate, recurring-template, and recurring-generation writes populate both
+the legacy and typed values. Existing reads still use legacy columns, so the
+revision is reversible and does not create a partially switched application.
+
+After upgrading a stopped copy of a representative production backup, run the
+read-only preflight:
+
+```bash
+flask --app app financial-data-audit > financial-data-audit.json
+```
+
+The command returns nonzero when it finds invalid dates, non-finite/out-of-range
+money, malformed line-item JSON, typed-shadow mismatches, or totals/amounts that
+do not match a server-side recalculation. Output contains only categories,
+counts, and database row IDs—never invoice numbers, customer fields, or source
+values. Rows with valid legacy data but empty shadows are reported separately
+under `pending_backfill`.
+
+Do not populate the shadows manually or switch read paths yet. Review and
+correct every blocker on a backed-up copy, then implement/test an idempotent
+backfill against representative SQLite and PostgreSQL data. Constraint
+tightening and typed-column reads belong in a later deployment after parity has
+been measured.
 
 ## Scheduler reliability
 
@@ -342,6 +367,8 @@ regularly; a file copy of a live WAL database is not a backup procedure.
   isolation.
 - Configure shared Redis-backed rate limiting; production rejects `memory://`.
 - Run the schema upgrade once and back up before upgrading.
+- Run `financial-data-audit` against an upgraded backup and retain its
+  blocker/pending counts with the deployment record.
 - Run one scheduler and one web process when using the memory limiter/SQLite.
 - Persist and back up database/uploads.
 - Build with the host UID/GID that owns the bind mounts and verify the

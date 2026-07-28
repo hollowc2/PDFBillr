@@ -15,6 +15,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from extensions import db, limiter, mail
 from models import BrandingProfile, Invoice, RecurringInvoice
+from utils.financial_shadow_values import (
+    FinancialShadowValueError,
+    invoice_shadow_values,
+    recurring_invoice_shadow_values,
+)
 from utils.gating import is_pro, pro_required
 from utils.helpers import _safe_filename
 from utils.invoice_calculations import InvoiceCalculationError, calculate_invoice
@@ -109,6 +114,28 @@ def invoice_download(invoice_id: int):
 @login_required
 def invoice_duplicate(invoice_id: int):
     orig = _own_invoice(invoice_id)
+    try:
+        shadow_values = invoice_shadow_values(
+            invoice_date=orig.invoice_date,
+            due_date=orig.due_date,
+            tax_rate=orig.tax_rate,
+            discount=orig.discount,
+            subtotal=orig.subtotal,
+            total=orig.total,
+        )
+    except FinancialShadowValueError:
+        current_app.logger.warning(
+            "Invoice duplication rejected because legacy financial data "
+            "cannot populate typed shadow columns",
+            extra={"invoice_id": orig.id},
+        )
+        flash(
+            "This invoice contains invalid legacy financial or date data "
+            "and cannot be duplicated.",
+            "error",
+        )
+        return redirect(url_for("dashboard.invoice_detail", invoice_id=orig.id))
+
     duplicate_number = next_available_invoice_number(
         current_user.id,
         f"{orig.invoice_number}-copy",
@@ -130,6 +157,12 @@ def invoice_duplicate(invoice_id: int):
         discount        = orig.discount,
         subtotal        = orig.subtotal,
         total           = orig.total,
+        invoice_date_value=shadow_values["invoice_date_value"],
+        due_date_value=shadow_values["due_date_value"],
+        tax_rate_decimal=shadow_values["tax_rate_decimal"],
+        discount_decimal=shadow_values["discount_decimal"],
+        subtotal_decimal=shadow_values["subtotal_decimal"],
+        total_decimal=shadow_values["total_decimal"],
         notes           = orig.notes,
         payment_info    = orig.payment_info,
         logo_filename   = orig.logo_filename,
@@ -371,7 +404,25 @@ def save_draft():
         flash("Please add at least one line item to save a draft.", "error")
         return redirect(url_for("public.index"))
 
-    _save_invoice(context, theme)
+    try:
+        shadow_values = invoice_shadow_values(
+            invoice_date=context["invoice_date"],
+            due_date=context["due_date"],
+            tax_rate=context["tax_rate"],
+            discount=context["discount"],
+            subtotal=context["subtotal"],
+            total=context["total"],
+        )
+    except FinancialShadowValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("public.index"))
+
+    if not _save_invoice(context, theme, shadow_values):
+        flash(
+            "That invoice number is already in use. Choose a different number.",
+            "error",
+        )
+        return redirect(url_for("public.index"))
     flash("Draft saved.", "success")
     return redirect(url_for("dashboard.index"))
 
@@ -540,6 +591,12 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
     tmpl.line_items_json = json.dumps(calculated.line_items)
     tmpl.tax_rate      = float(calculated.tax_rate)
     tmpl.discount      = float(calculated.discount)
+    shadow_values = recurring_invoice_shadow_values(
+        tax_rate=calculated.tax_rate,
+        discount=calculated.discount,
+    )
+    tmpl.tax_rate_decimal = shadow_values["tax_rate_decimal"]
+    tmpl.discount_decimal = shadow_values["discount_decimal"]
     tmpl.notes         = request.form.get("notes", "")[:2000]
     tmpl.payment_info  = request.form.get("payment_info", "")[:2000]
     theme = request.form.get("theme", "default")

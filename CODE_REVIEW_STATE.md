@@ -20,8 +20,12 @@ state was recorded.
 - Starting branch: `main`
 - Starting commit: `477a80e` (`fix(healthcheck): replace curl with python3 urllib, correct path`)
 - Current branch: `main`
-- Current commit: `477a80e` (changes remain uncommitted as requested)
-- Review diff: 50 repository files changed/added; pre-existing untracked
+- Previous completed pass: `6f31c62` (`feat: add durable migrations, delivery
+  outboxes, and runtime hardening`), pushed to `origin/main`
+- Current commit: `6f31c62`; the staged financial-migration work described
+  below remains uncommitted
+- Current worktree diff: financial shadow columns, dual-write/audit tooling,
+  PostgreSQL integration coverage, and documentation; pre-existing untracked
   `.claude/` excluded
 - Upstream: `origin/main`
 - Initial worktree state: clean tracked tree; pre-existing untracked `.claude/`
@@ -61,11 +65,16 @@ state was recorded.
 
 - `User` owns invoices, one subscription, one branding profile, and recurring
   invoice templates.
-- `Invoice` stores parties, line-item JSON, float monetary totals, status,
-  public view token/count, and reminder flags.
+- `Invoice` stores parties, line-item JSON, legacy float/string financial data,
+  nullable typed financial/date shadows, status, public view token/count, and
+  reminder flags. Legacy reads remain authoritative during the staged
+  migration.
 - `Subscription` stores local Pro state and Stripe identifiers.
 - `ProcessedStripeEvent` uses the Stripe event ID as its primary key.
-- `RecurringInvoice` stores an invoice template and next/last run state.
+- `RecurringInvoice` stores an invoice template, legacy and typed-shadow
+  tax/discount values, and next/last run state.
+- Durable occurrence, invoice-delivery, and billing-notification ledgers own
+  idempotent scheduled/billing side effects.
 - `BrandingProfile` stores an uploaded logo filename and PDF styling choices.
 
 ### Main dependency flows
@@ -75,10 +84,11 @@ HTTP request -> Blueprint route -> ad hoc validation/helper -> SQLAlchemy model
              -> Jinja HTML / WeasyPrint PDF / Flask-Mail / Stripe response
 
 Stripe webhook -> signature verification -> event-specific handler
-               -> Stripe API (some events) -> SQLAlchemy commit -> email
+               -> Stripe API (some events) -> transactional state/outbox
+               -> post-commit email attempt
 
-In-process APScheduler -> reminder/recurrence helper -> database query
-                       -> PDF/email side effect -> database commit
+Dedicated scheduler process -> reminder/recurrence claim -> database commit
+                            -> PDF/email side effect -> delivery state update
 ```
 
 The PDF-generate/save route pair, recurring-template save path, webhook
@@ -92,12 +102,14 @@ small cohesive services.
 - Gating: `utils/gating.py`, based on local subscription plan/status/period.
 - Input helpers: `utils/helpers.py`.
 - Client behavior: plain JavaScript under `static/js/`.
-- Deployment: Python 3.12 slim image, Gunicorn, Docker Compose; SQLite and
-  uploaded logos are bind-mounted.
-- Database initialization/migration: explicit, inspect-before-alter
-  `flask --app app db-upgrade`; there is still no Alembic/Flask-Migrate setup.
-- Logging/error handling: standard Flask/Python logging, with several broad
-  exception catches and no request-ID or structured logging facility.
+- Deployment: multi-stage, non-root Python 3.12 image, Gunicorn, one-shot
+  migration service, dedicated scheduler service, and Docker Compose; database
+  and private uploads require persistent writable storage.
+- Database initialization/migration: Flask-Migrate/Alembic with explicit,
+  fail-closed `flask --app app db-bootstrap`; web and scheduler processes never
+  mutate schema on startup.
+- Logging/error handling: privacy-safe request logging and correlated request
+  IDs are present; full structured metrics/tracing are not.
 
 ## Runtime and test commands
 
@@ -106,7 +118,8 @@ small cohesive services.
 - Compose: `docker compose up --build`
 - Syntax check: `python -m compileall .`
 - Tests: no test suite or pytest dependency existed at the starting commit
-- Migration command: `flask --app app db-upgrade`
+- Migration command: `flask --app app db-bootstrap` (`db-upgrade` remains a
+  deprecated visible alias)
 - Scheduler command: `DISABLE_SCHEDULER=false python scheduler_worker.py`
 
 ## Baseline test results
@@ -175,22 +188,27 @@ review environment.
 
 ## Prioritized work queue
 
-1. Inventory malformed legacy money/date rows from representative backups and
-   design reversible shadow-column migrations.
-2. Add PostgreSQL and Redis service integration/concurrency tests, including
-   Alembic upgrade and concurrent delivery/invoice-number claims.
-3. Obtain product decisions for paid/closed/reminder opt-out and recurrence/
+1. Run `financial-data-audit` against an upgraded, stopped copy of a
+   representative production backup; resolve every blocker and retain the
+   category/count report with the deployment record.
+2. Implement an idempotent typed-shadow backfill only after representative
+   SQLite/PostgreSQL audit results are available, then measure dual-write
+   parity before any read-path cutover.
+3. Run the new PostgreSQL integration job in CI and add Redis
+   integration/concurrency tests, including concurrent delivery and
+   invoice-number claims.
+4. Obtain product decisions for paid/closed/reminder opt-out and recurrence/
    reminder catch-up behavior.
-4. Add manual invoice-send idempotency semantics and an outbox only after the
+5. Add manual invoice-send idempotency semantics and an outbox only after the
    resend UX/idempotency-key behavior is defined.
-5. Decide public-token automatic expiry and view-count bot/dedup semantics.
-6. Visually regression-test WeasyPrint 68+ and remove audit exceptions when
+6. Decide public-token automatic expiry and view-count bot/dedup semantics.
+7. Visually regression-test WeasyPrint 68+ and remove audit exceptions when
    safe.
-7. Build and runtime-smoke the non-root image on a host with Docker, including
+8. Build and runtime-smoke the non-root image on a host with Docker, including
    existing bind-mount ownership and persistence.
-8. Add metrics/tracing/mail-provider delivery callbacks where production
+9. Add metrics/tracing/mail-provider delivery callbacks where production
    observability requirements justify them.
-9. Adopt repository-wide Ruff formatting as a separate cosmetic-only change if
+10. Adopt repository-wide Ruff formatting as a separate cosmetic-only change if
    desired.
 
 ## Implementation batches
@@ -361,8 +379,18 @@ review environment.
   ownership/size/replacement, restricted PDF fetching, hostile PDF fields,
   public-token access/tracking, readiness/liveness, CSRF, email header
   injection, successful mocked email, and owner deletion.
-- Final suite: 78 passed, with two Flask-Login `datetime.utcnow()` and one
-  pydyf API deprecation warning from pinned upstream dependencies.
+- Final suite after the initial review: 78 passed, with two Flask-Login
+  `datetime.utcnow()` and one pydyf API deprecation warning from pinned
+  upstream dependencies.
+- The durability/operations continuation increased the suite to 102 passing
+  tests.
+- The staged financial migration adds nine tests for read-only legacy-data
+  auditing, additive/rerunnable migration state, new-invoice/draft/duplicate/
+  recurring dual writes, validation failures, and typed-shadow consistency.
+- The PostgreSQL integration test is opt-in locally and runs in CI against
+  PostgreSQL 16. It validates fresh/rerun migrations, Alembic head, timestamp
+  timezone behavior, uniqueness, transaction rollback, downgrade, and isolated
+  schema cleanup.
 
 ## Commands run and results
 
@@ -505,15 +533,62 @@ Continuation verification:
   because `/var/run/docker.sock` does not exist. No image-build success is
   claimed.
 
+## Continuation update: staged financial migration and PostgreSQL coverage
+
+This pass began from pushed commit `6f31c62` on `main`. Three parallel
+workstreams implemented the migration/audit contract, application dual writes,
+and PostgreSQL integration coverage; the root agent reviewed and validated the
+combined result.
+
+Completed:
+
+- Added reversible Alembic revision `20260728_05`. It adds nullable `Date` and
+  bounded `Numeric` shadow columns without changing or backfilling the legacy
+  string/Float columns.
+- Added explicit typed-shadow conversion helpers. New invoices, drafts,
+  duplicates, recurring templates, and generated recurring invoices now write
+  both legacy and typed representations in the same transaction.
+- Kept every read path on legacy columns. There is deliberately no automatic
+  backfill, constraint tightening, or typed-column cutover in this pass.
+- Added read-only `flask --app app financial-data-audit`. It reports invalid
+  dates, malformed/non-finite/out-of-range money, malformed line-item JSON,
+  recalculation discrepancies, shadow mismatches, and valid rows awaiting
+  backfill. Output contains categories, counts, and row IDs only.
+- Added an opt-in PostgreSQL integration module with defensive test-database
+  name validation and random schema isolation. CI now runs it against a
+  dedicated PostgreSQL 16 service.
+- Documented the deployment preflight and the prohibition on manual shadow
+  population/read-path switching before representative-data validation.
+
+Verification:
+
+- `UV_CACHE_DIR=/tmp/pdfbillr-uv-cache uv run --offline
+  --with-requirements requirements-dev.lock python -m pytest -q` — PASS,
+  `111 passed, 1 skipped`, four upstream deprecation warnings. The skipped test
+  is the PostgreSQL integration module because no local service URL is set.
+- `UV_CACHE_DIR=/tmp/pdfbillr-uv-cache uv run --offline
+  --with-requirements requirements-dev.lock ruff check .` — PASS.
+- `python -m compileall -q .` — PASS.
+- `SECRET_KEY=... docker compose config --quiet` — PASS.
+- Fresh temporary SQLite `flask --app app db-bootstrap` through
+  `20260728_05` — PASS.
+- `flask --app app financial-data-audit` against that fresh database — PASS
+  with zero blockers and zero pending rows.
+- `git diff --check` — PASS.
+- A real PostgreSQL run and Docker image build remain unavailable locally
+  because this host has no PostgreSQL service or Docker daemon. CI is the
+  designated PostgreSQL execution environment.
+
 ## Unresolved risks
 
-- Existing money/date columns remain `Float` and strings. Decimal is
-  authoritative in code, but a production-safe conversion needs a legacy-row
-  inventory, shadow `Numeric`/`Date` columns, reversible validated backfill,
-  dual-read compatibility, and a later constraint cutover.
-- PostgreSQL and Redis clients/configuration are present, but PostgreSQL
-  integration, Redis integration, multi-worker concurrency, and migration
-  tests have not run against real services.
+- Existing reads still use legacy Float/string money/date columns. Typed
+  shadows and dual writes now exist, but a production-safe conversion still
+  requires running the audit against representative data, resolving blockers,
+  an idempotent tested backfill, parity observation, and a later read/constraint
+  cutover.
+- PostgreSQL integration coverage now exists and is configured in CI, but it
+  has not run on this local host. Redis integration and multi-worker
+  concurrency tests against real services remain outstanding.
 - Delivery queues are at-least-once. A process crash after SMTP accepts a
   message but before the database records success can still produce a duplicate;
   SMTP offers no portable exactly-once transaction.
@@ -565,14 +640,20 @@ Continuation verification:
   without changing existing URL behavior.
 - Development auto-create uses Alembic; only ephemeral test databases use
   `db.create_all()`.
+- Financial schema conversion is additive and staged: dual-write first,
+  representative-data audit/backfill second, observed parity third, and read/
+  constraint cutover only in a later deployment.
+- The financial audit is read-only and privacy-minimized. It must not emit
+  customer fields, invoice numbers, source monetary values, or line-item
+  contents.
 
 ## Recommended next task
 
-Build the staged legacy money/date migration: add inventory/preflight tooling
-and shadow `Numeric`/`Date` columns, test reversible backfill on representative
-production backups, and add PostgreSQL integration/concurrency CI before any
-read-path cutover. This is the highest remaining correctness risk and should
-not be attempted as a direct in-place type conversion.
+Run `flask --app app financial-data-audit` against an upgraded, stopped copy of
+a representative/sanitized production backup and review the returned row IDs
+and categories. Provide that audit JSON or the sanitized backup to the next
+session; only then implement and test the idempotent backfill. Do not switch
+read paths or tighten typed-column constraints yet.
 
 ## Files intentionally not changed
 
@@ -580,5 +661,6 @@ not be attempted as a direct in-place type conversion.
 - `.playwright-mcp/` (ignored local logs)
 - `static/logos/*` except `.gitkeep` (ignored local/sample/user data)
 - Existing invoice PDF theme layouts and product pricing/feature limits
-- Existing Float/string money/date columns pending an Alembic migration
+- Existing Float/string money/date columns and all read paths; revision
+  `20260728_05` only adds nullable shadows and dual writes
 - Any local database, upload, virtual environment, cache, or bytecode file

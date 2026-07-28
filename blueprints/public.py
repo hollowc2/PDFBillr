@@ -17,6 +17,10 @@ from sqlalchemy.exc import IntegrityError
 from extensions import db, limiter
 from models import BrandingProfile, Invoice
 from utils.gating import is_pro
+from utils.financial_shadow_values import (
+    FinancialShadowValueError,
+    invoice_shadow_values,
+)
 from utils.helpers import _safe_filename
 from utils.invoice_calculations import InvoiceCalculationError
 from utils.invoice_numbers import invoice_number_exists
@@ -92,11 +96,33 @@ def generate():
             form_data=request.form,
         )
 
+    shadow_values = None
+    if current_user.is_authenticated:
+        try:
+            shadow_values = invoice_shadow_values(
+                invoice_date=context["invoice_date"],
+                due_date=context["due_date"],
+                tax_rate=context["tax_rate"],
+                discount=context["discount"],
+                subtotal=context["subtotal"],
+                total=context["total"],
+            )
+        except FinancialShadowValueError as exc:
+            flash(str(exc), "error")
+            return render_template(
+                "form.html",
+                today=date.today().isoformat(),
+                form_data=request.form,
+            )
+
     pdf_bytes = render_pdf(context, theme=theme)
 
     # Persist only after rendering succeeds so a PDF failure cannot leave an
     # unexpected saved invoice behind.
-    if current_user.is_authenticated and not _save_invoice(context, theme):
+    if (
+        current_user.is_authenticated
+        and not _save_invoice(context, theme, shadow_values)
+    ):
         flash(
             "That invoice number was just used by another request. "
             "Choose a different number.",
@@ -124,7 +150,11 @@ def generate():
     return response
 
 
-def _save_invoice(context: dict, theme: str) -> bool:
+def _save_invoice(
+    context: dict,
+    theme: str,
+    shadow_values: dict,
+) -> bool:
     """Persist an invoice, returning false for a same-user number conflict."""
     from flask_login import current_user as cu
 
@@ -149,6 +179,12 @@ def _save_invoice(context: dict, theme: str) -> bool:
         discount       = context["discount"],
         subtotal       = context["subtotal"],
         total          = context["total"],
+        invoice_date_value=shadow_values["invoice_date_value"],
+        due_date_value=shadow_values["due_date_value"],
+        tax_rate_decimal=shadow_values["tax_rate_decimal"],
+        discount_decimal=shadow_values["discount_decimal"],
+        subtotal_decimal=shadow_values["subtotal_decimal"],
+        total_decimal=shadow_values["total_decimal"],
         notes          = context["notes"],
         payment_info   = context["payment_info"],
         logo_filename  = cu.branding.logo_filename if cu.branding else None,
