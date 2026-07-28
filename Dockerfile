@@ -5,9 +5,9 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
 
 WORKDIR /app
 COPY requirements.lock .
-RUN pip wheel \
+RUN pip install \
     --require-hashes \
-    --wheel-dir /wheels \
+    --prefix=/install \
     -r requirements.lock
 
 FROM python:3.12-slim AS runtime
@@ -43,14 +43,10 @@ RUN groupadd --gid "${APP_GID}" pdfbillr \
         pdfbillr
 
 WORKDIR /app
-COPY --from=builder /wheels /wheels
-COPY --from=builder /app/requirements.lock .
-RUN pip install \
-        --no-index \
-        --find-links=/wheels \
-        --require-hashes \
-        -r requirements.lock \
-    && rm -rf /wheels
+# Sources and downloaded wheels are hash-verified in the disposable builder.
+# Copy the resulting installation instead of hashing locally built wheels,
+# whose archive hashes are not reproducible from an sdist.
+COPY --from=builder /install /usr/local
 
 COPY --chown=pdfbillr:pdfbillr . .
 RUN mkdir -p /app/instance/uploads /app/static/logos \
