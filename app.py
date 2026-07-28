@@ -1,15 +1,17 @@
 import logging
+import time
+import uuid
 import warnings
 from urllib.parse import urlsplit
 
 import click
-from flask import Flask, request
+from flask import Flask, g, render_template, request
 from flask_login import current_user
-from sqlalchemy import inspect
+from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config, _INSECURE_DEFAULT_SECRET
-from extensions import csrf, db, limiter, login_manager, mail
+from extensions import csrf, db, limiter, login_manager, mail, migrate
 
 log = logging.getLogger(__name__)
 
@@ -57,59 +59,17 @@ def _validate_config(app: Flask) -> None:
                 "Partial Stripe configuration; missing " + ", ".join(missing)
             )
 
-
-def _upgrade_legacy_schema(db_obj) -> None:
-    """Upgrade known pre-review schemas without hiding unexpected DDL errors.
-
-    This is a compatibility bridge for existing installs. New schema changes
-    should move to Alembic; production invokes this explicitly with
-    ``flask --app app db-upgrade`` rather than from every web worker.
-    """
-    inspector = inspect(db_obj.engine)
-    if "invoices" not in inspector.get_table_names():
-        return
-
-    existing = {column["name"] for column in inspector.get_columns("invoices")}
-    dialect = db_obj.engine.dialect.name
-    timestamp_type = "TIMESTAMP WITH TIME ZONE" if dialect == "postgresql" else "DATETIME"
-    bool_default = "FALSE" if dialect == "postgresql" else "0"
-    invoice_columns = {
-        "view_token": "VARCHAR(64)",
-        "viewed_at": timestamp_type,
-        "view_count": "INTEGER NOT NULL DEFAULT 0",
-        "reminder_3d_sent": f"BOOLEAN NOT NULL DEFAULT {bool_default}",
-        "reminder_0d_sent": f"BOOLEAN NOT NULL DEFAULT {bool_default}",
-        "reminder_7d_sent": f"BOOLEAN NOT NULL DEFAULT {bool_default}",
-    }
-
-    with db_obj.engine.begin() as connection:
-        for column, column_type in invoice_columns.items():
-            if column not in existing:
-                connection.execute(
-                    db_obj.text(
-                        f"ALTER TABLE invoices ADD COLUMN {column} {column_type}"
-                    )
-                )
-        connection.execute(
-            db_obj.text(
-                "CREATE UNIQUE INDEX IF NOT EXISTS ix_invoices_view_token "
-                "ON invoices (view_token)"
-            )
+    limiter_storage = str(
+        app.config.get("RATELIMIT_STORAGE_URI", "memory://")
+    ).strip().lower()
+    web_concurrency = int(app.config.get("WEB_CONCURRENCY", 1))
+    if limiter_storage.startswith("memory://") and (
+        environment == "production" or web_concurrency > 1
+    ):
+        raise RuntimeError(
+            "A shared RATELIMIT_STORAGE_URI is required in production "
+            "or when WEB_CONCURRENCY is greater than one."
         )
-
-    inspector = inspect(db_obj.engine)
-    if "subscriptions" in inspector.get_table_names():
-        subscription_columns = {
-            column["name"] for column in inspector.get_columns("subscriptions")
-        }
-        if "last_stripe_event_created" not in subscription_columns:
-            with db_obj.engine.begin() as connection:
-                connection.execute(
-                    db_obj.text(
-                        "ALTER TABLE subscriptions "
-                        "ADD COLUMN last_stripe_event_created BIGINT"
-                    )
-                )
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -133,6 +93,7 @@ def create_app(config_class: type = Config) -> Flask:
 
     # Extensions
     db.init_app(app)
+    migrate.init_app(app, db, directory="migrations")
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
     login_manager.login_message = "Please log in to access that page."
@@ -156,23 +117,89 @@ def create_app(config_class: type = Config) -> Flask:
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(billing_bp)
 
+    def _run_database_bootstrap() -> None:
+        from utils.database_migrations import bootstrap_database
+
+        transition = bootstrap_database(db)
+        click.echo(f"Database schema is at the Alembic head ({transition}).")
+
+    @app.cli.command("db-bootstrap")
+    def db_bootstrap_command():
+        """Upgrade fresh, versioned, or verified unversioned databases."""
+        _run_database_bootstrap()
+
     @app.cli.command("db-upgrade")
     def db_upgrade_command():
-        """Create the current schema and upgrade supported legacy installs."""
-        db.create_all()
-        _upgrade_legacy_schema(db)
-        click.echo("Database schema is up to date.")
+        """Deprecated compatibility alias for db-bootstrap."""
+        click.echo(
+            "Warning: db-upgrade is deprecated; use db-bootstrap.",
+            err=True,
+        )
+        _run_database_bootstrap()
 
     # Development/test convenience only. Production runs the explicit command
     # once before starting web or scheduler processes.
     if app.config.get("AUTO_CREATE_DB"):
         with app.app_context():
-            db.create_all()
-            _upgrade_legacy_schema(db)
+            if app.testing:
+                # Ephemeral test databases mirror current metadata directly;
+                # migration behavior has its own fresh/legacy test matrix.
+                db.create_all()
+            else:
+                _run_database_bootstrap()
+
+    @app.before_request
+    def _start_request():
+        # Generate this value locally. Accepting a client-supplied identifier
+        # would permit log injection and misleading cross-system correlation.
+        g.request_id = uuid.uuid4().hex
+        g.request_started_ns = time.monotonic_ns()
+
+    def _wants_json_error() -> bool:
+        return request.is_json or (
+            request.accept_mimetypes.best == "application/json"
+            and request.accept_mimetypes["application/json"]
+            >= request.accept_mimetypes["text/html"]
+        )
+
+    @app.errorhandler(HTTPException)
+    def _render_http_error(error: HTTPException):
+        request_id = getattr(g, "request_id", uuid.uuid4().hex)
+        response = error.get_response()
+        if error.code and error.code >= 500:
+            app.logger.error(
+                "request_failed request_id=%s endpoint=%s status=%s",
+                request_id,
+                request.endpoint or "unmatched",
+                error.code,
+                exc_info=getattr(error, "original_exception", None) is not None,
+            )
+
+        if _wants_json_error():
+            response.data = app.json.dumps(
+                {
+                    "error": error.name,
+                    "request_id": request_id,
+                    "status": error.code,
+                }
+            )
+            response.content_type = "application/json"
+        else:
+            response.data = render_template(
+                "error.html",
+                error_name=error.name,
+                home_path=f"{request.script_root}/",
+                request_id=request_id,
+                status_code=error.code,
+            )
+            response.content_type = "text/html; charset=utf-8"
+        return response
 
     # Security headers
     @app.after_request
     def _add_security_headers(response):
+        request_id = getattr(g, "request_id", uuid.uuid4().hex)
+        response.headers["X-Request-ID"] = request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "0"
@@ -196,12 +223,28 @@ def create_app(config_class: type = Config) -> Flask:
                 "max-age=31536000; includeSubDomains"
             )
         endpoint = request.endpoint or ""
-        if (
+        if response.status_code >= 400 or (
             current_user.is_authenticated
             or endpoint.startswith(("auth.", "dashboard.", "billing."))
             or endpoint == "public.invoice_view"
         ):
             response.headers["Cache-Control"] = "no-store, private"
+
+        started_ns = getattr(g, "request_started_ns", None)
+        duration_ms = (
+            (time.monotonic_ns() - started_ns) / 1_000_000
+            if started_ns is not None
+            else 0.0
+        )
+        app.logger.info(
+            "request_complete request_id=%s method=%s endpoint=%s "
+            "status=%s duration_ms=%.2f",
+            request_id,
+            request.method,
+            endpoint or "unmatched",
+            response.status_code,
+            duration_ms,
+        )
         return response
 
     # Template context processor: inject is_pro() for all templates

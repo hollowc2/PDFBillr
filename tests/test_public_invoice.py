@@ -31,6 +31,51 @@ def test_invalid_public_invoice_token_is_404(client):
     assert client.get("/invoice/view/not-a-token").status_code == 404
 
 
+def test_owner_can_rotate_public_link_and_old_link_stops_working(
+    client, app, make_user, make_invoice, login
+):
+    owner = make_user("owner@example.test")
+    invoice = make_invoice(owner.id, view_token="old-public-token")
+    login(owner.email)
+
+    response = client.post(
+        f"/dashboard/invoice/{invoice.id}/public-link/rotate"
+    )
+
+    assert response.status_code == 302
+    assert client.get("/invoice/view/old-public-token").status_code == 404
+    with app.app_context():
+        stored = db.session.get(Invoice, invoice.id)
+        assert stored.view_token
+        assert stored.view_token != "old-public-token"
+        replacement_token = stored.view_token
+    assert client.get(f"/invoice/view/{replacement_token}").status_code == 200
+
+
+def test_owner_can_revoke_and_recreate_public_link(
+    client, app, make_user, make_invoice, login
+):
+    owner = make_user("owner@example.test")
+    invoice = make_invoice(owner.id, view_token="revoked-public-token")
+    login(owner.email)
+
+    revoke = client.post(
+        f"/dashboard/invoice/{invoice.id}/public-link/revoke"
+    )
+
+    assert revoke.status_code == 302
+    assert client.get("/invoice/view/revoked-public-token").status_code == 404
+    with app.app_context():
+        assert db.session.get(Invoice, invoice.id).view_token is None
+
+    recreate = client.post(
+        f"/dashboard/invoice/{invoice.id}/public-link/rotate"
+    )
+    assert recreate.status_code == 302
+    with app.app_context():
+        assert db.session.get(Invoice, invoice.id).view_token
+
+
 def test_authenticated_pages_are_not_cacheable(
     client, make_user, login
 ):

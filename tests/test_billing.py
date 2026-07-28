@@ -5,7 +5,12 @@ from types import SimpleNamespace
 from sqlalchemy.exc import OperationalError
 
 from extensions import db
-from models import ProcessedStripeEvent, Subscription, User
+from models import (
+    BillingNotificationDelivery,
+    ProcessedStripeEvent,
+    Subscription,
+    User,
+)
 
 
 def stripe_event(event_id, event_type, data, *, created=100):
@@ -182,9 +187,75 @@ def test_checkout_completion_grants_only_configured_price_after_commit(
         assert stored.stripe_customer_id == "cus_1"
         assert stored.subscription.plan == "pro"
         assert stored.subscription.stripe_price_id == "price_pro"
+        delivery = BillingNotificationDelivery.query.filter_by(
+            stripe_event_id="evt_checkout"
+        ).one()
+        assert delivery.status == "sent"
+        assert delivery.attempt_count == 1
 
     assert retrievals == ["sub_1"]
     assert notifications == [(user.id, "emails/payment_confirmed.txt")]
+
+
+def test_failed_billing_notification_is_retried_on_duplicate_webhook(
+    client, app, make_user, monkeypatch
+):
+    user = make_user("retry@example.test")
+    event = stripe_event(
+        "evt_checkout_retry",
+        "checkout.session.completed",
+        {
+            "client_reference_id": str(user.id),
+            "customer": "cus_retry",
+            "subscription": "sub_retry",
+        },
+    )
+    monkeypatch.setattr(
+        "blueprints.billing.stripe.Webhook.construct_event",
+        lambda *_args, **_kwargs: event,
+    )
+    monkeypatch.setattr(
+        "blueprints.billing.stripe.Subscription.retrieve",
+        lambda _subscription_id: subscription_object(
+            subscription_id="sub_retry",
+            customer="cus_retry",
+        ),
+    )
+    attempts = []
+
+    def fail_once(stored_user, template):
+        attempts.append((stored_user.id, template))
+        if len(attempts) == 1:
+            raise OSError("temporary SMTP failure")
+
+    monkeypatch.setattr(
+        "blueprints.billing._send_billing_email",
+        fail_once,
+    )
+
+    assert client.post("/billing/webhook").status_code == 200
+    with app.app_context():
+        delivery = BillingNotificationDelivery.query.filter_by(
+            stripe_event_id="evt_checkout_retry"
+        ).one()
+        assert delivery.status == "failed"
+        assert delivery.attempt_count == 1
+
+    assert client.post("/billing/webhook").status_code == 200
+    with app.app_context():
+        assert ProcessedStripeEvent.query.filter_by(
+            stripe_event_id="evt_checkout_retry"
+        ).count() == 1
+        delivery = BillingNotificationDelivery.query.filter_by(
+            stripe_event_id="evt_checkout_retry"
+        ).one()
+        assert delivery.status == "sent"
+        assert delivery.attempt_count == 2
+
+    assert attempts == [
+        (user.id, "emails/payment_confirmed.txt"),
+        (user.id, "emails/payment_confirmed.txt"),
+    ]
 
 
 def test_failed_commit_keeps_event_retryable_without_notification(

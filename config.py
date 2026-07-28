@@ -21,6 +21,25 @@ def _env_list(name: str) -> list[str] | None:
     return values or None
 
 
+def _env_int(
+    name: str,
+    default: int,
+    *,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    raw = os.environ.get(name)
+    try:
+        value = default if raw is None else int(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be an integer") from exc
+    if minimum is not None and value < minimum:
+        raise RuntimeError(f"{name} must be at least {minimum}")
+    if maximum is not None and value > maximum:
+        raise RuntimeError(f"{name} must be at most {maximum}")
+    return value
+
+
 class Config:
     APP_ENV = os.environ.get("APP_ENV", "development").strip().lower()
     SECRET_KEY = os.environ.get("SECRET_KEY") or _INSECURE_DEFAULT_SECRET
@@ -36,7 +55,7 @@ class Config:
     # Flask-Mail
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "localhost")
     MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))
-    MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "true").lower() == "true"
+    MAIL_USE_TLS = _env_bool("MAIL_USE_TLS", True)
     MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
     MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
     MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "noreply@pdfbillr.com")
@@ -49,6 +68,8 @@ class Config:
 
     # Rate limiting
     RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
+    RATELIMIT_HEADERS_ENABLED = True
+    WEB_CONCURRENCY = _env_int("WEB_CONCURRENCY", 1, minimum=1, maximum=64)
 
     # File uploads (2 MB max)
     MAX_CONTENT_LENGTH = 2 * 1024 * 1024

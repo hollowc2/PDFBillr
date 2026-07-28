@@ -16,6 +16,9 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    auth_session_version = db.Column(
+        db.Integer, nullable=False, default=1, server_default="1"
+    )
     created_at = db.Column(db.DateTime(timezone=True), default=_now)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     stripe_customer_id = db.Column(db.String(255), nullable=True)
@@ -25,10 +28,17 @@ class User(UserMixin, db.Model):
     branding = db.relationship("BrandingProfile", back_populates="user", uselist=False)
 
     def set_password(self, password: str) -> None:
+        had_password = bool(self.password_hash)
         self.password_hash = generate_password_hash(password)
+        if had_password:
+            self.auth_session_version = (self.auth_session_version or 1) + 1
 
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
+
+    def get_id(self) -> str:
+        """Bind Flask-Login sessions and remember cookies to credential state."""
+        return f"{self.id}:{self.auth_session_version or 1}"
 
 
 class Subscription(db.Model):
@@ -51,6 +61,13 @@ class Subscription(db.Model):
 
 class Invoice(db.Model):
     __tablename__ = "invoices"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id",
+            "invoice_number",
+            name="uq_invoices_user_id_invoice_number",
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
@@ -108,6 +125,48 @@ class ProcessedStripeEvent(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=_now)
 
 
+class BillingNotificationDelivery(db.Model):
+    """Retryable notification created atomically with a Stripe event."""
+
+    __tablename__ = "billing_notification_deliveries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    stripe_event_id = db.Column(
+        db.String(255),
+        db.ForeignKey(
+            "processed_stripe_events.stripe_event_id",
+            ondelete="CASCADE",
+        ),
+        unique=True,
+        nullable=False,
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    template = db.Column(db.String(100), nullable=False)
+    status = db.Column(
+        db.String(20),
+        default="pending",
+        server_default="pending",
+        nullable=False,
+        index=True,
+    )
+    attempt_count = db.Column(
+        db.Integer, default=0, server_default="0", nullable=False
+    )
+    last_attempt_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    last_error = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=_now, nullable=False)
+    updated_at = db.Column(
+        db.DateTime(timezone=True), default=_now, onupdate=_now, nullable=False
+    )
+
+    user = db.relationship("User")
+
+
 class RecurringInvoice(db.Model):
     __tablename__ = "recurring_invoices"
 
@@ -140,6 +199,77 @@ class RecurringInvoice(db.Model):
     created_at    = db.Column(db.DateTime(timezone=True), default=_now)
 
     user = db.relationship("User", backref="recurring_invoices")
+
+
+class RecurringOccurrence(db.Model):
+    """Durable claim for one scheduled recurring-invoice occurrence."""
+
+    __tablename__ = "recurring_occurrences"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "recurring_invoice_id",
+            "scheduled_for",
+            name="uq_recurring_occurrences_template_schedule",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    recurring_invoice_id = db.Column(
+        db.Integer,
+        db.ForeignKey("recurring_invoices.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    scheduled_for = db.Column(db.Date, nullable=False, index=True)
+    invoice_id = db.Column(
+        db.Integer,
+        db.ForeignKey("invoices.id", ondelete="SET NULL"),
+        unique=True,
+        nullable=True,
+    )
+    created_at = db.Column(db.DateTime(timezone=True), default=_now, nullable=False)
+
+    recurring_invoice = db.relationship("RecurringInvoice")
+    invoice = db.relationship("Invoice")
+
+
+class InvoiceDelivery(db.Model):
+    """Retryable delivery state for scheduler-generated invoice email."""
+
+    __tablename__ = "invoice_deliveries"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "invoice_id",
+            "delivery_kind",
+            name="uq_invoice_deliveries_invoice_kind",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(
+        db.Integer,
+        db.ForeignKey("invoices.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    delivery_kind = db.Column(db.String(32), nullable=False)
+    status = db.Column(
+        db.String(20),
+        default="pending",
+        server_default="pending",
+        nullable=False,
+        index=True,
+    )
+    attempt_count = db.Column(
+        db.Integer, default=0, server_default="0", nullable=False
+    )
+    last_attempt_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    last_error = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=_now, nullable=False)
+    updated_at = db.Column(
+        db.DateTime(timezone=True), default=_now, onupdate=_now, nullable=False
+    )
+
+    invoice = db.relationship("Invoice")
 
 
 class BrandingProfile(db.Model):

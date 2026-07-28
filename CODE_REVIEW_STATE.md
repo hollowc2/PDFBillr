@@ -162,37 +162,36 @@ review environment.
 
 - Public view counts include scanners, previews, owner refreshes, and repeated
   requests. Deduplication/bot semantics are a product decision.
-- Reset-token single use and global session revocation need an `auth_version`
-  schema field; exact sign-out behavior across devices is a product decision.
 - Recurrence catch-up versus skip behavior after downtime is not defined.
 - The application has no paid/closed/reminder-disabled invoice state, so a sent
   invoice remains reminder-eligible indefinitely. A paid-state workflow is a
   product decision.
 - Foreign-key cascades and account deletion semantics are undefined because
   there is no account-delete workflow.
-- Public invoice tokens are strong (256-bit generation) but never expire or
-  rotate; revocation/expiry semantics need a product decision.
-- PostgreSQL is documented but untested; a driver and CI service are needed
+- Public invoice tokens are strong (256-bit generation) and owner-rotatable/
+  revocable, but automatic expiry semantics need a product decision.
+- PostgreSQL has a driver but remains untested; a CI service is needed
   before support can be claimed confidently.
 
 ## Prioritized work queue
 
-1. Add isolated pytest infrastructure and characterization tests with
-   scheduler, email, Stripe, network, uploads, and database isolated.
-2. Close production secret and proxy/canonical-URL trust failures.
-3. Add a shared Decimal invoice-calculation/validation service and use it for
-   normal and recurring invoices.
-4. Add negative two-user authorization coverage before changing routes.
-5. Remove scheduler/import side effects from normal web app creation; add an explicit
-   single-scheduler entry point and idempotency safeguards.
-6. Make Stripe entitlement processing allowlisted, ordered, transactional, and
-   idempotent with mocked regression tests.
-7. Harden logo uploads and PDF resource loading.
-8. Define and introduce a safe migration workflow without deleting the
-   compatibility path for existing installs.
-9. Harden production configuration, Docker runtime identity, health semantics,
-   and deployment documentation.
-10. Add CI/linting after the behavior safety net is stable.
+1. Inventory malformed legacy money/date rows from representative backups and
+   design reversible shadow-column migrations.
+2. Add PostgreSQL and Redis service integration/concurrency tests, including
+   Alembic upgrade and concurrent delivery/invoice-number claims.
+3. Obtain product decisions for paid/closed/reminder opt-out and recurrence/
+   reminder catch-up behavior.
+4. Add manual invoice-send idempotency semantics and an outbox only after the
+   resend UX/idempotency-key behavior is defined.
+5. Decide public-token automatic expiry and view-count bot/dedup semantics.
+6. Visually regression-test WeasyPrint 68+ and remove audit exceptions when
+   safe.
+7. Build and runtime-smoke the non-root image on a host with Docker, including
+   existing bind-mount ownership and persistence.
+8. Add metrics/tracing/mail-provider delivery callbacks where production
+   observability requirements justify them.
+9. Adopt repository-wide Ruff formatting as a separate cosmetic-only change if
+   desired.
 
 ## Implementation batches
 
@@ -437,41 +436,106 @@ Final verification:
   generation command; no private key, live Stripe key, `.env`, database, PDF,
   upload, or coverage artifact is included.
 
+## Continuation update: migration, durability, and operations pass
+
+This pass began from commit `a8da113` on `main` after the first review was
+pushed. It used three parallel workstreams followed by root-agent integration
+and review.
+
+Completed:
+
+- Added Flask-Migrate/Alembic with four linear revisions:
+  - `20260728_01`: verified pre-Alembic baseline;
+  - `20260728_02`: session versioning and per-user invoice-number uniqueness;
+  - `20260728_03`: recurring occurrence and invoice delivery ledgers;
+  - `20260728_04`: Stripe billing-notification delivery outbox.
+- Replaced production schema mutation with `flask --app app db-bootstrap`.
+  Fresh, already-versioned, and verified unversioned legacy databases are
+  handled explicitly. Unknown/partial schemas and duplicate invoice numbers
+  fail closed. The old command is a visible deprecated alias.
+- Enabled SQLite foreign-key enforcement for application connections. Alembic
+  suspends checks only on its dedicated SQLite batch-migration connection and
+  runs `PRAGMA foreign_key_check` before restoring enforcement. A populated
+  legacy-upgrade regression test caught and verifies this behavior.
+- Added durable recurring occurrence claims and retryable reminder/recurring
+  invoice email rows. Atomic leases prevent simultaneous claims; failed rows
+  retry every five minutes. Recurring dates advance from the recorded scheduled
+  occurrence rather than host `today`.
+- Added a Stripe billing-notification outbox in the same transaction as the
+  processed event. Duplicate webhook delivery and the scheduler retry failed
+  notifications without duplicating successful sends.
+- Added `auth_session_version`; password changes/reset revoke all prior sessions
+  and remember cookies. Legacy pre-deployment sessions are intentionally logged
+  out once.
+- Added atomic public view counting plus owner-only public-link rotation and
+  revocation. Old/revoked tokens immediately stop working.
+- Added per-user invoice-number uniqueness, friendly user-entered duplicate
+  rejection, concurrent-race rollback, and collision-safe automated duplicate
+  and recurring numbering.
+- PDF render now succeeds before an authenticated invoice is persisted, so a
+  render failure cannot leave an unexpected invoice.
+- Hardened runtime operations: multi-stage non-root image, configurable UID/GID,
+  Redis/shared-limiter production enforcement, request IDs, privacy-safe request
+  logging, generic correlated error responses, and Redis readiness checks.
+- Corrected the landing-page claim: anonymous invoices are not account-saved or
+  view-tracked, while account features can persist/email/track invoices.
+- Added hash-verified Python 3.12 runtime/development locks, CI audit enforcement,
+  Redis and Psycopg drivers, and safe Flask/Jinja security updates.
+- Dependency audit now passes with only two explicitly documented WeasyPrint
+  advisories ignored because the vulnerable paths are disabled by PDFBillr's
+  data-image-only fetcher and `presentational_hints` is never enabled.
+
+Continuation verification:
+
+- Full locked Python 3.12 suite: `102 passed`, four upstream deprecation
+  warnings.
+- Focused scheduler/billing/migration suite: `35 passed`.
+- Fresh Alembic `db-bootstrap` through revision `20260728_04`: PASS.
+- Legacy upgrade with populated foreign-key child rows: PASS.
+- `ruff check .`: PASS.
+- `python -m compileall -q .`: PASS.
+- `pip check`: PASS, no broken requirements.
+- `pip-audit ... --ignore-vuln PYSEC-2026-2034 --ignore-vuln
+  PYSEC-2026-3412 -r requirements.lock`: PASS, no non-ignored vulnerabilities.
+- `docker compose config --quiet`: PASS.
+- `git diff --check`: PASS.
+- `ruff format --check .`: FAILS because 27 mixed legacy/changed files would be
+  reformatted. Broad formatting churn remains intentionally deferred.
+- `docker build -t pdfbillr-review:local .`: BLOCKED after an approved retry
+  because `/var/run/docker.sock` does not exist. No image-build success is
+  claimed.
+
 ## Unresolved risks
 
-- The explicit `db-upgrade` bridge is materially safer, but Alembic/Flask-
-  Migrate is still absent. PostgreSQL remains unverified and has no driver.
-- Existing money/date columns remain `Float` and string types. Decimal is now
-  authoritative in code, but a tested `Numeric`/`Date` migration and backfill
-  are still required.
-- A single scheduler plus commit-before-mail prevents the known duplicate
-  recurrence path, but there is no durable occurrence/reminder outbox. A crash
-  can still leave a delivered email recorded as draft or a committed draft
-  without auto-send retry.
-- Invoice numbers have no per-user uniqueness constraint and recurring number
-  generation uses row count, so deletions can cause reuse.
-- Reminder catch-up, recurrence catch-up after long downtime, business timezone,
-  paid/closed state, and reminder opt-out remain undefined product semantics.
-- Stripe billing state is transactional/idempotent, but post-commit billing
-  notification email is best effort without an outbox retry.
-- Password-reset links are now invalid after use/password change, but existing
-  sessions/remember cookies are not globally revoked after password reset.
-- Public invoice tokens are strong but never expire/rotate; view counting still
-  includes scanners/reloads and uses a non-atomic increment.
-- SQLite plus the in-memory limiter support only one web process. Scaling needs
-  PostgreSQL, Alembic, a shared limiter backend/client, and concurrency tests.
-- Docker still runs as root and retains development/native packages in one
-  runtime layer. A non-root conversion must include a safe ownership transition
-  for existing bind-mounted database/uploads. The image build could not be
-  verified because no Docker daemon/buildx is available.
-- Landing-page privacy/product claims that say no data is stored and there are
-  no accounts/subscriptions remain unchanged pending a product/legal decision.
-- Some welcome/reset mail failure paths still suppress or broadly catch
-  exceptions; request IDs/structured logging/custom error pages are absent.
-- Repository-wide Ruff formatting is not yet adopted; the format check reports
-  19 files that would change.
-- Transitive/native dependencies are not hash-locked and no dependency audit
-  was run.
+- Existing money/date columns remain `Float` and strings. Decimal is
+  authoritative in code, but a production-safe conversion needs a legacy-row
+  inventory, shadow `Numeric`/`Date` columns, reversible validated backfill,
+  dual-read compatibility, and a later constraint cutover.
+- PostgreSQL and Redis clients/configuration are present, but PostgreSQL
+  integration, Redis integration, multi-worker concurrency, and migration
+  tests have not run against real services.
+- Delivery queues are at-least-once. A process crash after SMTP accepts a
+  message but before the database records success can still produce a duplicate;
+  SMTP offers no portable exactly-once transaction.
+- Reminder catch-up, recurrence catch-up after long downtime, per-user/business
+  timezone, paid/closed state, and reminder opt-out remain undefined product
+  semantics. The current scheduler produces at most one overdue recurrence per
+  run and uses the configured deployment timezone.
+- Public tokens can be rotated/revoked but do not expire automatically. View
+  counts intentionally still include reloads, link scanners, and mail-security
+  bots because deduplication semantics require a product/analytics decision.
+- Manual invoice email is synchronous. A database failure after SMTP acceptance
+  can require an operator/user decision about resend; unlike automated
+  notifications, manual resend semantics need an idempotency-key UX.
+- The non-root Docker image could not be built or runtime-smoked because the
+  host Docker daemon is absent. Existing deployment bind mounts require the
+  documented one-time ownership check before rollout.
+- The Python base image is tag-pinned rather than digest-pinned. WeasyPrint
+  remains at 60.2 pending visual regression work for the major upgrade to 68+.
+- Repository-wide Ruff formatting is not adopted; the check currently reports
+  27 files. Formatting remains cosmetic and is deliberately separate.
+- Request IDs/logging are correlation-safe but not a full structured telemetry
+  stack; no metrics/tracing or mail-provider delivery callbacks exist.
 
 ## Behavioral decisions
 
@@ -495,13 +559,20 @@ Final verification:
   jobs.
 - Anonymous PDF generation is not persisted; authenticated generation remains
   persisted as before.
+- Scheduler and billing delivery queues use at-least-once semantics with
+  five-minute retry leases. Exactly-once SMTP delivery is not claimed.
+- Public invoice-token expiry was not guessed; owners can rotate or revoke links
+  without changing existing URL behavior.
+- Development auto-create uses Alembic; only ephemeral test databases use
+  `db.create_all()`.
 
 ## Recommended next task
 
-Introduce an Alembic baseline and verified legacy-stamping flow, then use it to
-add a unique recurring-occurrence/reminder-delivery ledger. This is the highest
-value next step because it replaces the remaining migration bridge and enables
-crash-safe background idempotency.
+Build the staged legacy money/date migration: add inventory/preflight tooling
+and shadow `Numeric`/`Date` columns, test reversible backfill on representative
+production backups, and add PostgreSQL integration/concurrency CI before any
+read-path cutover. This is the highest remaining correctness risk and should
+not be attempted as a direct in-place type conversion.
 
 ## Files intentionally not changed
 
@@ -509,6 +580,5 @@ crash-safe background idempotency.
 - `.playwright-mcp/` (ignored local logs)
 - `static/logos/*` except `.gitkeep` (ignored local/sample/user data)
 - Existing invoice PDF theme layouts and product pricing/feature limits
-- Landing-page privacy/product copy pending product/legal direction
 - Existing Float/string money/date columns pending an Alembic migration
 - Any local database, upload, virtual environment, cache, or bytecode file

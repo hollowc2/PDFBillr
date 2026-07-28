@@ -1,9 +1,18 @@
 import os
 
+from config import Config
+
 bind = "0.0.0.0:8000"
-# Single worker is safe with in-memory rate limiting.
-# To scale: set workers > 1 AND provide RATELIMIT_STORAGE_URI=redis://...
-workers = 1
+# A shared limiter is required before scaling beyond one worker. The app also
+# rejects the in-memory backend in production so limits cannot silently become
+# per-process.
+workers = Config.WEB_CONCURRENCY
+if workers > 1 and Config.RATELIMIT_STORAGE_URI.strip().lower().startswith(
+    "memory://"
+):
+    raise RuntimeError(
+        "WEB_CONCURRENCY > 1 requires a shared RATELIMIT_STORAGE_URI"
+    )
 threads = 8
 worker_class = "gthread"
 timeout = 120

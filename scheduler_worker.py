@@ -8,7 +8,12 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from app import create_app
-from utils.scheduler import process_recurring_invoices, send_payment_reminders
+from blueprints.billing import retry_billing_notifications
+from utils.scheduler import (
+    process_recurring_invoices,
+    retry_invoice_deliveries,
+    send_payment_reminders,
+)
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +49,22 @@ def create_scheduler(app):
         replace_existing=True,
         hour=8,
         minute=5,
+        args=[app],
+    )
+    scheduler.add_job(
+        retry_billing_notifications,
+        "interval",
+        id="billing-notification-retries",
+        replace_existing=True,
+        minutes=5,
+        args=[app],
+    )
+    scheduler.add_job(
+        retry_invoice_deliveries,
+        "interval",
+        id="invoice-delivery-retries",
+        replace_existing=True,
+        minutes=5,
         args=[app],
     )
     return scheduler

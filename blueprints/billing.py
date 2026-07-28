@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import stripe
 from flask import (
@@ -8,10 +8,16 @@ from flask import (
 from flask_login import current_user, login_required
 
 from flask_mail import Message
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import csrf, db, limiter, mail
-from models import ProcessedStripeEvent, Subscription, User
+from models import (
+    BillingNotificationDelivery,
+    ProcessedStripeEvent,
+    Subscription,
+    User,
+)
 from utils.gating import is_pro
 from utils.urls import external_url
 
@@ -131,6 +137,7 @@ def webhook():
         return jsonify({"error": "malformed event"}), 400
 
     if db.session.get(ProcessedStripeEvent, event_id):
+        _dispatch_billing_notifications(stripe_event_id=event_id)
         return jsonify({"received": True}), 200
 
     notification = None
@@ -143,6 +150,16 @@ def webhook():
         # Effects and the processed marker become durable together. Email is
         # deliberately deferred until after this commit.
         db.session.add(ProcessedStripeEvent(stripe_event_id=event_id))
+        db.session.flush()
+        if notification:
+            user_id, template = notification
+            db.session.add(
+                BillingNotificationDelivery(
+                    stripe_event_id=event_id,
+                    user_id=user_id,
+                    template=template,
+                )
+            )
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
@@ -163,10 +180,7 @@ def webhook():
         return jsonify({"error": "temporary failure"}), 500
 
     if notification:
-        user_id, template = notification
-        user = db.session.get(User, user_id)
-        if user:
-            _send_billing_email(user, template)
+        _dispatch_billing_notifications(stripe_event_id=event_id)
 
     return jsonify({"received": True}), 200
 
@@ -418,6 +432,103 @@ _BILLING_EMAIL_SUBJECTS = {
     "emails/payment_failed.txt":         "Action required: PDFBillr payment failed",
     "emails/subscription_canceled.txt":  "Your PDFBillr Pro subscription has ended",
 }
+_NOTIFICATION_LEASE = timedelta(minutes=15)
+
+
+def retry_billing_notifications(app) -> int:
+    """Retry pending Stripe notification email from the scheduler process."""
+    with app.app_context():
+        return _dispatch_billing_notifications()
+
+
+def _dispatch_billing_notifications(
+    *,
+    stripe_event_id: str | None = None,
+    limit: int = 100,
+) -> int:
+    """Claim and deliver durable Stripe notification rows."""
+    now = datetime.now(timezone.utc)
+    stale_before = now - _NOTIFICATION_LEASE
+    eligible = or_(
+        BillingNotificationDelivery.status.in_(("pending", "failed")),
+        (
+            (BillingNotificationDelivery.status == "sending")
+            & (BillingNotificationDelivery.last_attempt_at < stale_before)
+        ),
+    )
+    query = BillingNotificationDelivery.query.filter(eligible)
+    if stripe_event_id is not None:
+        query = query.filter(
+            BillingNotificationDelivery.stripe_event_id == stripe_event_id
+        )
+    delivery_ids = [
+        row.id
+        for row in (
+            query.order_by(
+                BillingNotificationDelivery.created_at,
+                BillingNotificationDelivery.id,
+            )
+            .limit(limit)
+            .all()
+        )
+    ]
+
+    sent_count = 0
+    for delivery_id in delivery_ids:
+        claimed = (
+            BillingNotificationDelivery.query.filter(
+                BillingNotificationDelivery.id == delivery_id,
+                eligible,
+            )
+            .update(
+                {
+                    BillingNotificationDelivery.status: "sending",
+                    BillingNotificationDelivery.attempt_count: (
+                        BillingNotificationDelivery.attempt_count + 1
+                    ),
+                    BillingNotificationDelivery.last_attempt_at: now,
+                    BillingNotificationDelivery.updated_at: now,
+                },
+                synchronize_session=False,
+            )
+        )
+        db.session.commit()
+        if claimed != 1:
+            continue
+
+        delivery = db.session.get(BillingNotificationDelivery, delivery_id)
+        if delivery.user is None:
+            delivery.status = "discarded"
+            delivery.last_error = "UserUnavailable"
+            delivery.updated_at = datetime.now(timezone.utc)
+            db.session.commit()
+            continue
+
+        try:
+            _send_billing_email(delivery.user, delivery.template)
+        except Exception as exc:  # SMTP adapters expose varied exception types.
+            db.session.rollback()
+            delivery = db.session.get(BillingNotificationDelivery, delivery_id)
+            delivery.status = "failed"
+            delivery.last_error = type(exc).__name__[:500]
+            delivery.updated_at = datetime.now(timezone.utc)
+            db.session.commit()
+            current_app.logger.warning(
+                "Billing notification failed: delivery=%s event=%s error=%s",
+                delivery.id,
+                delivery.stripe_event_id,
+                type(exc).__name__,
+            )
+            continue
+
+        delivery.status = "sent"
+        delivery.sent_at = datetime.now(timezone.utc)
+        delivery.last_error = None
+        delivery.updated_at = delivery.sent_at
+        db.session.commit()
+        sent_count += 1
+
+    return sent_count
 
 
 def _send_billing_email(user: User, template: str) -> None:
@@ -432,10 +543,7 @@ def _send_billing_email(user: User, template: str) -> None:
             upgrade_url=external_url("billing.upgrade"),
         ),
     )
-    try:
-        mail.send(msg)
-    except Exception as exc:
-        current_app.logger.warning("Billing email failed for user %s (%s): %s", user.id, template, exc)
+    mail.send(msg)
 
 
 def _upsert_subscription(

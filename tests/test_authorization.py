@@ -14,6 +14,8 @@ from models import Invoice
         ("post", "/duplicate", {}),
         ("post", "/delete", {}),
         ("post", "/send", {"recipient_email": "client@example.test"}),
+        ("post", "/public-link/rotate", {}),
+        ("post", "/public-link/revoke", {}),
     ],
 )
 def test_invoice_routes_deny_cross_user_access(
@@ -84,6 +86,30 @@ def test_owner_can_delete_invoice(
     assert response.status_code == 302
     with app.app_context():
         assert db.session.get(Invoice, invoice.id) is None
+
+
+def test_repeated_invoice_duplicate_uses_distinct_numbers(
+    client, app, make_user, make_invoice, login
+):
+    owner = make_user("owner@example.test")
+    invoice = make_invoice(owner.id, invoice_number="CLIENT-42")
+    login(owner.email)
+
+    first = client.post(f"/dashboard/invoice/{invoice.id}/duplicate")
+    second = client.post(f"/dashboard/invoice/{invoice.id}/duplicate")
+
+    assert first.status_code == 302
+    assert second.status_code == 302
+    with app.app_context():
+        numbers = {
+            value
+            for (value,) in (
+                Invoice.query.filter_by(user_id=owner.id)
+                .with_entities(Invoice.invoice_number)
+                .all()
+            )
+        }
+        assert numbers == {"CLIENT-42", "CLIENT-42-copy", "CLIENT-42-copy-2"}
 
 
 def test_owner_can_send_invoice_with_mocked_mail_and_pdf(

@@ -99,6 +99,66 @@ def test_authenticated_generation_saves_server_calculated_totals(
         assert invoice.total == 0.03
 
 
+def test_authenticated_generation_rejects_duplicate_invoice_number(
+    client, app, make_user, make_invoice, login, monkeypatch
+):
+    user = make_user("person@example.test")
+    make_invoice(user.id, invoice_number="CLIENT-42")
+    login(user.email)
+    render_calls = []
+    monkeypatch.setattr(
+        "blueprints.public.render_pdf",
+        lambda *_args, **_kwargs: render_calls.append(True) or b"pdf",
+    )
+
+    response = client.post(
+        "/generate",
+        data={
+            "invoice_number": "CLIENT-42",
+            "description[]": ["Consulting"],
+            "qty[]": ["1"],
+            "rate[]": ["100"],
+            "tax_rate": "0",
+            "discount": "0",
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"invoice number is already in use" in response.data
+    assert render_calls == []
+    with app.app_context():
+        assert Invoice.query.filter_by(
+            user_id=user.id,
+            invoice_number="CLIENT-42",
+        ).count() == 1
+
+
+def test_pdf_render_failure_does_not_persist_authenticated_invoice(
+    client, app, make_user, login, monkeypatch
+):
+    user = make_user("render-failure@example.test")
+    login(user.email)
+
+    def fail_render(*_args, **_kwargs):
+        raise RuntimeError("forced render failure")
+
+    monkeypatch.setattr("blueprints.public.render_pdf", fail_render)
+
+    with pytest.raises(RuntimeError, match="forced render failure"):
+        client.post(
+            "/generate",
+            data={
+                "invoice_number": "INV-NOT-SAVED",
+                "description[]": ["Consulting"],
+                "qty[]": ["1"],
+                "rate[]": ["100"],
+            },
+        )
+
+    with app.app_context():
+        assert Invoice.query.filter_by(user_id=user.id).count() == 0
+
+
 def test_malformed_generation_does_not_persist_invoice(
     client, app, make_user, login
 ):

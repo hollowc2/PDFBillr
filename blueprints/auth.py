@@ -32,12 +32,30 @@ def _password_token_version(user: User) -> str:
 # ---------------------------------------------------------------------------
 
 @login_manager.user_loader
-def load_user(user_id: str):
+def load_user(authenticated_id: str):
     try:
+        user_id, separator, raw_version = authenticated_id.partition(":")
+        if not separator:
+            raise ValueError
+        session_version = int(raw_version)
         user = db.session.get(User, int(user_id))
     except (TypeError, ValueError):
+        _clear_invalid_auth_state()
         return None
-    return user if user and user.is_active else None
+    if (
+        user is None
+        or not user.is_active
+        or user.auth_session_version != session_version
+    ):
+        _clear_invalid_auth_state()
+        return None
+    return user
+
+
+def _clear_invalid_auth_state() -> None:
+    """Remove a rejected session and expire any associated remember cookie."""
+    session.pop("_user_id", None)
+    session["_remember"] = "clear"
 
 
 # ---------------------------------------------------------------------------
@@ -184,8 +202,14 @@ def _send_reset_email(user: User) -> None:
     )
     try:
         mail.send(msg)
-    except Exception:
-        pass  # Fail silently to prevent email enumeration
+    except Exception as exc:  # SMTP adapters expose varied exception types.
+        # Preserve the enumeration-safe response while retaining an operational
+        # signal. Do not log the address, token, or exception message.
+        current_app.logger.warning(
+            "Password reset email failed: user=%s error=%s",
+            user.id,
+            type(exc).__name__,
+        )
 
 
 def _send_welcome_email(user: User) -> None:
@@ -201,8 +225,12 @@ def _send_welcome_email(user: User) -> None:
     )
     try:
         mail.send(msg)
-    except Exception:
-        pass
+    except Exception as exc:  # SMTP adapters expose varied exception types.
+        current_app.logger.warning(
+            "Welcome email failed: user=%s error=%s",
+            user.id,
+            type(exc).__name__,
+        )
 
 
 # ---------------------------------------------------------------------------

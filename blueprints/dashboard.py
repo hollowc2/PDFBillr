@@ -18,6 +18,7 @@ from models import BrandingProfile, Invoice, RecurringInvoice
 from utils.gating import is_pro, pro_required
 from utils.helpers import _safe_filename
 from utils.invoice_calculations import InvoiceCalculationError, calculate_invoice
+from utils.invoice_numbers import next_available_invoice_number
 from utils.pdf import ALLOWED_THEMES, context_from_invoice, render_pdf
 from utils.uploads import (
     LogoValidationError,
@@ -64,7 +65,16 @@ def index():
 @login_required
 def invoice_detail(invoice_id: int):
     inv = _own_invoice(invoice_id)
-    return render_template("dashboard/invoice_detail.html", invoice=inv)
+    public_view_url = (
+        external_url("public.invoice_view", token=inv.view_token)
+        if inv.view_token
+        else None
+    )
+    return render_template(
+        "dashboard/invoice_detail.html",
+        invoice=inv,
+        public_view_url=public_view_url,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -99,9 +109,13 @@ def invoice_download(invoice_id: int):
 @login_required
 def invoice_duplicate(invoice_id: int):
     orig = _own_invoice(invoice_id)
+    duplicate_number = next_available_invoice_number(
+        current_user.id,
+        f"{orig.invoice_number}-copy",
+    )
     dup  = Invoice(
         user_id         = current_user.id,
-        invoice_number  = orig.invoice_number + "-copy",
+        invoice_number  = duplicate_number,
         invoice_date    = orig.invoice_date,
         due_date        = orig.due_date,
         from_company    = orig.from_company,
@@ -140,6 +154,30 @@ def invoice_delete(invoice_id: int):
     db.session.commit()
     flash("Invoice deleted.", "info")
     return redirect(url_for("dashboard.index"))
+
+
+# ---------------------------------------------------------------------------
+# Public link management
+# ---------------------------------------------------------------------------
+
+@bp.route("/invoice/<int:invoice_id>/public-link/rotate", methods=["POST"])
+@login_required
+def invoice_public_link_rotate(invoice_id: int):
+    inv = _own_invoice(invoice_id)
+    inv.view_token = secrets.token_urlsafe(32)
+    db.session.commit()
+    flash("Public invoice link rotated. The previous link no longer works.", "success")
+    return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
+
+
+@bp.route("/invoice/<int:invoice_id>/public-link/revoke", methods=["POST"])
+@login_required
+def invoice_public_link_revoke(invoice_id: int):
+    inv = _own_invoice(invoice_id)
+    inv.view_token = None
+    db.session.commit()
+    flash("Public invoice link revoked.", "success")
+    return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +226,11 @@ def invoice_send(invoice_id: int):
     try:
         mail.send(msg)
     except Exception as exc:
-        current_app.logger.error("Failed to send invoice email: %s", exc)
+        current_app.logger.error(
+            "Invoice email failed: invoice=%s error=%s",
+            inv.id,
+            type(exc).__name__,
+        )
         flash("Failed to send email. Please check your mail configuration.", "error")
         return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
 

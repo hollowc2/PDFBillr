@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ status_code }} — PDFBillr</title>
+</head>
+<body>
+  <main>
+    <a href="{{ home_path }}">
+      PDFBillr
+    </a>
+    <p>Error {{ status_code }}</p>
+    <h1>{{ error_name }}</h1>
+    <p>
+      The request could not be completed. Try again, or contact support if the
+      problem continues.
+    </p>
+    <p>Request ID: {{ request_id }}</p>
+    <a href="{{ home_path }}">
+      Return home
+    </a>
+  </main>
+</body>
+</html>

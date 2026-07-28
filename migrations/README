@@ -1,0 +1,6 @@
+PDFBillr database migrations
+============================
+
+Run ``flask --app app db-bootstrap`` for both fresh installations and upgrades.
+The bootstrap command verifies unversioned legacy schemas before assigning the
+baseline revision. Do not use ``alembic stamp`` directly on a legacy database.

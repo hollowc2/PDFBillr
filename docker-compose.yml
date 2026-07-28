@@ -7,6 +7,7 @@ x-app-environment: &app-environment
   FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
   DATABASE_URL: ${DATABASE_URL:-sqlite:///pdfbillr.db}
   RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-memory://}
+  WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
   SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
   ENABLE_HSTS: ${ENABLE_HSTS:-false}
   SCHEDULER_TIMEZONE: ${SCHEDULER_TIMEZONE:-UTC}
@@ -29,10 +30,16 @@ x-app-volumes: &app-volumes
   - ./instance:/app/instance
   - ./static/logos:/app/static/logos
 
+x-app-build: &app-build
+  context: .
+  args:
+    APP_UID: ${APP_UID:-1000}
+    APP_GID: ${APP_GID:-1000}
+
 services:
   migrate:
-    build: .
-    command: ["flask", "--app", "app", "db-upgrade"]
+    build: *app-build
+    command: ["flask", "--app", "app", "db-bootstrap"]
     volumes: *app-volumes
     environment:
       <<: *app-environment
@@ -40,7 +47,7 @@ services:
     restart: "no"
 
   web:
-    build: .
+    build: *app-build
     ports:
       - "8080:8000"
     volumes: *app-volumes
@@ -59,7 +66,7 @@ services:
       start_period: 15s
 
   scheduler:
-    build: .
+    build: *app-build
     command: ["python", "scheduler_worker.py"]
     volumes: *app-volumes
     restart: unless-stopped
