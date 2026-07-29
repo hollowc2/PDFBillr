@@ -3,11 +3,16 @@
 .playwright-mcp
 .env
 *.env
+.venv/
+venv/
+env/
 __pycache__
 *.pyc
 instance/
 .pytest_cache/
+.ruff_cache/
 .coverage
 htmlcov/
+*.log
 static/logos/*
 !static/logos/.gitkeep

@@ -1,145 +1,74 @@
 # PDFBillr
 
-PDFBillr is a Flask 3.1 invoicing SaaS. Anonymous visitors can render PDFs
-without persistence. Authenticated users can save and edit invoices, manage
-clients and service items, issue estimates, export records, share public links,
-and record payments. Pro users add branding, email delivery, configurable
-reminders, recurring templates, and additional PDF themes. Invoices snapshot
-one of USD, CAD, EUR, GBP, AUD, or JPY and never perform foreign-exchange
-conversion. Stripe webhooks are the authority for local PDFBillr subscription
-state.
+> A production-minded invoicing SaaS built end to end—from product UI and PDF generation to payments, background work, containers, and deployment safeguards.
 
-Python 3.12 is the supported runtime. SQLite is the currently verified
-database. PostgreSQL remains a planned, unverified deployment target until a
-real PostgreSQL integration and concurrency tests are added. The Psycopg 3
-binary driver is installed so configured PostgreSQL URLs can be exercised
-without rebuilding the application image.
+PDFBillr helps freelancers and small businesses create professional invoices and estimates, manage clients, track receivables, and share documents. It is a functional application and a polished portfolio project: the goal was to demonstrate the practical work required to build, deploy, and operate a SaaS, not simply to ship a set of screens.
+
+## What it can do
+
+- Generate polished PDF invoices in multiple currencies
+- Create estimates, share them through protected links, and convert accepted estimates into invoices
+- Maintain client records, service catalogs, invoice history, and CSV exports
+- Track draft, sent, partial, paid, void, and overdue invoices; record manual payments
+- Offer Pro features through Stripe, including branding, email delivery, reminders, recurring invoices, and additional PDF themes
+
+Payment collection stays with the merchant: a **Pay now** button directs the recipient to the merchant's own secure payment destination. PDFBillr does not process card payments or perform currency conversion.
+
+## What this project demonstrates
+
+| Product engineering | Production operations |
+| --- | --- |
+| Flask + Jinja application design | Dockerized web, migration, and scheduler services |
+| SQLAlchemy data modeling and Alembic migrations | Health checks, request IDs, safe logging, and backups guidance |
+| Server-side validation and WeasyPrint PDFs | One dedicated, idempotent background worker for reminders and recurrences |
+| Authentication, authorization, and CSRF protection | Non-root containers and locked dependencies |
+| Stripe subscriptions and verified webhooks | Explicit production configuration and deployment checks |
+
+In other words: PDFBillr reflects the full SaaS lifecycle—build, secure, deploy, operate, and evolve.
 
 ## Architecture
 
 ```text
-HTTP -> Flask Blueprint -> validation/service -> SQLAlchemy
-                              |              -> Jinja response
-                              |              -> WeasyPrint PDF
-                              |              -> Flask-Mail
-                              +--------------> Stripe
+Browser → Flask routes → validation & business logic → SQLAlchemy → database
+                      ↘ Jinja / WeasyPrint PDFs
+                      ↘ Stripe / SMTP
 
-one scheduler process -> reminder/recurrence services -> database -> mail/PDF
+Dedicated scheduler → recurring invoices, reminders, and delivery retries
 ```
 
-- `app.py`: side-effect-free application factory, configuration validation,
-  extensions, headers, and explicit Alembic bootstrap command.
-- `wsgi.py`: Gunicorn application construction.
-- `blueprints/`: public, authentication, dashboard, clients, estimates,
-  exports, and billing routes.
-- `models.py`: users, subscriptions, clients, services, estimates, invoices,
-  payment records, reminder preferences, recurring templates, branding, and
-  processed Stripe events.
-- `utils/invoice_calculations.py`: authoritative bounded Decimal math.
-- `utils/currency.py`: the invoice-currency allowlist, minor units, and
-  centralized formatting.
-- `utils/pdf.py`: stored/form context and restricted WeasyPrint rendering.
-- `utils/scheduler.py`: idempotency-aware job functions.
-- `scheduler_worker.py`: the only supported long-running scheduler process.
+The application is organized around Flask blueprints for public, auth, dashboard, client, estimate, export, and billing flows. `models.py` holds the core SaaS data model; `scheduler_worker.py` is the single long-running background process.
 
-## Product workflows
+## Run locally
 
-- Invoice lifecycle: draft, sent, partial, paid, and void, with overdue derived
-  from the outstanding balance and due date. Manual payments retain their
-  amount, date, method, reference, and note.
-- Client and service records prefill new invoices while every invoice keeps its
-  own historical snapshot. Business defaults cover sender details, tax,
-  payment terms, notes, payment instructions, and an optional payment link.
-- Estimates use protected public response links and can be accepted or declined
-  once. An accepted estimate converts idempotently to a recalculated draft
-  invoice.
-- Optional “Pay now” links must use a validated public HTTPS host. PDFBillr
-  displays the merchant-provided destination but never fetches it server-side;
-  this is not Stripe Connect or payment processing by PDFBillr.
-- Receivables totals are grouped by currency because PDFBillr performs no FX
-  conversion. CSV exports include lifecycle, payment, balance, and view data
-  and neutralize spreadsheet formulas in user-provided fields.
-
-Routes still own some orchestration and transaction logic. Durable Stripe and
-scheduler delivery queues, remaining legacy money/date storage, and workflow
-decisions are documented in `CODE_REVIEW_STATE.md`.
-
-## Local development
-
-Create an environment and install both requirement sets:
+Requires Python 3.12. SQLite is the default local database.
 
 ```bash
 python3.12 -m venv .venv
 .venv/bin/pip install --require-hashes -r requirements-dev.lock
 cp .env.example .env
-set -a
-. ./.env
-set +a
 ```
 
-Set a unique development `SECRET_KEY`, then initialize and run:
+Set a unique `SECRET_KEY` in `.env`, then initialize and start the app:
 
 ```bash
+set -a && . ./.env && set +a
 AUTO_CREATE_DB=false .venv/bin/flask --app app db-bootstrap
 .venv/bin/python app.py
 ```
 
-The direct development server listens on `http://127.0.0.1:8000`. Keep
-`SESSION_COOKIE_SECURE=false` for local HTTP only.
+Open <http://127.0.0.1:8000>. Stripe and SMTP may remain as development placeholders unless you want to explore those flows with test credentials.
 
-Run checks with:
+Run the checks with:
 
 ```bash
-.venv/bin/python -m compileall .
 .venv/bin/python -m pytest
 .venv/bin/ruff check .
 .venv/bin/ruff format --check .
 ```
 
-Tests use a temporary SQLite database, suppressed mail, fake Stripe
-configuration, disabled rate limits/scheduler startup, a temporary upload
-directory, and a deterministic test-only secret. They must not call live Stripe,
-SMTP, or external URLs.
+## Run with Docker
 
-`tests/integration/test_postgresql.py` is opt-in and skips unless
-`POSTGRES_TEST_DATABASE_URL` is set. For safety, it refuses databases whose name
-does not contain `test`, creates a random isolated schema, verifies migrations,
-timezone behavior and uniqueness, then removes only that schema. CI runs this
-test against its dedicated PostgreSQL 16 service.
-
-## Dependency locking and audits
-
-`requirements.txt` and `requirements-dev.txt` are the short, directly pinned
-dependency manifests. Deployments use the Python 3.12 transitive
-`requirements.lock`; local development and CI use `requirements-dev.lock`.
-Both lock files contain accepted distribution hashes, and Docker/CI install
-them with pip's `--require-hashes` enforcement.
-
-After deliberately changing either manifest, regenerate and review both locks:
-
-```bash
-uv pip compile requirements.txt \
-  --python-version 3.12 --generate-hashes --no-emit-index-url \
-  --output-file requirements.lock
-uv pip compile requirements.txt requirements-dev.txt \
-  --python-version 3.12 --generate-hashes --no-emit-index-url \
-  --output-file requirements-dev.lock
-pip-audit --progress-spinner off -r requirements.lock
-```
-
-The current audit exceptions are WeasyPrint `PYSEC-2026-2034` and
-`PYSEC-2026-3412`. The first concerns redirects reached through
-`default_url_fetcher`, while PDFBillr's fetcher permits only image `data:` URLs;
-the second requires `presentational_hints=True`, which PDFBillr never enables.
-CI ignores only these two identifiers, so new advisories still fail the build.
-WeasyPrint 68 fixes the first issue, but upgrading from 60 is a major,
-PDF-rendering-sensitive change and requires visual/regression testing; the
-second currently has no published fixed version. Reassess both exceptions on
-every WeasyPrint update.
-
-## Docker Compose
-
-Compose requires a secret rather than silently starting with an empty value:
+Compose runs database migrations before starting the web app and exactly one scheduler worker.
 
 ```bash
 export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
@@ -147,264 +76,18 @@ mkdir -p instance static/logos
 docker compose up --build
 ```
 
-The image uses a multi-stage build and runs as an unprivileged `pdfbillr`
-account. Compose builds that account with `APP_UID=1000` and `APP_GID=1000` by
-default so bind-mounted files are normally writable by the host developer. Set
-both values to the owning host account before the first build when they differ:
+Visit <http://localhost:8080/pdfbillr>. The SQLite database and uploaded logos persist in `instance/` and `static/logos/`; back up both as application data.
 
-```bash
-export APP_UID="$(id -u)"
-export APP_GID="$(id -g)"
-docker compose build
-```
+## Production notes
 
-Existing root-owned deployment directories require a deliberate, one-time
-ownership correction while the services are stopped. Back them up, verify the
-exact host paths, then change only `instance/` and `static/logos/` to the
-configured UID/GID. The application never performs this privileged ownership
-change itself. Do not replace these bind mounts with empty volumes without
-migrating their database and upload contents.
+Before deploying, configure a strong `SECRET_KEY`, `APP_ENV=production`, a canonical HTTPS `PUBLIC_BASE_URL`, and `TRUSTED_HOSTS`. Add SMTP, Stripe, and a shared rate-limit store only when those integrations are enabled. `memory://` rate limiting is suitable only for a single web process.
 
-The services are:
+- `GET /health/live` verifies that the process is running.
+- `GET /health` checks database, PDF-rendering, and rate-limit readiness.
+- Responses include `X-Request-ID` for support and incident tracing.
 
-- `migrate`: runs `flask --app app db-bootstrap` once.
-- `web`: starts Gunicorn only after migration succeeds.
-- `scheduler`: starts one blocking APScheduler only after migration succeeds.
+Run migrations once as part of deployment, keep a single scheduler worker, and regularly back up the database and uploads. SQLite is the verified default; validate PostgreSQL and concurrent deployment behavior for a larger production topology.
 
-The default public URL is `http://localhost:8080/pdfbillr`. Exactly one
-`scheduler` replica is permitted. Do not start APScheduler inside Gunicorn
-workers. Scaling web workers/replicas also requires shared rate-limit storage;
-the default in-memory backend is only correct for one web process.
+## Project status
 
-Production refuses to start with `memory://` rate limiting. Configure an
-external Redis service, for example
-`RATELIMIT_STORAGE_URI=redis://redis.internal:6379/0`; the Python Redis client
-is installed by the application requirements. PDFBillr does not start or
-persist Redis for you.
-
-Docker image builds exclude `.env`, local tool logs, databases, and existing
-contents under `static/logos/` so customer files cannot be baked into image
-layers.
-
-## Configuration
-
-Production must set:
-
-- `APP_ENV=production`
-- `SECRET_KEY`: unique and at least 32 characters
-- `PUBLIC_BASE_URL`: canonical HTTPS origin, including `/pdfbillr` if used
-- `TRUSTED_HOSTS`: comma-separated accepted HTTP hosts
-- Stripe keys/price/webhook secret when billing is enabled
-- SMTP settings when account or invoice email is enabled
-
-Important operational settings:
-
-- `TRUST_PROXY_HEADERS=false` by default. Enable only when a trusted reverse
-  proxy is the sole network path to Gunicorn. Match Gunicorn
-  `FORWARDED_ALLOW_IPS` to that topology.
-- `AUTO_CREATE_DB=false` in production. Run `db-bootstrap` once before web and
-  scheduler startup.
-- `SCHEDULER_TIMEZONE=UTC` by default. Scheduler business dates use this zone;
-  per-user timezone support remains unresolved.
-- `UPLOAD_FOLDER=/app/instance/uploads` stores normalized private logo files.
-- `SESSION_COOKIE_SECURE=true` and `ENABLE_HSTS=true` only behind verified HTTPS.
-- `RATELIMIT_STORAGE_URI=memory://` supports one process only. Use a supported
-  shared backend such as Redis in production. The Redis client dependency is
-  included, but the Redis service remains an operator responsibility.
-- `WEB_CONCURRENCY=1` controls Gunicorn worker count. More than one worker fails
-  fast with the memory limiter and is not supported with SQLite.
-
-Invalid Boolean environment values fail startup instead of silently changing
-behavior.
-
-## Request correlation and errors
-
-Every response includes a locally generated `X-Request-ID`. Completion logs
-include that identifier, HTTP method, Flask endpoint name, status, and elapsed
-time. They intentionally omit paths, query strings, request bodies, remote
-addresses, and user data because reset and public-invoice tokens can appear in
-paths.
-
-HTML and JSON error responses contain the same request ID and generic text;
-internal exception details are never returned to the client. Retain the ID when
-reporting an incident. Reverse proxies should forward the response header but
-must not overwrite it with a client-supplied request ID.
-
-## Database upgrades
-
-Run:
-
-```bash
-flask --app app db-bootstrap
-```
-
-Back up the database and stop web/scheduler writers before every upgrade. The
-command handles three explicit states:
-
-- A fresh database runs the complete Alembic revision chain.
-- A database with an `alembic_version` table upgrades normally to `head`.
-- A known unversioned legacy database receives only the historical compatibility
-  columns, is checked against the complete baseline schema, is stamped at the
-  baseline, and then upgrades to `head`.
-
-Unknown or partial legacy schemas fail without being stamped. Do not bypass the
-check with `flask db stamp`. The former `db-upgrade` command remains only as a
-deprecated alias so existing automation fails visibly rather than disappearing.
-Production Compose uses `db-bootstrap`, and only one migration process may run.
-
-The uniqueness revision refuses to proceed when a user already owns duplicate
-invoice numbers. Find affected groups before deployment with:
-
-```sql
-SELECT user_id, invoice_number, COUNT(*)
-FROM invoices
-GROUP BY user_id, invoice_number
-HAVING COUNT(*) > 1;
-```
-
-After a backup, assign distinct numbers using an audited database maintenance
-process, then rerun `db-bootstrap`; the migration never silently renames
-financial documents. New user-entered duplicates are rejected, while automated
-duplicate/recurring flows choose an explicit numeric suffix.
-
-The session-version revision intentionally invalidates all sessions and
-remember cookies created before deployment. Users sign in once after the
-upgrade; subsequent password changes and resets revoke all of that user's
-existing sessions.
-
-Money/date migration is staged rather than converted in place. Revision
-`20260728_05` adds nullable `Numeric`/`Date` shadow columns, and all new invoice,
-duplicate, recurring-template, and recurring-generation writes populate both
-the legacy and typed values. Existing reads still use legacy columns, so the
-revision is reversible and does not create a partially switched application.
-
-After upgrading a stopped copy of a representative production backup, run the
-read-only preflight:
-
-```bash
-flask --app app financial-data-audit > financial-data-audit.json
-```
-
-The command returns nonzero when it finds invalid dates, non-finite/out-of-range
-money, malformed line-item JSON, typed-shadow mismatches, or totals/amounts that
-do not match a server-side recalculation. Output contains only categories,
-counts, and database row IDs—never invoice numbers, customer fields, or source
-values. Rows with valid legacy data but empty shadows are reported separately
-under `pending_backfill`.
-
-Do not populate the shadows manually or switch read paths yet. Review and
-correct every blocker on a backed-up copy, then implement/test an idempotent
-backfill against representative SQLite and PostgreSQL data. Constraint
-tightening and typed-column reads belong in a later deployment after parity has
-been measured.
-
-## Scheduler reliability
-
-Run exactly one:
-
-```bash
-DISABLE_SCHEDULER=false python scheduler_worker.py
-```
-
-Web app construction never starts jobs. Each recurring schedule occurrence has
-a database uniqueness claim, and reminder/auto-send email uses a durable
-delivery row committed before SMTP. Failures remain retryable after the
-original trigger day; short leases prevent concurrent scheduler processes from
-claiming the same row simultaneously, and retry jobs run every five minutes.
-Recurring work rechecks Pro entitlement and advances from the recorded
-scheduled date.
-
-The delivery queues provide at-least-once recovery. No SMTP interface can
-guarantee exactly-once delivery across a crash after the server accepts a
-message but before PDFBillr records success, so downstream mail deduplication
-and monitoring remain appropriate.
-
-## Stripe
-
-Configure the webhook endpoint at:
-
-```text
-POST <PUBLIC_BASE_URL>/billing/webhook
-```
-
-The handler verifies Stripe’s signature over the raw body, records event IDs,
-commits state and the processed marker together, enforces the configured Pro
-price/customer/subscription binding, rejects stale subscription events, and
-sends best-effort notification email only after commit. Tests mock all Stripe
-calls.
-
-Do not log webhook bodies, signatures, secrets, or token-bearing invoice URLs.
-Gunicorn’s access format intentionally omits URL paths.
-
-Public invoice links remain bearer credentials. Owners can rotate or revoke a
-link from the invoice detail page; the prior token immediately returns 404.
-Tokens do not automatically expire, so avoid posting them in tickets or logs.
-
-## Mail and partial failure
-
-Welcome/reset/billing/invoice links are generated from `PUBLIC_BASE_URL`, never
-from a request-supplied Host. Invoice status changes to `sent` only after
-Flask-Mail returns successfully. Reminder flags change only after success.
-
-Billing notification email is queued atomically with durable webhook state.
-Failures do not roll back correct billing state and are retried by the
-single scheduler process every five minutes. Delivery errors record only an
-exception type, not message contents or customer data.
-
-## Upload and PDF safety
-
-Logo uploads are capped by request bytes, decoded with Pillow, checked for
-format/dimensions/pixel count/animation, re-encoded to a server-named PNG, and
-stored under `instance/uploads`. They are served only through the owning
-authenticated Pro route. Legacy static logo lookup remains read-only for
-upgrade compatibility.
-
-WeasyPrint accepts only in-memory image data URLs from normalized/legacy logos.
-HTTP, HTTPS, file, and non-image data resources are denied. User text remains
-Jinja-autoescaped.
-
-## Health
-
-- `GET /health/live`: process liveness only.
-- `GET /health`: PDF/database/shared-limiter readiness; returns `503` when
-  degraded.
-- Send `Accept: application/json` for machine-readable checks.
-
-No secrets, configuration values, database contents, or customer diagnostics
-are returned.
-
-## Persistence, backup, and restore
-
-Persist and back up:
-
-- `/app/instance/pdfbillr.db` (or the configured SQLite file)
-- `/app/instance/uploads/`
-- legacy `/app/static/logos/` only while upgrading existing installations
-
-For SQLite, stop web and scheduler writes, copy the database with SQLite’s
-backup API (or a transactionally safe snapshot), copy uploads, and verify both
-copies. Restore into a stopped deployment, preserve file ownership/permissions,
-run `db-bootstrap`, then start web followed by exactly one scheduler. Test restores
-regularly; a file copy of a live WAL database is not a backup procedure.
-
-## Production checklist
-
-- Use a unique secret, canonical HTTPS URL, trusted hosts, and correct proxy
-  isolation.
-- Configure shared Redis-backed rate limiting; production rejects `memory://`.
-- Run the schema upgrade once and back up before upgrading.
-- Run `financial-data-audit` against an upgraded backup and retain its
-  blocker/pending counts with the deployment record.
-- Run one scheduler and one web process when using the memory limiter/SQLite.
-- Persist and back up database/uploads.
-- Build with the host UID/GID that owns the bind mounts and verify the
-  unprivileged container can write its database and upload directories.
-- Configure/test Stripe signature secret, allowed price, and SMTP.
-- Restrict and redact reverse-proxy/application logs; token paths are secrets.
-- Monitor `/health`, SMTP failures, Stripe 5xx responses, scheduler exceptions,
-  disk usage, and backup age.
-- Include `X-Request-ID` in proxy logs and support reports without logging URL
-  paths that contain bearer tokens.
-- Keep debug off and do not expose Gunicorn directly when proxy trust is on.
-- Review `CODE_REVIEW_STATE.md` for unresolved legacy money/date migration,
-  catch-up/timezone, paid-state, and public-token expiry policy work.
+PDFBillr is intentionally presented as a production-minded portfolio project: functional, deployable, and designed to make the behind-the-scenes engineering visible. Known follow-up decisions and migration work are documented in [the engineering review](docs/engineering-review.md).
