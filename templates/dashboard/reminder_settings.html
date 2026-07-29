@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}PDFBillr — Payment Reminders{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="mb-6">
+    <a href="{{ url_for('dashboard.index') }}"
+       class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">← My Invoices</a>
+    <h1 class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">Payment Reminders</h1>
+    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+      Choose when Pro sends automatic reminders. Leave an offset blank to disable that stage.
+    </p>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="mb-4 px-4 py-3 rounded-lg text-sm
+        {% if category == 'error' %}bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800
+        {% elif category == 'success' %}bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800
+        {% else %}bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {% set enabled_value = ('enabled' in form_data) if form_data is not none else preference.enabled %}
+  {% set due_date_value = ('on_due_date' in form_data) if form_data is not none else preference.on_due_date %}
+  {% set before_value = form_data.get('before_due_days', '') if form_data is not none else (preference.before_due_days or '') %}
+  {% set overdue_value = form_data.get('overdue_days', '') if form_data is not none else (preference.overdue_days or '') %}
+
+  <form method="POST"
+        class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+    <label class="flex items-start gap-3">
+      <input type="checkbox" name="enabled" value="1" class="mt-1"
+             {% if enabled_value %}checked{% endif %} />
+      <span>
+        <span class="block font-semibold text-gray-900 dark:text-white">Enable automatic reminders</span>
+        <span class="block text-sm text-gray-500 dark:text-gray-400">
+          You can still disable reminders for individual invoices.
+        </span>
+      </span>
+    </label>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+      <label class="block">
+        <span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Days before due date
+        </span>
+        <input type="number" name="before_due_days" value="{{ before_value }}"
+               min="1" max="30" inputmode="numeric" class="input-field"
+               placeholder="Disabled" />
+        <span class="block mt-1 text-xs text-gray-400">1–30 days</span>
+      </label>
+
+      <label class="block">
+        <span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Days after due date
+        </span>
+        <input type="number" name="overdue_days" value="{{ overdue_value }}"
+               min="1" max="90" inputmode="numeric" class="input-field"
+               placeholder="Disabled" />
+        <span class="block mt-1 text-xs text-gray-400">1–90 days</span>
+      </label>
+    </div>
+
+    <label class="flex items-center gap-3">
+      <input type="checkbox" name="on_due_date" value="1"
+             {% if due_date_value %}checked{% endif %} />
+      <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+        Send a reminder on the due date
+      </span>
+    </label>
+
+    <div class="flex justify-end">
+      <button type="submit"
+              class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors">
+        Save reminder settings
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

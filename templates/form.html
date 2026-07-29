@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}PDFBillr — Create Invoice{% endblock %}
+{% block title %}PDFBillr — {{ form_title or 'Create Invoice' }}{% endblock %}
 
 {% block content %}
 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -14,10 +14,15 @@
   {% endfor %}
 {% endwith %}
 
-<form id="invoice-form" action="{{ url_for('public.generate') }}" method="POST" novalidate>
+<form id="invoice-form" action="{{ form_action or url_for('public.generate') }}" method="POST" novalidate>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-  <h1 class="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Create Invoice</h1>
+  <h1 class="text-3xl font-bold mb-6 text-gray-900 dark:text-white">{{ form_title or 'Create Invoice' }}</h1>
+  {% if edit_mode and invoice.status in ('sent', 'partial') %}
+  <div class="mb-6 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
+    This invoice has already been sent. Saving a revision keeps it marked as sent and updates its existing public link.
+  </div>
+  {% endif %}
 
   <!-- ── From / To ──────────────────────────────────────────────── -->
   <div class="grid md:grid-cols-2 gap-6 mb-6">
@@ -50,7 +55,32 @@
 
     <!-- To -->
     <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
-      <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Bill To</h2>
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Bill To</h2>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('clients.index') }}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">Manage</a>
+        {% endif %}
+      </div>
+      {% if current_user.is_authenticated %}
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1" for="client-select">Saved client</label>
+        {% set selected_client_value = form_data.get('client_id', '') if form_data else '' %}
+        <select id="client-select" name="client_id" class="input-field">
+          <option value="">Enter client details manually</option>
+          {% for saved_client in clients %}
+          <option value="{{ saved_client.id }}" {{ 'selected' if selected_client_value|string == saved_client.id|string else '' }}>
+            {{ saved_client.name }}{% if saved_client.email %} — {{ saved_client.email }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        {% if not clients %}
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <a href="{{ url_for('clients.create') }}" class="text-blue-600 dark:text-blue-400 hover:underline">Save your first client</a>
+          to prefill this section.
+        </p>
+        {% endif %}
+      </div>
+      {% endif %}
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client Name</label>
         <input type="text" name="to_name" placeholder="Client LLC" class="input-field"
@@ -72,10 +102,10 @@
   <!-- ── Invoice Details ────────────────────────────────────────── -->
   <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
     <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Invoice Details</h2>
-    <div class="grid sm:grid-cols-3 gap-4">
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Invoice Number</label>
-        <input type="text" name="invoice_number" class="input-field"
+        <input type="text" name="invoice_number" class="input-field" required
                value="{{ form_data.get('invoice_number', 'INV-001') if form_data else 'INV-001' }}" />
       </div>
       <div>
@@ -87,6 +117,21 @@
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Due Date</label>
         <input type="date" name="due_date" class="input-field"
                value="{{ form_data.get('due_date', '') if form_data else '' }}" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Currency</label>
+        {% set selected_currency = form_data.get('currency_code', 'USD') if form_data else 'USD' %}
+        <select id="currency-code" name="currency_code" class="input-field">
+          {% for currency in currency_options %}
+          <option value="{{ currency.code }}"
+                  data-symbol="{{ currency.symbol }}"
+                  data-minor-units="{{ currency.minor_units }}"
+                  data-step="{{ currency.step }}"
+                  {{ 'selected' if selected_currency == currency.code else '' }}>
+            {{ currency.code }} — {{ currency.name }}
+          </option>
+          {% endfor %}
+        </select>
       </div>
     </div>
   </div>
@@ -107,23 +152,40 @@
     <!-- Dynamic rows injected by JS -->
     <div id="line-items" class="space-y-2"></div>
 
-    <button
-      type="button"
-      id="add-row-btn"
-      class="mt-4 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 transition-colors"
-    >
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-      </svg>
-      Add Row
-    </button>
+    <div class="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+      <button
+        type="button"
+        id="add-row-btn"
+        class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 transition-colors"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Add Row
+      </button>
+      {% if current_user.is_authenticated %}
+      <div class="flex items-center gap-2 sm:ml-auto">
+        <label for="service-item-select" class="sr-only">Saved service</label>
+        <select id="service-item-select" class="input-field min-w-48">
+          <option value="">Choose a saved service</option>
+          {% for service in service_items %}
+          <option value="{{ service.id }}">{{ service.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="button" id="add-service-item-btn"
+                class="whitespace-nowrap px-3 py-2 rounded-lg border border-blue-600 text-blue-700 dark:text-blue-400 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-950">
+          Add service
+        </button>
+      </div>
+      {% endif %}
+    </div>
 
     <!-- Totals panel -->
     <div class="flex justify-end mt-6">
       <div class="w-full sm:w-80 space-y-2 text-sm">
         <div class="flex justify-between items-center text-gray-600 dark:text-gray-400">
           <span>Subtotal</span>
-          <span id="display-subtotal" class="font-mono">$0.00</span>
+          <span id="display-subtotal" class="font-mono">{{ 0 | money(selected_currency) }}</span>
         </div>
         <div class="flex justify-between items-center text-gray-600 dark:text-gray-400">
           <span class="flex items-center gap-2">
@@ -132,7 +194,7 @@
               type="number"
               id="tax-input"
               name="tax_rate"
-              value="0"
+              value="{{ form_data.get('tax_rate', '0') if form_data else '0' }}"
               min="0"
               max="100"
               step="0.01"
@@ -140,27 +202,27 @@
             />
             <span class="text-xs">%</span>
           </span>
-          <span id="display-tax" class="font-mono">$0.00</span>
+          <span id="display-tax" class="font-mono">{{ 0 | money(selected_currency) }}</span>
         </div>
         <div class="flex justify-between items-center text-gray-600 dark:text-gray-400">
           <span class="flex items-center gap-2">
             Discount
-            <span class="text-xs">$</span>
+            <span id="discount-currency-symbol" class="text-xs">{{ currency_symbol(selected_currency) }}</span>
             <input
               type="number"
               id="discount-input"
               name="discount"
-              value="0"
+              value="{{ form_data.get('discount', '0') if form_data else '0' }}"
               min="0"
               step="0.01"
               class="w-20 px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-center text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
             />
           </span>
-          <span id="display-discount" class="font-mono">$0.00</span>
+          <span id="display-discount" class="font-mono">{{ 0 | money(selected_currency) }}</span>
         </div>
         <div class="flex justify-between items-center border-t border-gray-200 dark:border-gray-700 pt-2 text-lg font-bold text-blue-700 dark:text-blue-400">
           <span>Total</span>
-          <span id="display-total" class="font-mono">$0.00</span>
+          <span id="display-total" class="font-mono">{{ 0 | money(selected_currency) }}</span>
         </div>
       </div>
     </div>
@@ -185,6 +247,18 @@
         placeholder="Bank: Example Bank&#10;Account: 0000 0000&#10;Routing: 000000000"
         class="input-field resize-none"
       >{{ form_data.get('payment_info', '') if form_data else '' }}</textarea>
+      <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mt-4 mb-1" for="payment-url">Pay now link</label>
+      <input
+        id="payment-url"
+        name="payment_url"
+        type="url"
+        maxlength="2048"
+        autocomplete="url"
+        placeholder="https://pay.example.com/invoice"
+        value="{{ form_data.get('payment_url', '') if form_data else '' }}"
+        class="input-field"
+      />
+      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional HTTPS payment page shown on the public invoice.</p>
     </div>
   </div>
 
@@ -203,7 +277,8 @@
 
       {# Default — always unlocked #}
       <label class="theme-card relative cursor-pointer">
-        <input type="radio" name="theme" value="default" class="sr-only" checked />
+        <input type="radio" name="theme" value="default" class="sr-only"
+               {% if not form_data or not is_pro() or form_data.get('theme', 'default') not in ('minimal', 'corporate', 'creative') %}checked{% endif %} />
         <div class="theme-card-inner rounded-xl border-2 border-transparent p-4 flex flex-col gap-1
                     bg-gray-50 dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500
                     transition-colors">
@@ -216,7 +291,8 @@
       {# Minimal #}
       {% if is_pro() %}
       <label class="theme-card relative cursor-pointer">
-        <input type="radio" name="theme" value="minimal" class="sr-only" />
+        <input type="radio" name="theme" value="minimal" class="sr-only"
+               {% if form_data and form_data.get('theme') == 'minimal' %}checked{% endif %} />
         <div class="theme-card-inner rounded-xl border-2 border-transparent p-4 flex flex-col gap-1
                     bg-gray-50 dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500
                     transition-colors">
@@ -241,7 +317,8 @@
       {# Corporate #}
       {% if is_pro() %}
       <label class="theme-card relative cursor-pointer">
-        <input type="radio" name="theme" value="corporate" class="sr-only" />
+        <input type="radio" name="theme" value="corporate" class="sr-only"
+               {% if form_data and form_data.get('theme') == 'corporate' %}checked{% endif %} />
         <div class="theme-card-inner rounded-xl border-2 border-transparent p-4 flex flex-col gap-1
                     bg-gray-50 dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500
                     transition-colors">
@@ -266,7 +343,8 @@
       {# Creative #}
       {% if is_pro() %}
       <label class="theme-card relative cursor-pointer">
-        <input type="radio" name="theme" value="creative" class="sr-only" />
+        <input type="radio" name="theme" value="creative" class="sr-only"
+               {% if form_data and form_data.get('theme') == 'creative' %}checked{% endif %} />
         <div class="theme-card-inner rounded-xl border-2 border-transparent p-4 flex flex-col gap-1
                     bg-gray-50 dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500
                     transition-colors">
@@ -293,6 +371,21 @@
 
   <!-- ── Action Buttons ─────────────────────────────────────────── -->
   <div class="flex flex-col sm:flex-row gap-3 justify-end">
+    {% if edit_mode %}
+    <a
+      href="{{ url_for('dashboard.invoice_detail', invoice_id=invoice.id) }}"
+      class="px-6 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 text-center text-gray-600 dark:text-gray-400 font-semibold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+    >
+      Cancel
+    </a>
+    <button
+      type="submit"
+      id="btn-save-changes"
+      class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm"
+    >
+      Save Changes
+    </button>
+    {% else %}
     {% if current_user.is_authenticated %}
     <button
       type="submit"
@@ -321,6 +414,7 @@
     >
       Download PDF
     </button>
+    {% endif %}
   </div>
 
   {% if form_data %}
@@ -329,6 +423,9 @@
    "qtys": {{ form_data.getlist('qty[]') | tojson }},
    "rates": {{ form_data.getlist('rate[]') | tojson }}}
   </script>
+  {% endif %}
+  {% if catalog_data is defined %}
+  <script id="invoice-catalog-data" type="application/json">{{ catalog_data | tojson }}</script>
   {% endif %}
 
 </form>

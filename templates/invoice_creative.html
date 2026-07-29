@@ -164,8 +164,8 @@ body {
     <tr>
       <td class="col-desc">{{ item.description | e }}</td>
       <td class="col-qty center">{% if item.qty == item.qty | int %}{{ item.qty | int }}{% else %}{{ item.qty }}{% endif %}</td>
-      <td class="col-rate right">${{ "%.2f" | format(item.rate) }}</td>
-      <td class="col-amt right">${{ "%.2f" | format(item.amount) }}</td>
+      <td class="col-rate right">{{ item.rate | money(currency_code) }}</td>
+      <td class="col-amt right">{{ item.amount | money(currency_code) }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -176,10 +176,10 @@ body {
     <td class="totals-spacer"></td>
     <td class="totals-box">
       <table class="totals-inner">
-        <tr><td class="t-label">Subtotal</td><td class="t-value">${{ "%.2f" | format(subtotal) }}</td></tr>
-        {% if tax_rate %}<tr><td class="t-label">Tax ({{ tax_rate | int if tax_rate == tax_rate | int else tax_rate }}%)</td><td class="t-value">${{ "%.2f" | format(tax_amount) }}</td></tr>{% endif %}
-        {% if discount %}<tr><td class="t-label">Discount</td><td class="t-value">-${{ "%.2f" | format(discount) }}</td></tr>{% endif %}
-        <tr class="total-row"><td class="t-label">Total Due</td><td class="t-value">${{ "%.2f" | format(total) }}</td></tr>
+        <tr><td class="t-label">Subtotal</td><td class="t-value">{{ subtotal | money(currency_code) }}</td></tr>
+        {% if tax_rate %}<tr><td class="t-label">Tax ({{ tax_rate | int if tax_rate == tax_rate | int else tax_rate }}%)</td><td class="t-value">{{ tax_amount | money(currency_code) }}</td></tr>{% endif %}
+        {% if discount %}<tr><td class="t-label">Discount</td><td class="t-value">{{ (discount * -1) | money(currency_code) }}</td></tr>{% endif %}
+        <tr class="total-row"><td class="t-label">Total Due</td><td class="t-value">{{ total | money(currency_code) }}</td></tr>
       </table>
     </td>
   </tr>

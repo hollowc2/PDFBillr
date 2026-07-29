@@ -67,6 +67,14 @@
              class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
             Dashboard
           </a>
+          <a href="{{ url_for('clients.index') }}"
+             class="hidden md:inline text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+            Clients
+          </a>
+          <a href="{{ url_for('estimates.index') }}"
+             class="hidden md:inline text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+            Estimates
+          </a>
           {% if not is_pro() %}
           <a href="{{ url_for('billing.upgrade') }}"
              class="hidden sm:inline text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
@@ -118,7 +126,7 @@
       <div class="text-sm">
         <span class="font-bold text-blue-300">PDFBillr Pro</span>
         <span class="text-blue-200"> — $5/mo · </span>
-        <span class="text-gray-300">Custom logo · Client history · Email delivery · PDF templates</span>
+        <span class="text-gray-300">Custom logo · Email delivery · Reminders · Recurring invoices · PDF templates</span>
       </div>
       <a href="{{ url_for('billing.upgrade') }}"
          class="shrink-0 text-xs font-semibold bg-blue-500 hover:bg-blue-400 px-4 py-2 rounded-lg transition-colors">

@@ -112,11 +112,17 @@ def create_app(config_class: type = Config) -> Flask:
     from blueprints.auth import bp as auth_bp
     from blueprints.dashboard import bp as dashboard_bp
     from blueprints.billing import bp as billing_bp
+    from blueprints.clients import bp as clients_bp
+    from blueprints.estimates import bp as estimates_bp
+    from blueprints.exports import bp as exports_bp
 
     app.register_blueprint(public_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(billing_bp)
+    app.register_blueprint(clients_bp)
+    app.register_blueprint(estimates_bp)
+    app.register_blueprint(exports_bp)
 
     def _run_database_bootstrap() -> None:
         from utils.database_migrations import bootstrap_database
@@ -236,7 +242,9 @@ def create_app(config_class: type = Config) -> Flask:
         endpoint = request.endpoint or ""
         if response.status_code >= 400 or (
             current_user.is_authenticated
-            or endpoint.startswith(("auth.", "dashboard.", "billing."))
+            or endpoint.startswith(
+                ("auth.", "dashboard.", "billing.", "clients.", "estimates.")
+            )
             or endpoint == "public.invoice_view"
         ):
             response.headers["Cache-Control"] = "no-store, private"
@@ -259,10 +267,24 @@ def create_app(config_class: type = Config) -> Flask:
         return response
 
     # Template context processor: inject is_pro() for all templates
+    from utils.currency import (
+        currency_input_step,
+        currency_options,
+        currency_symbol,
+        format_currency,
+    )
     from utils.gating import is_pro
+
+    app.jinja_env.filters["money"] = format_currency
+    app.jinja_env.globals["currency_input_step"] = currency_input_step
+    app.jinja_env.globals["currency_symbol"] = currency_symbol
+
     @app.context_processor
     def inject_pro():
-        return {"is_pro": is_pro}
+        return {
+            "is_pro": is_pro,
+            "currency_options": currency_options(),
+        }
 
     return app
 

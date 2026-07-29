@@ -28,17 +28,20 @@ _REMINDER_SPECS = {
     "reminder_3d": (
         "reminder_3d_sent",
         "emails/reminder_due_soon.txt",
-        lambda inv: f"Invoice {inv.invoice_number} due in 3 days",
+        lambda inv, days: (
+            f"Invoice {inv.invoice_number} due in {days} "
+            f"{'day' if days == 1 else 'days'}"
+        ),
     ),
     "reminder_0d": (
         "reminder_0d_sent",
         "emails/reminder_due_today.txt",
-        lambda inv: f"Invoice {inv.invoice_number} is due today",
+        lambda inv, _days: f"Invoice {inv.invoice_number} is due today",
     ),
     "reminder_7d": (
         "reminder_7d_sent",
         "emails/reminder_overdue.txt",
-        lambda inv: f"Invoice {inv.invoice_number} is overdue",
+        lambda inv, _days: f"Invoice {inv.invoice_number} is overdue",
     ),
 }
 _DELIVERY_LEASE = timedelta(minutes=15)
@@ -51,10 +54,9 @@ class PermanentDeliveryError(ValueError):
 def send_payment_reminders(app) -> None:
     """Enqueue and deliver due payment reminders.
 
-    Reminder schedule:
-      - 3 days before due date
-      - On due date
-      - 7 days after due date (overdue)
+    Accounts default to reminders three days before, on the due date, and
+    seven days overdue. Owners can change or disable each schedule stage and
+    can suppress reminders on individual invoices.
 
     The durable delivery row is committed before SMTP is attempted. Failed
     deliveries remain retryable even after the trigger date has passed.
@@ -69,9 +71,24 @@ def send_payment_reminders(app) -> None:
         today = _business_today(app)
 
         candidates = (
-            Invoice.query.filter(Invoice.status == "sent")
-            .filter(Invoice.due_date.isnot(None))
-            .filter(Invoice.due_date != "")
+            Invoice.query.filter(
+                or_(
+                    Invoice.status == "sent",
+                    (
+                        (Invoice.status == "partial")
+                        & Invoice.sent_at.isnot(None)
+                    ),
+                )
+            )
+            .filter(
+                or_(
+                    Invoice.due_date_value.isnot(None),
+                    (
+                        Invoice.due_date.isnot(None)
+                        & (Invoice.due_date != "")
+                    ),
+                )
+            )
             .all()
         )
 
@@ -81,19 +98,32 @@ def send_payment_reminders(app) -> None:
                 continue
             if not inv.to_email:
                 continue
-
-            try:
-                due = datetime.strptime(inv.due_date, "%Y-%m-%d").date()
-            except (ValueError, TypeError):
+            if inv.balance_due <= 0:
+                continue
+            schedule = _reminder_schedule(inv)
+            if schedule is None:
                 continue
 
+            due = inv.due_date_as_date
+            if due is None:
+                continue
+
+            before_due_days, on_due_date, overdue_days = schedule
             days_delta = (due - today).days  # negative = overdue
             delivery_kind = None
-            if days_delta == 3 and not inv.reminder_3d_sent:
+            if (
+                before_due_days is not None
+                and days_delta == before_due_days
+                and not inv.reminder_3d_sent
+            ):
                 delivery_kind = "reminder_3d"
-            elif days_delta == 0 and not inv.reminder_0d_sent:
+            elif days_delta == 0 and on_due_date and not inv.reminder_0d_sent:
                 delivery_kind = "reminder_0d"
-            elif days_delta == -7 and not inv.reminder_7d_sent:
+            elif (
+                overdue_days is not None
+                and days_delta == -overdue_days
+                and not inv.reminder_7d_sent
+            ):
                 delivery_kind = "reminder_7d"
 
             if delivery_kind:
@@ -412,6 +442,28 @@ def _send_invoice_delivery(
             "unknown invoice delivery kind"
         ) from exc
 
+    # A payment or void can occur after this delivery was queued or after a
+    # prior SMTP attempt failed. Re-check at dispatch time so durable retries
+    # never chase a closed invoice.
+    if inv.status in {"paid", "void"} or inv.balance_due <= 0:
+        raise PermanentDeliveryError(
+            "payment reminder invoice no longer has an outstanding balance"
+        )
+    schedule = _reminder_schedule(inv)
+    if schedule is None:
+        raise PermanentDeliveryError("payment reminders were disabled")
+
+    before_due_days, on_due_date, overdue_days = schedule
+    if delivery.delivery_kind == "reminder_0d" and not on_due_date:
+        raise PermanentDeliveryError("payment reminder stage was disabled")
+    reminder_days = {
+        "reminder_3d": before_due_days,
+        "reminder_0d": 0,
+        "reminder_7d": overdue_days,
+    }[delivery.delivery_kind]
+    if reminder_days is None:
+        raise PermanentDeliveryError("payment reminder stage was disabled")
+
     _send_reminder(
         mail_obj,
         Message,
@@ -420,7 +472,8 @@ def _send_invoice_delivery(
         inv,
         inv.from_company or inv.user.email,
         _view_url_for(inv),
-        subject_factory(inv),
+        subject_factory(inv, reminder_days),
+        reminder_days,
     )
     setattr(inv, flag_name, True)
 
@@ -434,12 +487,14 @@ def _send_reminder(
     sender_name,
     view_url,
     subject,
+    reminder_days,
 ) -> None:
     body = render_template_fn(
         template,
         invoice=inv,
         sender_name=sender_name,
         view_url=view_url,
+        reminder_days=reminder_days,
     )
     msg = Message(subject=subject, recipients=[inv.to_email], body=body)
     mail_obj.send(msg)
@@ -449,6 +504,21 @@ def _business_today(app) -> date:
     """Return the scheduler's configured business date."""
     timezone_name = app.config.get("SCHEDULER_TIMEZONE", "UTC")
     return datetime.now(ZoneInfo(timezone_name)).date()
+
+
+def _reminder_schedule(inv) -> tuple[int | None, bool, int | None] | None:
+    if not inv.payment_reminders_enabled:
+        return None
+    preference = inv.user.reminder_preference if inv.user else None
+    if preference is None:
+        return (3, True, 7)
+    if not preference.enabled:
+        return None
+    return (
+        preference.before_due_days,
+        preference.on_due_date,
+        preference.overdue_days,
+    )
 
 
 def _view_url_for(inv) -> str:
@@ -468,6 +538,7 @@ def _next_run_date(current: date, interval: str) -> date:
 def _generate_from_template(tmpl, scheduled_for, db):
     """Create and stage one Invoice occurrence from a recurring template."""
     from utils.financial_shadow_values import invoice_shadow_values
+    from utils.currency import normalize_currency_code
     from utils.invoice_calculations import calculate_invoice
     from utils.invoice_numbers import next_available_invoice_number
 
@@ -476,6 +547,7 @@ def _generate_from_template(tmpl, scheduled_for, db):
         line_items,
         tax_rate=tmpl.tax_rate,
         discount=tmpl.discount,
+        currency_code=normalize_currency_code(tmpl.currency_code),
     )
     financials = calculated.template_values()
 
@@ -508,6 +580,7 @@ def _generate_from_template(tmpl, scheduled_for, db):
     inv = Invoice(
         user_id         = tmpl.user_id,
         invoice_number  = invoice_number,
+        currency_code   = normalize_currency_code(tmpl.currency_code),
         invoice_date    = scheduled_for.isoformat(),
         due_date        = due_date_obj.isoformat() if due_date_obj else None,
         from_company    = tmpl.from_company,
@@ -530,6 +603,7 @@ def _generate_from_template(tmpl, scheduled_for, db):
         total_decimal=shadow_values["total_decimal"],
         notes           = tmpl.notes,
         payment_info    = tmpl.payment_info,
+        payment_url     = tmpl.payment_url,
         theme           = tmpl.theme or "default",
         status          = "draft",
         view_token      = secrets.token_urlsafe(32),

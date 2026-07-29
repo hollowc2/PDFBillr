@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Clients & Services — PDFBillr{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-sm
+      {% if category == 'error' %}bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800
+      {% elif category == 'success' %}bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800
+      {% else %}bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% endif %}">
+      {{ message }}
+    </div>
+  {% endfor %}
+{% endwith %}
+
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Clients &amp; Services</h1>
+    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Save the details you reuse on invoices.</p>
+  </div>
+  <a href="{{ url_for('public.index') }}"
+     class="inline-flex justify-center px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">
+    Create invoice
+  </a>
+</div>
+
+<section class="mb-8 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
+  <div class="flex items-center justify-between gap-4">
+    <div>
+      <h2 class="text-lg font-semibold">Business defaults</h2>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        {% if defaults %}
+          {{ defaults.from_company or 'Sender details saved' }} · Net {{ defaults.default_payment_terms_days }} days
+        {% else %}
+          Add sender details, standard notes, tax, and payment terms.
+        {% endif %}
+      </p>
+    </div>
+    <a href="{{ url_for('clients.defaults') }}"
+       class="shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+      {{ 'Edit' if defaults else 'Set up' }}
+    </a>
+  </div>
+</section>
+
+<div class="grid lg:grid-cols-2 gap-8">
+  <section class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
+    <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-semibold">Clients</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">{{ clients|length }} saved</p>
+      </div>
+      <a href="{{ url_for('clients.create') }}"
+         class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">
+        Add client
+      </a>
+    </div>
+    {% if clients %}
+      <div class="divide-y divide-gray-100 dark:divide-gray-800">
+        {% for client in clients %}
+        <div class="p-5 flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <div class="font-semibold truncate">{{ client.name }}</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ client.email or 'No email' }}</div>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <a href="{{ url_for('public.index', client_id=client.id) }}"
+               class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Invoice</a>
+            <a href="{{ url_for('clients.edit', client_id=client.id) }}"
+               class="text-sm text-gray-600 dark:text-gray-300 hover:underline">Edit</a>
+            <form method="POST" action="{{ url_for('clients.delete', client_id=client.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <button type="submit" class="text-sm text-red-600 dark:text-red-400 hover:underline">
+                Remove
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="p-6 text-sm text-gray-500 dark:text-gray-400">No clients yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
+    <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-semibold">Services</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">{{ services|length }} saved</p>
+      </div>
+      <a href="{{ url_for('clients.service_create') }}"
+         class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">
+        Add service
+      </a>
+    </div>
+    {% if services %}
+      <div class="divide-y divide-gray-100 dark:divide-gray-800">
+        {% for service in services %}
+        <div class="p-5 flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <div class="font-semibold truncate">{{ service.name }}</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400 truncate">
+              Rate {{ '%.2f'|format(service.default_rate) }} · Qty {{ service.default_quantity|float }}
+            </div>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <a href="{{ url_for('public.index', service_id=service.id) }}"
+               class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Invoice</a>
+            <a href="{{ url_for('clients.service_edit', service_id=service.id) }}"
+               class="text-sm text-gray-600 dark:text-gray-300 hover:underline">Edit</a>
+            <form method="POST" action="{{ url_for('clients.service_delete', service_id=service.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <button type="submit" class="text-sm text-red-600 dark:text-red-400 hover:underline">
+                Remove
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="p-6 text-sm text-gray-500 dark:text-gray-400">No services yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

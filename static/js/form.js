@@ -8,12 +8,25 @@
     return isNaN(n) ? 0 : n;
   }
 
+  function currencySettings() {
+    var select = document.getElementById('currency-code');
+    var option = select && select.options[select.selectedIndex];
+    return {
+      symbol: option ? option.dataset.symbol : '$',
+      minorUnits: option ? parseInt(option.dataset.minorUnits, 10) : 2,
+      step: option ? option.dataset.step : '0.01'
+    };
+  }
+
   function fmt(n) {
-    return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    var currency = currencySettings();
+    return currency.symbol + n.toFixed(currency.minorUnits)
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
 
   function roundMoney(n) {
-    return Math.round((n + Number.EPSILON) * 100) / 100;
+    var factor = Math.pow(10, currencySettings().minorUnits);
+    return Math.round((n + Number.EPSILON) * factor) / factor;
   }
 
   function makeInput(type, name, placeholder, extraClasses) {
@@ -69,10 +82,11 @@
     rateWrap.className = 'relative';
     var ratePfx = document.createElement('span');
     ratePfx.className = 'absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm select-none pointer-events-none';
-    ratePfx.textContent = '$';
+    ratePfx.classList.add('currency-prefix');
+    ratePfx.textContent = currencySettings().symbol;
     var rateInput = makeInput('number', 'rate[]', '0.00', 'pl-6');
     rateInput.min = '0';
-    rateInput.step = '0.01';
+    rateInput.step = currencySettings().step;
     rateWrap.appendChild(ratePfx);
     rateWrap.appendChild(rateInput);
     rateCell.appendChild(rateWrap);
@@ -80,7 +94,7 @@
     var amtCell = makeCell('col-span-2 md:col-span-1 text-right');
     var amtSpan = document.createElement('span');
     amtSpan.className = 'amount-display text-sm font-mono text-gray-700 dark:text-gray-300';
-    amtSpan.textContent = '$0.00';
+    amtSpan.textContent = fmt(0);
     amtCell.appendChild(amtSpan);
 
     var rmCell = makeCell('col-span-2 md:col-span-1 flex justify-end');
@@ -141,6 +155,7 @@
     // U2: re-enable all remove buttons now that there are 2+ rows
     updateRemoveBtns();
     row.querySelector('input[name="description[]"]').focus();
+    return row;
   }
 
   function recalcTotals() {
@@ -190,6 +205,16 @@
     var form = document.getElementById('invoice-form');
     if (!form) return;
 
+    var catalog = { clients: [], services: [] };
+    var catalogEl = document.getElementById('invoice-catalog-data');
+    if (catalogEl) {
+      try {
+        catalog = JSON.parse(catalogEl.textContent);
+      } catch (e) {
+        catalog = { clients: [], services: [] };
+      }
+    }
+
     // U3: repopulate from server-side prefill data if present
     var prefillEl = document.getElementById('form-prefill');
     if (prefillEl) {
@@ -199,9 +224,7 @@
         var qtys = prefill.qtys || [];
         var rates = prefill.rates || [];
         descriptions.forEach(function (desc, i) {
-          if (i > 0) addRow();
-          var rows = document.querySelectorAll('.line-item-row');
-          var row = rows[rows.length - 1];
+          var row = addRow();
           row.querySelector('input[name="description[]"]').value = desc;
           row.querySelector('input[name="qty[]"]').value = qtys[i] !== undefined ? qtys[i] : '';
           row.querySelector('input[name="rate[]"]').value = rates[i] !== undefined ? rates[i] : '';
@@ -220,6 +243,76 @@
     document.getElementById('add-row-btn').addEventListener('click', addRow);
     document.getElementById('tax-input').addEventListener('input', recalcTotals);
     document.getElementById('discount-input').addEventListener('input', recalcTotals);
+
+    var clientSelect = document.getElementById('client-select');
+    if (clientSelect) {
+      clientSelect.addEventListener('change', function () {
+        if (!clientSelect.value) return;
+        var client = (catalog.clients || []).find(function (item) {
+          return String(item.id) === clientSelect.value;
+        });
+        if (!client) return;
+
+        form.querySelector('[name="to_name"]').value = client.name || '';
+        form.querySelector('[name="to_address"]').value = client.address || '';
+        form.querySelector('[name="to_email"]').value = client.email || '';
+        document.getElementById('tax-input').value = client.tax_rate || '0';
+
+        var invoiceDate = form.querySelector('[name="invoice_date"]').value;
+        if (invoiceDate) {
+          var due = new Date(invoiceDate + 'T00:00:00');
+          due.setDate(due.getDate() + parseInt(client.payment_terms_days || 0, 10));
+          var year = String(due.getFullYear());
+          var month = String(due.getMonth() + 1).padStart(2, '0');
+          var day = String(due.getDate()).padStart(2, '0');
+          form.querySelector('[name="due_date"]').value = year + '-' + month + '-' + day;
+        }
+        recalcTotals();
+      });
+    }
+
+    var serviceSelect = document.getElementById('service-item-select');
+    var addServiceButton = document.getElementById('add-service-item-btn');
+    if (serviceSelect && addServiceButton) {
+      addServiceButton.addEventListener('click', function () {
+        if (!serviceSelect.value) return;
+        var service = (catalog.services || []).find(function (item) {
+          return String(item.id) === serviceSelect.value;
+        });
+        if (!service) return;
+
+        var rows = document.querySelectorAll('.line-item-row');
+        var row = rows.length === 1 &&
+          !rows[0].querySelector('input[name="description[]"]').value.trim()
+          ? rows[0]
+          : addRow();
+        row.querySelector('input[name="description[]"]').value = service.description || service.name;
+        row.querySelector('input[name="qty[]"]').value = service.quantity || '1';
+        row.querySelector('input[name="rate[]"]').value = service.rate || '0';
+        row.querySelector('input[name="rate[]"]').dispatchEvent(new Event('input'));
+        serviceSelect.value = '';
+      });
+    }
+
+    document.getElementById('currency-code').addEventListener('change', function () {
+      var currency = currencySettings();
+      document.querySelectorAll('.currency-prefix').forEach(function (prefix) {
+        prefix.textContent = currency.symbol;
+      });
+      document.querySelectorAll('input[name="rate[]"]').forEach(function (input) {
+        input.step = currency.step;
+      });
+      document.getElementById('discount-currency-symbol').textContent = currency.symbol;
+      document.getElementById('discount-input').step = currency.step;
+      recalcTotals();
+    });
+
+    var initialCurrency = currencySettings();
+    document.querySelectorAll('.currency-prefix').forEach(function (prefix) {
+      prefix.textContent = initialCurrency.symbol;
+    });
+    document.getElementById('discount-currency-symbol').textContent = initialCurrency.symbol;
+    document.getElementById('discount-input').step = initialCurrency.step;
 
     var btnPreview  = document.getElementById('btn-preview');
     var btnDownload = document.getElementById('btn-download');

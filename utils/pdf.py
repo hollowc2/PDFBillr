@@ -14,8 +14,10 @@ from utils.helpers import (
     MAX_ITEMS, MAX_LONG, MAX_SHORT,
     _truncate,
 )
+from utils.currency import normalize_currency_code
 from utils.invoice_calculations import calculate_invoice, calculate_tax_amount
 from utils.uploads import resolve_logo_path
+from utils.validation import normalize_payment_url
 
 ALLOWED_THEMES = {"default", "minimal", "corporate", "creative"}
 
@@ -71,6 +73,8 @@ def build_invoice_context(form, logo_filename=None, accent_color="#1e3a8a"):
 
     notes        = _truncate(form.get("notes", ""), MAX_LONG)
     payment_info = _truncate(form.get("payment_info", ""), MAX_LONG)
+    payment_url = normalize_payment_url(form.get("payment_url"))
+    currency_code = normalize_currency_code(form.get("currency_code"))
 
     descriptions = form.getlist("description[]")[:MAX_ITEMS]
     qtys         = form.getlist("qty[]")[:MAX_ITEMS]
@@ -88,6 +92,7 @@ def build_invoice_context(form, logo_filename=None, accent_color="#1e3a8a"):
         raw_items,
         tax_rate=form.get("tax_rate", 0),
         discount=form.get("discount", 0),
+        currency_code=currency_code,
     )
     financials = calculated.template_values()
 
@@ -104,9 +109,11 @@ def build_invoice_context(form, logo_filename=None, accent_color="#1e3a8a"):
         "to_name":        to_name,
         "to_address":     to_address,
         "to_email":       to_email,
+        "currency_code":  currency_code,
         **financials,
         "notes":          notes,
         "payment_info":   payment_info,
+        "payment_url":    payment_url,
         "logo_url":       logo_url,
         "accent_color":   accent_color,
     }
@@ -115,7 +122,12 @@ def build_invoice_context(form, logo_filename=None, accent_color="#1e3a8a"):
 def context_from_invoice(invoice) -> dict:
     """Reconstruct template context from a saved Invoice model instance."""
     line_items = json.loads(invoice.line_items_json or "[]")
-    tax_amount = calculate_tax_amount(invoice.subtotal, invoice.tax_rate)
+    currency_code = normalize_currency_code(invoice.currency_code)
+    tax_amount = calculate_tax_amount(
+        invoice.subtotal,
+        invoice.tax_rate,
+        currency_code=currency_code,
+    )
     logo_url   = _logo_data_uri(invoice.logo_filename) if invoice.logo_filename else None
 
     # Pull branding profile fields if available
@@ -137,6 +149,7 @@ def context_from_invoice(invoice) -> dict:
         "to_name":        invoice.to_name,
         "to_address":     invoice.to_address,
         "to_email":       invoice.to_email,
+        "currency_code":  currency_code,
         "line_items":     line_items,
         "tax_rate":       invoice.tax_rate,
         "tax_amount":     tax_amount,
@@ -145,6 +158,7 @@ def context_from_invoice(invoice) -> dict:
         "total":          invoice.total,
         "notes":          invoice.notes,
         "payment_info":   invoice.payment_info,
+        "payment_url":    invoice.payment_url,
         "logo_url":       logo_url,
         "accent_color":   accent_color,
         "remove_footer":  remove_footer,

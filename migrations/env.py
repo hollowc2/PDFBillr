@@ -6,7 +6,7 @@ from alembic import context
 from flask import current_app
 
 config = context.config
-fileConfig(config.config_file_name)
+fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 
 def get_engine():

@@ -1,9 +1,13 @@
 # PDFBillr
 
-PDFBillr is a Flask 3.1 invoice-generation SaaS. Anonymous visitors can render
-PDFs without persistence. Authenticated users can save invoices; Pro users can
-use branding, email delivery, public invoice links, reminders, and recurring
-templates. Stripe webhooks are the authority for local subscription state.
+PDFBillr is a Flask 3.1 invoicing SaaS. Anonymous visitors can render PDFs
+without persistence. Authenticated users can save and edit invoices, manage
+clients and service items, issue estimates, export records, share public links,
+and record payments. Pro users add branding, email delivery, configurable
+reminders, recurring templates, and additional PDF themes. Invoices snapshot
+one of USD, CAD, EUR, GBP, AUD, or JPY and never perform foreign-exchange
+conversion. Stripe webhooks are the authority for local PDFBillr subscription
+state.
 
 Python 3.12 is the supported runtime. SQLite is the currently verified
 database. PostgreSQL remains a planned, unverified deployment target until a
@@ -26,13 +30,35 @@ one scheduler process -> reminder/recurrence services -> database -> mail/PDF
 - `app.py`: side-effect-free application factory, configuration validation,
   extensions, headers, and explicit Alembic bootstrap command.
 - `wsgi.py`: Gunicorn application construction.
-- `blueprints/`: public, authentication, dashboard, and billing routes.
-- `models.py`: users, subscriptions, invoices, recurring templates, branding,
-  and processed Stripe events.
+- `blueprints/`: public, authentication, dashboard, clients, estimates,
+  exports, and billing routes.
+- `models.py`: users, subscriptions, clients, services, estimates, invoices,
+  payment records, reminder preferences, recurring templates, branding, and
+  processed Stripe events.
 - `utils/invoice_calculations.py`: authoritative bounded Decimal math.
+- `utils/currency.py`: the invoice-currency allowlist, minor units, and
+  centralized formatting.
 - `utils/pdf.py`: stored/form context and restricted WeasyPrint rendering.
 - `utils/scheduler.py`: idempotency-aware job functions.
 - `scheduler_worker.py`: the only supported long-running scheduler process.
+
+## Product workflows
+
+- Invoice lifecycle: draft, sent, partial, paid, and void, with overdue derived
+  from the outstanding balance and due date. Manual payments retain their
+  amount, date, method, reference, and note.
+- Client and service records prefill new invoices while every invoice keeps its
+  own historical snapshot. Business defaults cover sender details, tax,
+  payment terms, notes, payment instructions, and an optional payment link.
+- Estimates use protected public response links and can be accepted or declined
+  once. An accepted estimate converts idempotently to a recalculated draft
+  invoice.
+- Optional “Pay now” links must use a validated public HTTPS host. PDFBillr
+  displays the merchant-provided destination but never fetches it server-side;
+  this is not Stripe Connect or payment processing by PDFBillr.
+- Receivables totals are grouped by currency because PDFBillr performs no FX
+  conversion. CSV exports include lifecycle, payment, balance, and view data
+  and neutralize spreadsheet formulas in user-provided fields.
 
 Routes still own some orchestration and transaction logic. Durable Stripe and
 scheduler delivery queues, remaining legacy money/date storage, and workflow

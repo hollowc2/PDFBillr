@@ -21,14 +21,50 @@
   {% endfor %}
 {% endwith %}
 
+<!-- Receivables snapshot -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+  {% for key, label, detail, color in [
+    ('outstanding', 'Outstanding', 'Open balances', 'text-blue-700 dark:text-blue-300'),
+    ('overdue', 'Overdue', 'Past due', 'text-red-700 dark:text-red-300'),
+    ('due_soon', 'Due soon', 'Next 7 days', 'text-amber-700 dark:text-amber-300'),
+    ('paid_this_month', 'Paid this month', 'Payments received', 'text-green-700 dark:text-green-300')
+  ] %}
+  <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+    <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ label }}</p>
+    <div class="mt-2 {{ color }} font-bold">
+      {% if metrics[key] %}
+        {% for currency_code, amount in metrics[key].items() %}
+          <div>{{ amount | money(currency_code) }}</div>
+        {% endfor %}
+      {% else %}
+        <div>{{ 0 | money('USD') }}</div>
+      {% endif %}
+    </div>
+    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ detail }}</p>
+  </div>
+  {% endfor %}
+</div>
+
 <!-- Pro feature shortcuts -->
 <div class="flex flex-wrap gap-3 mb-6">
+  <a href="{{ url_for('clients.index') }}"
+     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    Clients &amp; Services
+  </a>
+  <a href="{{ url_for('estimates.index') }}"
+     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    Estimates
+  </a>
   <a href="{{ url_for('dashboard.branding') if is_pro() else url_for('billing.upgrade') }}"
      class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
     {% if not is_pro() %}<span class="text-yellow-500">🔒</span>{% endif %}
     Custom Branding
   </a>
   {% if is_pro() %}
+  <a href="{{ url_for('dashboard.reminder_settings') }}"
+     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    Payment Reminders
+  </a>
   <a href="{{ url_for('dashboard.recurring_list') }}"
      class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
     Recurring Invoices
@@ -45,21 +81,47 @@
   {% endif %}
 </div>
 
-<!-- Search -->
+<!-- Search, filters and export -->
 <form method="GET" action="{{ url_for('dashboard.index') }}" class="mb-4">
-  <div class="flex gap-2">
+  <div class="flex flex-wrap gap-2">
     <input type="text" name="q" value="{{ q }}" placeholder="Search by invoice # or client…"
            class="input-field max-w-sm" />
+    <select name="status" class="input-field w-auto" aria-label="Invoice status">
+      {% for value, label in [
+        ('all', 'All statuses'), ('draft', 'Draft'), ('sent', 'Sent'),
+        ('finalized', 'Finalized'), ('partial', 'Partial'), ('overdue', 'Overdue'),
+        ('paid', 'Paid'), ('void', 'Void')
+      ] %}
+      <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <input type="date" name="due_from" value="{{ filters.due_from }}"
+           class="input-field w-auto" aria-label="Due date from" title="Due date from" />
+    <input type="date" name="due_to" value="{{ filters.due_to }}"
+           class="input-field w-auto" aria-label="Due date to" title="Due date to" />
+    <select name="sort" class="input-field w-auto" aria-label="Sort invoices">
+      {% for value, label in [
+        ('newest', 'Newest first'), ('oldest', 'Oldest first'),
+        ('due_soonest', 'Due soonest'), ('amount_high', 'Amount: high to low'),
+        ('amount_low', 'Amount: low to high')
+      ] %}
+      <option value="{{ value }}" {% if filters.sort == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
     <button type="submit"
             class="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-      Search
+      Apply
     </button>
-    {% if q %}
+    {% if q or filters.status != 'all' or filters.due_from or filters.due_to or filters.sort != 'newest' %}
     <a href="{{ url_for('dashboard.index') }}"
        class="px-4 py-2 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-      Clear
+      Clear filters
     </a>
     {% endif %}
+    <a href="{{ url_for('exports.invoices_csv', q=q) }}"
+       class="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+      Export CSV
+    </a>
   </div>
 </form>
 
@@ -92,14 +154,17 @@
           {{ inv.invoice_date or '—' }}
         </td>
         <td class="px-4 py-3 text-right font-mono font-medium text-gray-900 dark:text-gray-100">
-          ${{ "%.2f" | format(inv.total) }}
+          {{ inv.total_amount | money(inv.currency_code) }}
         </td>
         <td class="px-4 py-3 text-center hidden sm:table-cell">
+          {% set lifecycle_status = inv.effective_status(as_of=dashboard_today) %}
           <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-            {% if inv.status == 'sent' %}bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300
-            {% elif inv.status == 'finalized' %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300
+            {% if lifecycle_status == 'paid' %}bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300
+            {% elif lifecycle_status == 'overdue' %}bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300
+            {% elif lifecycle_status == 'partial' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300
+            {% elif lifecycle_status in ('sent', 'finalized') %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300
             {% else %}bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400{% endif %}">
-            {{ inv.status }}
+            {{ lifecycle_status | capitalize }}
           </span>
         </td>
         <td class="px-4 py-3 text-right w-20 whitespace-nowrap">
@@ -122,7 +187,7 @@
 {% if pagination.pages > 1 %}
 <div class="flex justify-center gap-2 mt-6">
   {% if pagination.has_prev %}
-  <a href="{{ url_for('dashboard.index', page=pagination.prev_num, q=q) }}"
+  <a href="{{ url_for('dashboard.index', page=pagination.prev_num, q=q, status=filters.status, due_from=filters.due_from, due_to=filters.due_to, sort=filters.sort) }}"
      class="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
     Previous
   </a>
@@ -131,7 +196,7 @@
     Page {{ pagination.page }} of {{ pagination.pages }}
   </span>
   {% if pagination.has_next %}
-  <a href="{{ url_for('dashboard.index', page=pagination.next_num, q=q) }}"
+  <a href="{{ url_for('dashboard.index', page=pagination.next_num, q=q, status=filters.status, due_from=filters.due_from, due_to=filters.due_to, sort=filters.sort) }}"
      class="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
     Next
   </a>
@@ -145,8 +210,8 @@
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
   </svg>
-  {% if q %}
-  <p class="text-sm">No invoices match "{{ q }}".</p>
+  {% if q or filters.status != 'all' or filters.due_from or filters.due_to %}
+  <p class="text-sm">No invoices match the selected filters.</p>
   {% else %}
   <p class="text-sm">No invoices yet.</p>
   <a href="{{ url_for('public.index') }}"

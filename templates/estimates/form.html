@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit " ~ estimate.estimate_number if estimate else "New estimate" }} — PDFBillr{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+  <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">{{ message }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div class="mb-6">
+  <a href="{{ url_for('estimates.detail', estimate_id=estimate.id) if estimate else url_for('estimates.index') }}" class="text-sm text-blue-700 hover:underline dark:text-blue-400">← Back to estimates</a>
+  <h1 class="mt-2 text-2xl font-bold">{{ "Edit estimate" if estimate else "New estimate" }}</h1>
+</div>
+
+<form method="post" class="space-y-6" id="estimate-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="grid gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:grid-cols-4">
+    <label class="text-sm font-medium">Estimate number
+      <input class="input-field mt-1" name="estimate_number" maxlength="200" required value="{{ form_data.get('estimate_number', '') }}">
+    </label>
+    <label class="text-sm font-medium">Issue date
+      <input class="input-field mt-1" type="date" name="issue_date" required value="{{ form_data.get('issue_date', '') }}">
+    </label>
+    <label class="text-sm font-medium">Expiry date
+      <input class="input-field mt-1" type="date" name="expiry_date" required value="{{ form_data.get('expiry_date', '') }}">
+    </label>
+    <label class="text-sm font-medium">Currency
+      <select class="input-field mt-1" name="currency_code" id="estimate-currency">
+        {% for currency in currency_options %}
+        <option value="{{ currency.code }}" data-symbol="{{ currency.symbol }}" data-digits="{{ currency.minor_units }}" {% if form_data.get('currency_code', 'USD') == currency.code %}selected{% endif %}>{{ currency.code }} — {{ currency.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </section>
+
+  <section class="grid gap-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:grid-cols-2">
+    <div class="space-y-3">
+      <h2 class="font-semibold">From</h2>
+      <input class="input-field" name="from_company" maxlength="200" placeholder="Company name" value="{{ form_data.get('from_company', '') }}">
+      <textarea class="input-field" name="from_address" maxlength="5000" rows="3" placeholder="Business address">{{ form_data.get('from_address', '') }}</textarea>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <input class="input-field" name="from_email" type="email" maxlength="200" placeholder="Email" value="{{ form_data.get('from_email', '') }}">
+        <input class="input-field" name="from_phone" maxlength="200" placeholder="Phone" value="{{ form_data.get('from_phone', '') }}">
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="font-semibold">To</h2>
+        {% if clients %}<span class="text-xs text-gray-500">Saved client details remain a snapshot</span>{% endif %}
+      </div>
+      {% if clients %}
+      <select class="input-field" name="client_id" id="estimate-client">
+        <option value="">No saved client</option>
+        {% for client in clients %}
+        <option value="{{ client.id }}" data-name="{{ client.name }}" data-address="{{ client.address or '' }}" data-email="{{ client.email or '' }}" data-tax="{{ client.default_tax_rate if client.default_tax_rate is not none else '' }}" {% if form_data.get('client_id', '')|string == client.id|string %}selected{% endif %}>{{ client.name }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      <input class="input-field" id="estimate-to-name" name="to_name" maxlength="200" required placeholder="Client name" value="{{ form_data.get('to_name', '') }}">
+      <textarea class="input-field" id="estimate-to-address" name="to_address" maxlength="5000" rows="3" placeholder="Client address">{{ form_data.get('to_address', '') }}</textarea>
+      <input class="input-field" id="estimate-to-email" name="to_email" type="email" maxlength="200" placeholder="Client email" value="{{ form_data.get('to_email', '') }}">
+    </div>
+  </section>
+
+  <section class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <h2 class="font-semibold">Line items</h2>
+      <div class="flex gap-2">
+        {% if services %}
+        <select class="input-field py-1.5" id="estimate-service">
+          <option value="">Add saved service…</option>
+          {% for service in services %}
+          <option value="{{ service.id }}" data-description="{{ service.description }}" data-qty="{{ service.default_quantity }}" data-rate="{{ service.default_rate }}">{{ service.name }}</option>
+          {% endfor %}
+        </select>
+        {% endif %}
+        <button type="button" id="add-estimate-item" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">Add item</button>
+      </div>
+    </div>
+    <div id="estimate-items" class="space-y-3">
+      {% for item in form_items %}
+      <div class="estimate-item grid gap-2 sm:grid-cols-[1fr_7rem_9rem_auto]">
+        <input class="input-field" name="description[]" maxlength="500" placeholder="Description" value="{{ item.description }}">
+        <input class="input-field estimate-qty" name="qty[]" type="number" min="0" step="0.0001" placeholder="Qty" value="{{ item.qty }}">
+        <input class="input-field estimate-rate" name="rate[]" type="number" min="0" step="{{ currency_input_step(form_data.get('currency_code', 'USD')) }}" placeholder="Rate" value="{{ item.rate }}">
+        <button type="button" class="remove-estimate-item rounded-lg px-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950">Remove</button>
+      </div>
+      {% endfor %}
+    </div>
+    <template id="estimate-item-template">
+      <div class="estimate-item grid gap-2 sm:grid-cols-[1fr_7rem_9rem_auto]">
+        <input class="input-field" name="description[]" maxlength="500" placeholder="Description">
+        <input class="input-field estimate-qty" name="qty[]" type="number" min="0" step="0.0001" placeholder="Qty" value="1">
+        <input class="input-field estimate-rate" name="rate[]" type="number" min="0" step="0.01" placeholder="Rate" value="0">
+        <button type="button" class="remove-estimate-item rounded-lg px-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950">Remove</button>
+      </div>
+    </template>
+  </section>
+
+  <section class="grid gap-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:grid-cols-2">
+    <div class="space-y-3">
+      <label class="block text-sm font-medium">Notes
+        <textarea class="input-field mt-1" name="notes" maxlength="5000" rows="4">{{ form_data.get('notes', '') }}</textarea>
+      </label>
+      <label class="block text-sm font-medium">Payment information
+        <textarea class="input-field mt-1" name="payment_info" maxlength="5000" rows="3">{{ form_data.get('payment_info', '') }}</textarea>
+      </label>
+    </div>
+    <div class="space-y-3">
+      <label class="block text-sm font-medium">Tax rate (%)
+        <input class="input-field mt-1 estimate-summary-input" id="estimate-tax" name="tax_rate" type="number" min="0" max="100" step="0.0001" value="{{ form_data.get('tax_rate', '0') }}">
+      </label>
+      <label class="block text-sm font-medium">Fixed discount
+        <input class="input-field mt-1 estimate-summary-input" id="estimate-discount" name="discount" type="number" min="0" step="{{ currency_input_step(form_data.get('currency_code', 'USD')) }}" value="{{ form_data.get('discount', '0') }}">
+      </label>
+      <div class="rounded-lg bg-gray-50 p-4 text-sm dark:bg-gray-800">
+        <div class="flex justify-between"><span>Estimated total</span><strong id="estimate-preview-total">—</strong></div>
+        <p class="mt-2 text-xs text-gray-500">The server recalculates and validates every amount when you save.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="flex justify-end gap-3">
+    <a href="{{ url_for('estimates.detail', estimate_id=estimate.id) if estimate else url_for('estimates.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold dark:border-gray-700">Cancel</a>
+    <button class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700" type="submit">Save estimate</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/estimate_form.js') }}" defer></script>
+{% endblock %}

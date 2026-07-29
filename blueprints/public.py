@@ -1,8 +1,9 @@
 import json
 import re as _re
 import secrets
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 _HEX_RE = _re.compile(r'^#[0-9a-fA-F]{6}$')
 
@@ -25,6 +26,7 @@ from utils.helpers import _safe_filename
 from utils.invoice_calculations import InvoiceCalculationError
 from utils.invoice_numbers import invoice_number_exists
 from utils.pdf import ALLOWED_THEMES, build_invoice_context, context_from_invoice, render_pdf
+from utils.validation import PaymentURLValidationError
 
 bp = Blueprint("public", __name__)
 
@@ -36,7 +38,12 @@ def landing():
 
 @bp.route("/app")
 def index():
-    return render_template("form.html", today=date.today().isoformat(), form_data=None)
+    selected_client_id = request.args.get("client_id")
+    return _render_invoice_form(
+        None,
+        selected_client_id=selected_client_id,
+        selected_service_id=request.args.get("service_id"),
+    )
 
 
 @bp.route("/generate", methods=["POST"])
@@ -60,25 +67,29 @@ def generate():
     if theme not in ALLOWED_THEMES or (theme != "default" and not is_pro()):
         theme = "default"
 
+    selected_client_id = None
+    if current_user.is_authenticated:
+        from blueprints.clients import selected_owned_client_id
+
+        selected_client_id = selected_owned_client_id(
+            request.form.get("client_id")
+        )
+
     try:
         context = build_invoice_context(
             request.form,
             logo_filename=logo_filename,
             accent_color=accent_color,
         )
-    except InvoiceCalculationError as exc:
+    except (InvoiceCalculationError, PaymentURLValidationError) as exc:
         flash(str(exc), "error")
-        return render_template(
-            "form.html",
-            today=date.today().isoformat(),
-            form_data=request.form,
-        )
+        return _render_invoice_form(request.form)
     context["remove_footer"] = remove_footer
 
     # Validate at least one non-empty line item exists
     if not context.get("line_items"):
         flash("Please add at least one line item with a description.", "error")
-        return render_template("form.html", today=date.today().isoformat(), form_data=request.form)
+        return _render_invoice_form(request.form)
 
     # Reject known number conflicts before the expensive PDF render. The
     # database constraint still closes a concurrent race in _save_invoice.
@@ -90,11 +101,7 @@ def generate():
             "That invoice number is already in use. Choose a different number.",
             "error",
         )
-        return render_template(
-            "form.html",
-            today=date.today().isoformat(),
-            form_data=request.form,
-        )
+        return _render_invoice_form(request.form)
 
     shadow_values = None
     if current_user.is_authenticated:
@@ -109,11 +116,7 @@ def generate():
             )
         except FinancialShadowValueError as exc:
             flash(str(exc), "error")
-            return render_template(
-                "form.html",
-                today=date.today().isoformat(),
-                form_data=request.form,
-            )
+            return _render_invoice_form(request.form)
 
     pdf_bytes = render_pdf(context, theme=theme)
 
@@ -121,18 +124,19 @@ def generate():
     # unexpected saved invoice behind.
     if (
         current_user.is_authenticated
-        and not _save_invoice(context, theme, shadow_values)
+        and not _save_invoice(
+            context,
+            theme,
+            shadow_values,
+            client_id=selected_client_id,
+        )
     ):
         flash(
             "That invoice number was just used by another request. "
             "Choose a different number.",
             "error",
         )
-        return render_template(
-            "form.html",
-            today=date.today().isoformat(),
-            form_data=request.form,
-        )
+        return _render_invoice_form(request.form)
 
     invoice_number = context["invoice_number"]
     safe_number    = _safe_filename(invoice_number)
@@ -154,6 +158,8 @@ def _save_invoice(
     context: dict,
     theme: str,
     shadow_values: dict,
+    *,
+    client_id: int | None = None,
 ) -> bool:
     """Persist an invoice, returning false for a same-user number conflict."""
     from flask_login import current_user as cu
@@ -161,10 +167,16 @@ def _save_invoice(
     invoice_number = context["invoice_number"]
     if invoice_number_exists(cu.id, invoice_number):
         return False
+    if client_id is None:
+        from blueprints.clients import selected_owned_client_id
+
+        client_id = selected_owned_client_id(request.form.get("client_id"))
 
     inv = Invoice(
         user_id        = cu.id,
+        client_id      = client_id,
         invoice_number = invoice_number,
+        currency_code  = context["currency_code"],
         invoice_date   = context["invoice_date"],
         due_date       = context["due_date"],
         from_company   = context["from_company"],
@@ -187,7 +199,12 @@ def _save_invoice(
         total_decimal=shadow_values["total_decimal"],
         notes          = context["notes"],
         payment_info   = context["payment_info"],
-        logo_filename  = cu.branding.logo_filename if cu.branding else None,
+        payment_url    = context["payment_url"],
+        logo_filename  = (
+            cu.branding.logo_filename
+            if cu.branding and is_pro(cu)
+            else None
+        ),
         theme          = theme,
         status         = "draft",
         view_token     = secrets.token_urlsafe(32),
@@ -203,6 +220,24 @@ def _save_invoice(
             return False
         raise
     return True
+
+
+def _render_invoice_form(
+    form_data,
+    *,
+    selected_client_id=None,
+    selected_service_id=None,
+):
+    from blueprints.clients import invoice_form_context
+
+    return render_template(
+        "form.html",
+        **invoice_form_context(
+            form_data,
+            selected_client_id=selected_client_id,
+            selected_service_id=selected_service_id,
+        ),
+    )
 
 
 @bp.route("/invoice/view/<token>")
@@ -225,7 +260,15 @@ def invoice_view(token: str):
     db.session.commit()
     db.session.refresh(inv)
     context = context_from_invoice(inv)
-    return render_template("invoice_view.html", invoice=inv, **context)
+    business_today = datetime.now(
+        ZoneInfo(current_app.config.get("SCHEDULER_TIMEZONE", "UTC"))
+    ).date()
+    return render_template(
+        "invoice_view.html",
+        invoice=inv,
+        lifecycle_status=inv.effective_status(as_of=business_today),
+        **context,
+    )
 
 
 @bp.route("/health")

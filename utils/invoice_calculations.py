@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Iterable, Mapping
 
+from utils.currency import currency_quantum, normalize_currency_code
 from utils.helpers import MAX_DESC, MAX_ITEMS, _truncate
 
 CENT = Decimal("0.01")
@@ -83,8 +84,16 @@ def quantize_money(value: Any) -> Decimal:
         return Decimal("0")
 
 
-def calculate_tax_amount(subtotal: Any, tax_rate: Any) -> float:
-    subtotal_decimal = quantize_money(subtotal)
+def calculate_tax_amount(
+    subtotal: Any,
+    tax_rate: Any,
+    *,
+    currency_code: Any = "USD",
+) -> float:
+    quantum = currency_quantum(currency_code)
+    subtotal_decimal = quantize_money(subtotal).quantize(
+        quantum, rounding=ROUND_HALF_UP
+    )
     try:
         rate_decimal = Decimal(str(tax_rate or 0))
     except (InvalidOperation, ValueError):
@@ -93,7 +102,7 @@ def calculate_tax_amount(subtotal: Any, tax_rate: Any) -> float:
         rate_decimal = Decimal("0")
     return float(
         (subtotal_decimal * rate_decimal / Decimal("100")).quantize(
-            CENT,
+            quantum,
             rounding=ROUND_HALF_UP,
         )
     )
@@ -104,6 +113,7 @@ def calculate_invoice(
     *,
     tax_rate: Any = 0,
     discount: Any = 0,
+    currency_code: Any = "USD",
 ) -> InvoiceCalculation:
     """Validate line items and calculate a canonical invoice total.
 
@@ -116,6 +126,8 @@ def calculate_invoice(
     if len(raw_items) > MAX_ITEMS:
         raise InvoiceCalculationError(f"At most {MAX_ITEMS} line items are allowed.")
 
+    normalized_currency_code = normalize_currency_code(currency_code)
+    quantum = currency_quantum(normalized_currency_code)
     normalized_items: list[dict[str, Any]] = []
     subtotal = Decimal("0")
 
@@ -137,7 +149,7 @@ def calculate_invoice(
             f"Line item {index} rate",
             maximum=MAX_RATE,
         )
-        amount = (quantity * rate).quantize(CENT, rounding=ROUND_HALF_UP)
+        amount = (quantity * rate).quantize(quantum, rounding=ROUND_HALF_UP)
         subtotal += amount
         if subtotal > MAX_TOTAL:
             raise InvoiceCalculationError("Invoice subtotal is too large.")
@@ -157,14 +169,14 @@ def calculate_invoice(
         maximum=MAX_TAX_RATE,
     )
     tax_amount = (subtotal * normalized_tax_rate / Decimal("100")).quantize(
-        CENT,
+        quantum,
         rounding=ROUND_HALF_UP,
     )
     normalized_discount = _parse_decimal(
         discount,
         "Discount",
         maximum=MAX_TOTAL,
-    ).quantize(CENT, rounding=ROUND_HALF_UP)
+    ).quantize(quantum, rounding=ROUND_HALF_UP)
     balance = subtotal + tax_amount
     if balance > MAX_TOTAL:
         raise InvoiceCalculationError("Invoice total is too large.")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sqlite3
 
 from sqlalchemy import inspect, text
@@ -51,6 +52,11 @@ def test_fresh_database_bootstrap_reaches_head_and_is_rerunnable(tmp_path):
             "recurring_occurrences",
             "invoice_deliveries",
             "billing_notification_deliveries",
+            "invoice_payments",
+            "business_defaults",
+            "clients",
+            "service_items",
+            "reminder_preferences",
         } <= set(inspector.get_table_names())
         user_columns = {
             column["name"] for column in inspector.get_columns("users")
@@ -103,7 +109,29 @@ def test_fresh_database_bootstrap_reaches_head_and_is_rerunnable(tmp_path):
             "discount_decimal",
             "subtotal_decimal",
             "total_decimal",
+            "paid_at",
+            "voided_at",
+            "client_id",
+            "payment_reminders_enabled",
+            "currency_code",
         } <= invoice_columns
+        payment_columns = {
+            column["name"] for column in inspector.get_columns("invoice_payments")
+        }
+        assert {
+            "id",
+            "invoice_id",
+            "amount",
+            "paid_at",
+            "method",
+            "reference",
+            "note",
+            "created_at",
+        } <= payment_columns
+        payment_indexes = {
+            index["name"] for index in inspector.get_indexes("invoice_payments")
+        }
+        assert "ix_invoice_payments_invoice_id" in payment_indexes
         recurring_columns = {
             column["name"]
             for column in inspector.get_columns("recurring_invoices")
@@ -115,7 +143,19 @@ def test_fresh_database_bootstrap_reaches_head_and_is_rerunnable(tmp_path):
         revision = db.session.execute(
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
-        assert revision == "20260728_05"
+        assert revision == "20260728_11"
+
+
+def test_migration_logging_does_not_disable_application_loggers(tmp_path):
+    application = _migration_app(tmp_path / "logging.db")
+    runner = application.test_cli_runner()
+    application.logger.disabled = False
+
+    result = runner.invoke(args=["db", "upgrade", "head"])
+
+    assert result.exit_code == 0, result.output
+    assert application.logger.disabled is False
+    assert logging.getLogger("app").disabled is False
 
 
 def test_development_auto_create_uses_alembic_head(tmp_path):
@@ -130,7 +170,7 @@ def test_development_auto_create_uses_alembic_head(tmp_path):
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
 
-    assert revision == "20260728_05"
+    assert revision == "20260728_11"
 
 
 def test_financial_shadow_migration_is_additive_and_reversible(tmp_path):
@@ -207,6 +247,72 @@ def test_financial_shadow_migration_is_additive_and_reversible(tmp_path):
         }
         assert "invoice_date_value" not in invoice_columns
         assert "tax_rate_decimal" not in recurring_columns
+        assert db.session.execute(
+            text("SELECT invoice_number FROM invoices WHERE id = 1")
+        ).scalar_one() == "INV-001"
+
+
+def test_payment_lifecycle_migration_is_additive_and_reversible(tmp_path):
+    application = _migration_app(tmp_path / "payment-lifecycle.db")
+    runner = application.test_cli_runner()
+    before = runner.invoke(args=["db", "upgrade", "20260728_05"])
+    assert before.exit_code == 0, before.output
+
+    with application.app_context():
+        with db.engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO users "
+                    "(id, email, password_hash, is_active, "
+                    "auth_session_version) "
+                    "VALUES (1, 'owner@example.test', 'hash', 1, 1)"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO invoices "
+                    "(id, user_id, invoice_number, status, total) "
+                    "VALUES (1, 1, 'INV-001', 'sent', 125.00)"
+                )
+            )
+
+    upgraded = runner.invoke(args=["db", "upgrade", "20260728_06"])
+    assert upgraded.exit_code == 0, upgraded.output
+    with application.app_context():
+        invoice = db.session.execute(
+            text(
+                "SELECT invoice_number, status, total, paid_at, voided_at "
+                "FROM invoices WHERE id = 1"
+            )
+        ).one()
+        assert tuple(invoice) == ("INV-001", "sent", 125.0, None, None)
+        db.session.execute(
+            text(
+                "INSERT INTO invoice_payments "
+                "(id, invoice_id, amount, paid_at, method, created_at) "
+                "VALUES (1, 1, 25.00, CURRENT_TIMESTAMP, 'cash', "
+                "CURRENT_TIMESTAMP)"
+            )
+        )
+        db.session.commit()
+        payment = db.session.execute(
+            text(
+                "SELECT invoice_id, amount, method "
+                "FROM invoice_payments WHERE id = 1"
+            )
+        ).one()
+        assert tuple(payment) == (1, 25, "cash")
+
+    downgraded = runner.invoke(args=["db", "downgrade", "20260728_05"])
+    assert downgraded.exit_code == 0, downgraded.output
+    with application.app_context():
+        inspector = inspect(db.engine)
+        assert "invoice_payments" not in inspector.get_table_names()
+        invoice_columns = {
+            column["name"] for column in inspector.get_columns("invoices")
+        }
+        assert "paid_at" not in invoice_columns
+        assert "voided_at" not in invoice_columns
         assert db.session.execute(
             text("SELECT invoice_number FROM invoices WHERE id = 1")
         ).scalar_one() == "INV-001"
@@ -343,3 +449,88 @@ def test_deprecated_database_command_uses_alembic_bootstrap(tmp_path):
     assert result.exit_code == 0, result.output
     assert "deprecated" in result.output
     assert "Alembic head" in result.output
+
+
+def test_clients_catalog_migration_is_additive_and_reversible(tmp_path):
+    application = _migration_app(tmp_path / "clients-catalog.db")
+    runner = application.test_cli_runner()
+    before = runner.invoke(args=["db", "upgrade", "20260728_06"])
+    assert before.exit_code == 0, before.output
+
+    with application.app_context():
+        with db.engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO users "
+                    "(id, email, password_hash, is_active, "
+                    "auth_session_version) "
+                    "VALUES (1, 'owner@example.test', 'hash', 1, 1)"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO invoices "
+                    "(id, user_id, invoice_number, to_name, total) "
+                    "VALUES (1, 1, 'INV-001', 'Snapshot Client', 125.00)"
+                )
+            )
+
+    upgraded = runner.invoke(args=["db", "upgrade", "20260728_07"])
+    assert upgraded.exit_code == 0, upgraded.output
+    with application.app_context():
+        inspector = inspect(db.engine)
+        assert {
+            "business_defaults",
+            "clients",
+            "service_items",
+        } <= set(inspector.get_table_names())
+        assert "client_id" in {
+            column["name"] for column in inspector.get_columns("invoices")
+        }
+        assert "ix_invoices_client_id" in {
+            index["name"] for index in inspector.get_indexes("invoices")
+        }
+        client_unique_constraints = {
+            tuple(constraint["column_names"])
+            for constraint in inspector.get_unique_constraints("clients")
+        }
+        assert ("user_id", "normalized_name") in client_unique_constraints
+
+        with db.engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO clients "
+                    "(id, user_id, name, normalized_name, created_at, "
+                    "updated_at) "
+                    "VALUES (1, 1, 'Snapshot Client', 'snapshot client', "
+                    "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                )
+            )
+            connection.execute(
+                text(
+                    "UPDATE invoices SET client_id = 1 WHERE id = 1"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO service_items "
+                    "(id, user_id, name, normalized_name, description, "
+                    "default_rate, default_quantity, created_at, updated_at) "
+                    "VALUES (1, 1, 'Consulting', 'consulting', "
+                    "'Consulting services', 100.00, 1, "
+                    "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                )
+            )
+
+    downgraded = runner.invoke(args=["db", "downgrade", "20260728_06"])
+    assert downgraded.exit_code == 0, downgraded.output
+    with application.app_context():
+        inspector = inspect(db.engine)
+        assert "client_id" not in {
+            column["name"] for column in inspector.get_columns("invoices")
+        }
+        assert "clients" not in inspector.get_table_names()
+        assert "service_items" not in inspector.get_table_names()
+        assert db.session.execute(
+            text("SELECT to_name FROM invoices WHERE id = 1")
+        ).scalar_one() == "Snapshot Client"

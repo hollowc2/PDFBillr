@@ -15,10 +15,12 @@
         </p>
       </div>
       <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-        {% if invoice.status == 'sent' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300
-        {% elif invoice.status == 'finalized' %}bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300
+        {% if lifecycle_status == 'paid' %}bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300
+        {% elif lifecycle_status == 'overdue' %}bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300
+        {% elif lifecycle_status == 'partial' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300
+        {% elif lifecycle_status in ('sent', 'finalized') %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300
         {% else %}bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400{% endif %}">
-        {{ "Payment Due" if invoice.status == "sent" else invoice.status | capitalize }}
+        {{ "Payment Due" if lifecycle_status == "sent" else lifecycle_status | capitalize }}
       </span>
     </div>
 
@@ -56,8 +58,8 @@
           <tr class="border-b border-gray-50 dark:border-gray-800/50">
             <td class="py-2 text-gray-700 dark:text-gray-300">{{ item.description }}</td>
             <td class="py-2 text-right text-gray-500 dark:text-gray-400 font-mono">{{ item.qty }}</td>
-            <td class="py-2 text-right text-gray-500 dark:text-gray-400 font-mono">${{ "%.2f" | format(item.rate) }}</td>
-            <td class="py-2 text-right text-gray-700 dark:text-gray-300 font-mono">${{ "%.2f" | format(item.amount) }}</td>
+            <td class="py-2 text-right text-gray-500 dark:text-gray-400 font-mono">{{ item.rate | money(invoice.currency_code) }}</td>
+            <td class="py-2 text-right text-gray-700 dark:text-gray-300 font-mono">{{ item.amount | money(invoice.currency_code) }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -70,26 +72,49 @@
       <div class="text-right space-y-1 text-sm min-w-[200px]">
         <div class="flex justify-between gap-8 text-gray-500 dark:text-gray-400">
           <span>Subtotal</span>
-          <span class="font-mono">${{ "%.2f" | format(invoice.subtotal) }}</span>
+          <span class="font-mono">{{ invoice.subtotal | money(invoice.currency_code) }}</span>
         </div>
         {% if invoice.tax_rate %}
         <div class="flex justify-between gap-8 text-gray-500 dark:text-gray-400">
           <span>Tax ({{ invoice.tax_rate }}%)</span>
-          <span class="font-mono">${{ "%.2f" | format(invoice.subtotal * invoice.tax_rate / 100) }}</span>
+          <span class="font-mono">{{ (invoice.subtotal * invoice.tax_rate / 100) | money(invoice.currency_code) }}</span>
         </div>
         {% endif %}
         {% if invoice.discount %}
         <div class="flex justify-between gap-8 text-gray-500 dark:text-gray-400">
           <span>Discount</span>
-          <span class="font-mono">-${{ "%.2f" | format(invoice.discount) }}</span>
+          <span class="font-mono">{{ (invoice.discount * -1) | money(invoice.currency_code) }}</span>
         </div>
         {% endif %}
-        <div class="flex justify-between gap-8 text-lg font-bold text-blue-700 dark:text-blue-400 border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
-          <span>Total Due</span>
-          <span class="font-mono">${{ "%.2f" | format(invoice.total) }}</span>
+        <div class="flex justify-between gap-8 text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+          <span>Total</span>
+          <span class="font-mono">{{ invoice.total | money(invoice.currency_code) }}</span>
+        </div>
+        {% if invoice.amount_paid > 0 %}
+        <div class="flex justify-between gap-8 text-green-700 dark:text-green-400">
+          <span>Paid</span>
+          <span class="font-mono">{{ (invoice.amount_paid * -1) | money(invoice.currency_code) }}</span>
+        </div>
+        {% endif %}
+        <div class="flex justify-between gap-8 text-lg font-bold text-blue-700 dark:text-blue-400">
+          <span>Balance Due</span>
+          <span class="font-mono">{{ invoice.balance_due | money(invoice.currency_code) }}</span>
         </div>
       </div>
     </div>
+
+    {% if invoice.payment_url and invoice.accepts_payments %}
+    <div class="mt-6">
+      <a href="{{ invoice.payment_url }}"
+         target="_blank"
+         rel="noopener noreferrer nofollow"
+         referrerpolicy="no-referrer"
+         class="block w-full rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-3 text-center text-base font-semibold text-white shadow-sm transition-colors">
+        Pay now · {{ invoice.balance_due | money(invoice.currency_code) }}
+      </a>
+      <p class="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">You will continue to the payment page in a new tab.</p>
+    </div>
+    {% endif %}
 
     {% if invoice.payment_info %}
     <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">

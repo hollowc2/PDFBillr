@@ -31,13 +31,16 @@
       </p>
     </div>
     <div class="flex flex-col items-end gap-2">
+      {% set lifecycle_status = invoice.effective_status(as_of=dashboard_today) %}
       <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-        {% if invoice.status == 'sent' %}bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300
-        {% elif invoice.status == 'finalized' %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300
+        {% if lifecycle_status == 'paid' %}bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300
+        {% elif lifecycle_status == 'overdue' %}bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300
+        {% elif lifecycle_status == 'partial' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300
+        {% elif lifecycle_status in ('sent', 'finalized') %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300
         {% else %}bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400{% endif %}">
-        {{ invoice.status }}
+        {{ lifecycle_status | capitalize }}
       </span>
-      {% if invoice.status == 'sent' %}
+      {% if invoice.sent_at %}
         {% if invoice.viewed_at %}
         <span class="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,13 +80,150 @@
   <!-- Totals summary -->
   <div class="flex justify-end mb-6">
     <div class="text-right space-y-1 text-sm">
-      <div class="text-gray-500 dark:text-gray-400">Subtotal: <span class="font-mono text-gray-700 dark:text-gray-300">${{ "%.2f" | format(invoice.subtotal) }}</span></div>
-      {% if invoice.tax_rate %}<div class="text-gray-500 dark:text-gray-400">Tax ({{ invoice.tax_rate }}%): <span class="font-mono text-gray-700 dark:text-gray-300">${{ "%.2f" | format(invoice.subtotal * invoice.tax_rate / 100) }}</span></div>{% endif %}
-      {% if invoice.discount %}<div class="text-gray-500 dark:text-gray-400">Discount: <span class="font-mono text-gray-700 dark:text-gray-300">-${{ "%.2f" | format(invoice.discount) }}</span></div>{% endif %}
+      <div class="text-gray-500 dark:text-gray-400">Subtotal: <span class="font-mono text-gray-700 dark:text-gray-300">{{ invoice.subtotal | money(invoice.currency_code) }}</span></div>
+      {% if invoice.tax_rate %}<div class="text-gray-500 dark:text-gray-400">Tax ({{ invoice.tax_rate }}%): <span class="font-mono text-gray-700 dark:text-gray-300">{{ (invoice.subtotal * invoice.tax_rate / 100) | money(invoice.currency_code) }}</span></div>{% endif %}
+      {% if invoice.discount %}<div class="text-gray-500 dark:text-gray-400">Discount: <span class="font-mono text-gray-700 dark:text-gray-300">{{ (invoice.discount * -1) | money(invoice.currency_code) }}</span></div>{% endif %}
       <div class="text-lg font-bold text-blue-700 dark:text-blue-400 border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
-        Total: <span class="font-mono">${{ "%.2f" | format(invoice.total) }}</span>
+        Total: <span class="font-mono">{{ invoice.total | money(invoice.currency_code) }}</span>
+      </div>
+      {% if invoice.amount_paid > 0 %}
+      <div class="text-green-700 dark:text-green-400">
+        Paid: <span class="font-mono">{{ invoice.amount_paid | money(invoice.currency_code) }}</span>
+      </div>
+      {% endif %}
+      <div class="font-semibold {% if invoice.balance_due > 0 %}text-gray-900 dark:text-white{% else %}text-green-700 dark:text-green-400{% endif %}">
+        Balance due: <span class="font-mono">{{ invoice.balance_due | money(invoice.currency_code) }}</span>
       </div>
     </div>
+  </div>
+
+  {% if is_pro() %}
+  <div class="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <p class="text-sm font-semibold text-gray-900 dark:text-white">Automatic payment reminders</p>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {% if invoice.payment_reminders_enabled %}
+            Enabled for this invoice using your reminder schedule.
+          {% else %}
+            Disabled for this invoice.
+          {% endif %}
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="{{ url_for('dashboard.reminder_settings') }}"
+           class="px-3 py-2 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
+          Schedule
+        </a>
+        <form method="POST" action="{{ url_for('dashboard.invoice_reminders', invoice_id=invoice.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <input type="hidden" name="enabled" value="{{ '0' if invoice.payment_reminders_enabled else '1' }}" />
+          <button type="submit"
+                  class="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+            {{ 'Disable' if invoice.payment_reminders_enabled else 'Enable' }}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <p class="text-sm font-semibold text-gray-900 dark:text-white">Payments</p>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          Record money received to keep the balance and reminders accurate.
+        </p>
+      </div>
+      {% if invoice.accepts_payments %}
+      <form method="POST"
+            action="{{ url_for('dashboard.invoice_mark_paid', invoice_id=invoice.id) }}"
+            data-confirm="Record the full outstanding balance as paid?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <button type="submit"
+                class="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-xs font-semibold text-white">
+          Mark paid
+        </button>
+      </form>
+      {% endif %}
+    </div>
+
+    {% if invoice.accepts_payments %}
+    <form method="POST"
+          action="{{ url_for('dashboard.invoice_record_payment', invoice_id=invoice.id) }}"
+          class="mt-4 grid gap-3 sm:grid-cols-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Amount</label>
+        <input type="number" name="amount" required
+               min="{{ currency_input_step(invoice.currency_code) }}"
+               step="{{ currency_input_step(invoice.currency_code) }}"
+               max="{{ invoice.balance_due }}"
+               value="{{ invoice.balance_due }}"
+               class="input-field" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment date</label>
+        <input type="date" name="payment_date" class="input-field" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Method</label>
+        <select name="method" class="input-field">
+          <option value="bank_transfer">Bank transfer</option>
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="check">Check</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Reference</label>
+        <input type="text" name="reference" maxlength="200"
+               placeholder="Transaction or check number" class="input-field" />
+      </div>
+      <div class="sm:col-span-2">
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Note</label>
+        <textarea name="note" maxlength="2000" rows="2"
+                  placeholder="Optional internal note" class="input-field"></textarea>
+      </div>
+      <div class="sm:col-span-2">
+        <button type="submit"
+                class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white">
+          Record payment
+        </button>
+      </div>
+    </form>
+    {% endif %}
+
+    {% if invoice.payments %}
+    <div class="mt-4 overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="border-b border-gray-100 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400">
+          <tr>
+            <th class="py-2 text-left font-medium">Date</th>
+            <th class="py-2 text-left font-medium">Method</th>
+            <th class="py-2 text-left font-medium">Reference</th>
+            <th class="py-2 text-right font-medium">Amount</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          {% for payment in invoice.payments %}
+          <tr>
+            <td class="py-2 text-gray-700 dark:text-gray-300">{{ payment_dates[payment.id] }}</td>
+            <td class="py-2 text-gray-500 dark:text-gray-400">{{ (payment.method or 'other') | replace('_', ' ') | title }}</td>
+            <td class="py-2 text-gray-500 dark:text-gray-400">
+              {{ payment.reference or payment.note or '—' }}
+            </td>
+            <td class="py-2 text-right font-mono font-medium text-green-700 dark:text-green-400">
+              {{ payment.amount | money(invoice.currency_code) }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
   </div>
 
   <div class="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
@@ -126,6 +266,13 @@
       Download PDF
     </a>
 
+    {% if invoice.status not in ('paid', 'void') %}
+    <a href="{{ url_for('dashboard.invoice_edit', invoice_id=invoice.id) }}"
+       class="px-4 py-2 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors">
+      Edit
+    </a>
+    {% endif %}
+
     <form method="POST" action="{{ url_for('dashboard.invoice_duplicate', invoice_id=invoice.id) }}" class="inline">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <button type="submit"
@@ -145,6 +292,18 @@
        class="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-400 dark:text-gray-500 cursor-default flex items-center gap-1">
       <span>🔒</span> Send via Email
     </a>
+    {% endif %}
+
+    {% if invoice.status not in ('void', 'paid') and invoice.amount_paid == 0 %}
+    <form method="POST" action="{{ url_for('dashboard.invoice_void', invoice_id=invoice.id) }}"
+          class="inline"
+          data-confirm="Void this invoice? It will no longer be collectible and reminders will stop.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <button type="submit"
+              class="px-4 py-2 rounded-xl border border-red-200 dark:border-red-800 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950">
+        Void
+      </button>
+    </form>
     {% endif %}
 
     <form method="POST" action="{{ url_for('dashboard.invoice_delete', invoice_id=invoice.id) }}"

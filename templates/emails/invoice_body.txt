@@ -5,7 +5,7 @@ Please find attached invoice {{ invoice.invoice_number }} from {{ sender_name }}
   Invoice #: {{ invoice.invoice_number }}
   Date:      {{ invoice.invoice_date or 'N/A' }}
   {% if invoice.due_date %}Due Date:  {{ invoice.due_date }}{% endif %}
-  Total Due: ${{ "%.2f" | format(invoice.total) }}
+  Total Due: {{ invoice.total | money(invoice.currency_code) }}
 
 {% if invoice.payment_info %}Payment information:
 {{ invoice.payment_info }}{% endif %}

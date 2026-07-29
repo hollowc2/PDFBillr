@@ -6,6 +6,15 @@
 
   try { items = JSON.parse(hiddenInput.value || '[]'); } catch(e) { items = []; }
 
+  function currencySettings() {
+    var select = document.getElementById('currency-code');
+    var option = select && select.options[select.selectedIndex];
+    return {
+      code: option ? option.value : 'USD',
+      step: option ? option.dataset.step : '0.01'
+    };
+  }
+
   function renderItems() {
     container.innerHTML = '';
     items.forEach(function(item, i) {
@@ -35,7 +44,7 @@
     input.className = classes;
     if (type === 'number') {
       input.min = '0';
-      input.step = '0.01';
+      input.step = field === 'rate' ? currencySettings().step : 'any';
     }
     return input;
   }
@@ -67,6 +76,15 @@
     sync();
     var inputs = container.querySelectorAll('input[data-f="description"]');
     if (inputs.length) inputs[inputs.length-1].focus();
+  });
+
+  document.getElementById('currency-code').addEventListener('change', function () {
+    document.getElementById('discount-currency-code').textContent =
+      currencySettings().code;
+    document.getElementById('discount-input').step = currencySettings().step;
+    container.querySelectorAll('input[data-f="rate"]').forEach(function (input) {
+      input.step = currencySettings().step;
+    });
   });
 
   renderItems();

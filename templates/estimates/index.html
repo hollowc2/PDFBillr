@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Estimates — PDFBillr{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+  <div class="mb-4 rounded-lg border px-4 py-3 text-sm {% if category == 'error' %}border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300{% else %}border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300{% endif %}">
+    {{ message }}
+  </div>
+  {% endfor %}
+{% endwith %}
+
+<div class="mb-6 flex items-center justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold">Estimates</h1>
+    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Share quotes, collect a decision, then convert accepted work into a draft invoice.</p>
+  </div>
+  <a href="{{ url_for('estimates.create') }}" class="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">New estimate</a>
+</div>
+
+{% if estimates %}
+<div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+        <tr>
+          <th class="px-4 py-3">Estimate</th>
+          <th class="px-4 py-3">Client</th>
+          <th class="px-4 py-3">Expires</th>
+          <th class="px-4 py-3">Total</th>
+          <th class="px-4 py-3">Status</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+        {% for estimate in estimates %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/60">
+          <td class="px-4 py-3 font-semibold">
+            <a class="text-blue-700 hover:underline dark:text-blue-400" href="{{ url_for('estimates.detail', estimate_id=estimate.id) }}">{{ estimate.estimate_number }}</a>
+          </td>
+          <td class="px-4 py-3">{{ estimate.to_name }}</td>
+          <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ estimate.expiry_date.isoformat() }}</td>
+          <td class="px-4 py-3 font-medium">{{ estimate.total|money(estimate.currency_code) }} <span class="text-xs text-gray-400">{{ estimate.currency_code }}</span></td>
+          <td class="px-4 py-3"><span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold capitalize dark:bg-gray-800">{{ estimate.display_status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center dark:border-gray-700 dark:bg-gray-900">
+  <p class="font-semibold">No estimates yet</p>
+  <p class="mt-1 text-sm text-gray-500">Create a quote your client can accept online.</p>
+  <a href="{{ url_for('estimates.create') }}" class="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Create your first estimate</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -148,6 +148,7 @@ def _audit_calculation_consistency(
     line_items: list[dict[str, Any]],
     tax_rate: Any,
     discount: Any,
+    currency_code: Any = "USD",
     subtotal: Any = None,
     total: Any = None,
 ) -> None:
@@ -156,6 +157,7 @@ def _audit_calculation_consistency(
             line_items,
             tax_rate=tax_rate,
             discount=discount,
+            currency_code=currency_code,
         )
     except InvoiceCalculationError:
         result.blockers[f"{table_prefix}_unrecalculable"].add(row_id)
@@ -294,6 +296,7 @@ def audit_legacy_financial_data(engine: Engine) -> FinancialDataAudit:
 
     invoice_columns = (
         Invoice.id,
+        Invoice.currency_code,
         Invoice.invoice_date,
         Invoice.due_date,
         Invoice.line_items_json,
@@ -310,6 +313,7 @@ def audit_legacy_financial_data(engine: Engine) -> FinancialDataAudit:
     )
     recurring_columns = (
         RecurringInvoice.id,
+        RecurringInvoice.currency_code,
         RecurringInvoice.line_items_json,
         RecurringInvoice.tax_rate,
         RecurringInvoice.discount,
@@ -369,6 +373,7 @@ def audit_legacy_financial_data(engine: Engine) -> FinancialDataAudit:
                     line_items=line_items,
                     tax_rate=row["tax_rate"],
                     discount=row["discount"],
+                    currency_code=row["currency_code"],
                     subtotal=row["subtotal"],
                     total=row["total"],
                 )
@@ -406,6 +411,7 @@ def audit_legacy_financial_data(engine: Engine) -> FinancialDataAudit:
                     line_items=line_items,
                     tax_rate=row["tax_rate"],
                     discount=row["discount"],
+                    currency_code=row["currency_code"],
                 )
 
     return result
