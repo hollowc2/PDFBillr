@@ -4,6 +4,23 @@
 
 PDFBillr helps freelancers and small businesses create professional invoices and estimates, manage clients, track receivables, and share documents. It is a functional application and a polished portfolio project: the goal was to demonstrate the practical work required to build, deploy, and operate a SaaS, not simply to ship a set of screens.
 
+## Product preview
+
+<p align="center">
+  <img src="docs/images/landing.png" alt="PDFBillr landing page" width="82%">
+</p>
+
+<table>
+  <tr>
+    <td width="64%"><img src="docs/images/dashboard.png" alt="PDFBillr invoice dashboard"></td>
+    <td width="36%"><img src="docs/images/invoice.png" alt="Generated PDF invoice"></td>
+  </tr>
+  <tr>
+    <td align="center">Invoice dashboard</td>
+    <td align="center">Generated PDF</td>
+  </tr>
+</table>
+
 ## What it can do
 
 - Generate polished PDF invoices in multiple currencies
@@ -25,6 +42,12 @@ Payment collection stays with the merchant: a **Pay now** button directs the rec
 | Stripe subscriptions and verified webhooks | Explicit production configuration and deployment checks |
 
 In other words: PDFBillr reflects the full SaaS lifecycle—build, secure, deploy, operate, and evolve.
+
+## Project docs
+
+- [Architecture](docs/architecture.md) — service boundaries and runtime design
+- [Deployment guide](docs/deployment.md) — environment, release, and verification steps
+- [Contributing](CONTRIBUTING.md) and [security policy](SECURITY.md) — local workflow and responsible disclosure
 
 ## Architecture
 
@@ -61,9 +84,7 @@ Open <http://127.0.0.1:8000>. Stripe and SMTP may remain as development placehol
 Run the checks with:
 
 ```bash
-.venv/bin/python -m pytest
-.venv/bin/ruff check .
-.venv/bin/ruff format --check .
+make check
 ```
 
 ## Run with Docker
