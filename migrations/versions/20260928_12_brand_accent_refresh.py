@@ -25,8 +25,7 @@ NEW_DEFAULT = "#2743A6"
 def upgrade():
     op.execute(
         sa.text(
-            "UPDATE branding_profiles SET accent_color = :new "
-            "WHERE lower(accent_color) = :old"
+            "UPDATE branding_profiles SET accent_color = :new WHERE lower(accent_color) = :old"
         ).bindparams(new=NEW_DEFAULT, old=OLD_DEFAULT)
     )
 

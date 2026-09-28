@@ -20,6 +20,7 @@ def _enable_sqlite_foreign_keys(dbapi_connection, _connection_record):
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
+
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()

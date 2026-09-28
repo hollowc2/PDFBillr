@@ -41,8 +41,7 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint(
-            "default_payment_terms_days >= 0 "
-            "AND default_payment_terms_days <= 3650",
+            "default_payment_terms_days >= 0 AND default_payment_terms_days <= 3650",
             name="ck_business_defaults_payment_terms_range",
         ),
         sa.CheckConstraint(
@@ -85,8 +84,7 @@ def upgrade():
             name="ck_clients_payment_terms_range",
         ),
         sa.CheckConstraint(
-            "default_tax_rate IS NULL "
-            "OR (default_tax_rate >= 0 AND default_tax_rate <= 100)",
+            "default_tax_rate IS NULL OR (default_tax_rate >= 0 AND default_tax_rate <= 100)",
             name="ck_clients_tax_rate_range",
         ),
         sa.ForeignKeyConstraint(

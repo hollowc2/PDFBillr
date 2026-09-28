@@ -17,12 +17,8 @@ depends_on = None
 
 def upgrade():
     with op.batch_alter_table("invoices") as batch_op:
-        batch_op.add_column(
-            sa.Column("paid_at", sa.DateTime(timezone=True), nullable=True)
-        )
-        batch_op.add_column(
-            sa.Column("voided_at", sa.DateTime(timezone=True), nullable=True)
-        )
+        batch_op.add_column(sa.Column("paid_at", sa.DateTime(timezone=True), nullable=True))
+        batch_op.add_column(sa.Column("voided_at", sa.DateTime(timezone=True), nullable=True))
 
     op.create_table(
         "invoice_payments",

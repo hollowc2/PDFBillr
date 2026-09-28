@@ -58,14 +58,10 @@ def run_migrations_online() -> None:
                 context.run_migrations()
         finally:
             if sqlite_connection is not None:
-                violations = sqlite_connection.execute(
-                    "PRAGMA foreign_key_check"
-                ).fetchall()
+                violations = sqlite_connection.execute("PRAGMA foreign_key_check").fetchall()
                 sqlite_connection.execute("PRAGMA foreign_keys=ON")
                 if violations:
-                    raise RuntimeError(
-                        "Migration produced SQLite foreign-key violations"
-                    )
+                    raise RuntimeError("Migration produced SQLite foreign-key violations")
 
 
 if context.is_offline_mode():

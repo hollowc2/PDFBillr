@@ -38,9 +38,7 @@ def test_dedicated_scheduler_has_stable_single_instance_jobs(app):
     assert scheduler._job_defaults["coalesce"] is True
 
 
-def test_reminder_mail_failure_leaves_flag_retryable(
-    app, make_user, make_invoice, monkeypatch
-):
+def test_reminder_mail_failure_leaves_flag_retryable(app, make_user, make_invoice, monkeypatch):
     user = make_user("pro@example.test", pro=True)
     invoice = make_invoice(
         user.id,
@@ -174,9 +172,7 @@ def test_partial_invoice_reminder_uses_outstanding_balance(
     )
     with app.app_context():
         stored = db.session.get(Invoice, invoice.id)
-        stored.payments.append(
-            InvoicePayment(amount=Decimal("40.00"), method="cash")
-        )
+        stored.payments.append(InvoicePayment(amount=Decimal("40.00"), method="cash"))
         db.session.commit()
 
     calls = []
@@ -190,9 +186,7 @@ def test_partial_invoice_reminder_uses_outstanding_balance(
     assert "Balance due: $60.00" in calls[0].body
 
 
-def test_partially_paid_draft_does_not_send_reminders(
-    app, make_user, make_invoice, monkeypatch
-):
+def test_partially_paid_draft_does_not_send_reminders(app, make_user, make_invoice, monkeypatch):
     user = make_user("partial-draft-pro@example.test", pro=True)
     invoice = make_invoice(
         user.id,
@@ -219,9 +213,7 @@ def test_partially_paid_draft_does_not_send_reminders(
     assert calls == []
 
 
-def test_recurring_job_skips_non_pro_owner(
-    app, make_user, make_recurring
-):
+def test_recurring_job_skips_non_pro_owner(app, make_user, make_recurring):
     user = make_user("free@example.test")
     make_recurring(user.id, next_run_date=date.today())
 
@@ -256,10 +248,13 @@ def test_recurring_occurrence_prevents_duplicate_and_retries_auto_send(
     with app.app_context():
         invoices = Invoice.query.filter_by(user_id=user.id).all()
         assert len(invoices) == 1
-        assert RecurringOccurrence.query.filter_by(
-            recurring_invoice_id=template.id,
-            scheduled_for=date.today(),
-        ).count() == 1
+        assert (
+            RecurringOccurrence.query.filter_by(
+                recurring_invoice_id=template.id,
+                scheduled_for=date.today(),
+            ).count()
+            == 1
+        )
         delivery = InvoiceDelivery.query.filter_by(
             invoice_id=invoices[0].id,
             delivery_kind="recurring_auto_send",

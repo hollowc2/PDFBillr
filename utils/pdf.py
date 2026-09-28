@@ -9,10 +9,12 @@ from flask import current_app, render_template
 from weasyprint import HTML
 from weasyprint.urls import URLFetcher
 
-_HEX_RE = _re.compile(r'^#[0-9a-fA-F]{6}$')
+_HEX_RE = _re.compile(r"^#[0-9a-fA-F]{6}$")
 
 from utils.helpers import (
-    MAX_ITEMS, MAX_LONG, MAX_SHORT,
+    MAX_ITEMS,
+    MAX_LONG,
+    MAX_SHORT,
     _truncate,
 )
 from utils.currency import normalize_currency_code
@@ -24,10 +26,10 @@ from utils.branding import DEFAULT_ACCENT_COLOR, normalize_page_size
 ALLOWED_THEMES = {"default", "minimal", "corporate", "creative"}
 
 _THEME_TEMPLATES = {
-    "default":   "invoice.html",
-    "minimal":   "invoice_minimal.html",
+    "default": "invoice.html",
+    "minimal": "invoice_minimal.html",
     "corporate": "invoice_corporate.html",
-    "creative":  "invoice_creative.html",
+    "creative": "invoice_creative.html",
 }
 
 
@@ -61,26 +63,27 @@ def build_invoice_context(form, logo_filename=None, accent_color=DEFAULT_ACCENT_
     """Parse a Flask request.form and return the full template context dict."""
     from_company = _truncate(form.get("from_company", ""), MAX_SHORT)
     from_address = _truncate(form.get("from_address", ""), MAX_LONG)
-    from_email   = _truncate(form.get("from_email", ""), MAX_SHORT)
-    from_phone   = _truncate(form.get("from_phone", ""), MAX_SHORT)
+    from_email = _truncate(form.get("from_email", ""), MAX_SHORT)
+    from_phone = _truncate(form.get("from_phone", ""), MAX_SHORT)
 
-    to_name    = _truncate(form.get("to_name", ""), MAX_SHORT)
+    to_name = _truncate(form.get("to_name", ""), MAX_SHORT)
     to_address = _truncate(form.get("to_address", ""), MAX_LONG)
-    to_email   = _truncate(form.get("to_email", ""), MAX_SHORT)
+    to_email = _truncate(form.get("to_email", ""), MAX_SHORT)
 
     from datetime import date as _date
-    invoice_number = _truncate(form.get("invoice_number", "INV-001"), MAX_SHORT)
-    invoice_date   = _truncate(form.get("invoice_date", _date.today().isoformat()), MAX_SHORT)
-    due_date       = _truncate(form.get("due_date", ""), MAX_SHORT)
 
-    notes        = _truncate(form.get("notes", ""), MAX_LONG)
+    invoice_number = _truncate(form.get("invoice_number", "INV-001"), MAX_SHORT)
+    invoice_date = _truncate(form.get("invoice_date", _date.today().isoformat()), MAX_SHORT)
+    due_date = _truncate(form.get("due_date", ""), MAX_SHORT)
+
+    notes = _truncate(form.get("notes", ""), MAX_LONG)
     payment_info = _truncate(form.get("payment_info", ""), MAX_LONG)
     payment_url = normalize_payment_url(form.get("payment_url"))
     currency_code = normalize_currency_code(form.get("currency_code"))
 
     descriptions = form.getlist("description[]")[:MAX_ITEMS]
-    qtys         = form.getlist("qty[]")[:MAX_ITEMS]
-    rates        = form.getlist("rate[]")[:MAX_ITEMS]
+    qtys = form.getlist("qty[]")[:MAX_ITEMS]
+    rates = form.getlist("rate[]")[:MAX_ITEMS]
 
     raw_items = [
         {
@@ -102,23 +105,23 @@ def build_invoice_context(form, logo_filename=None, accent_color=DEFAULT_ACCENT_
 
     return {
         "invoice_number": invoice_number,
-        "invoice_date":   invoice_date,
-        "due_date":       due_date,
-        "from_company":   from_company,
-        "from_address":   from_address,
-        "from_email":     from_email,
-        "from_phone":     from_phone,
-        "to_name":        to_name,
-        "to_address":     to_address,
-        "to_email":       to_email,
-        "currency_code":  currency_code,
-        "page_size":      normalize_page_size(form.get("page_size")),
+        "invoice_date": invoice_date,
+        "due_date": due_date,
+        "from_company": from_company,
+        "from_address": from_address,
+        "from_email": from_email,
+        "from_phone": from_phone,
+        "to_name": to_name,
+        "to_address": to_address,
+        "to_email": to_email,
+        "currency_code": currency_code,
+        "page_size": normalize_page_size(form.get("page_size")),
         **financials,
-        "notes":          notes,
-        "payment_info":   payment_info,
-        "payment_url":    payment_url,
-        "logo_url":       logo_url,
-        "accent_color":   accent_color,
+        "notes": notes,
+        "payment_info": payment_info,
+        "payment_url": payment_url,
+        "logo_url": logo_url,
+        "accent_color": accent_color,
     }
 
 
@@ -131,7 +134,7 @@ def context_from_invoice(invoice) -> dict:
         invoice.tax_rate,
         currency_code=currency_code,
     )
-    logo_url   = _logo_data_uri(invoice.logo_filename) if invoice.logo_filename else None
+    logo_url = _logo_data_uri(invoice.logo_filename) if invoice.logo_filename else None
 
     # Pull branding profile fields if available
     accent_color = DEFAULT_ACCENT_COLOR
@@ -143,29 +146,29 @@ def context_from_invoice(invoice) -> dict:
 
     return {
         "invoice_number": invoice.invoice_number,
-        "invoice_date":   invoice.invoice_date,
-        "due_date":       invoice.due_date,
-        "from_company":   invoice.from_company,
-        "from_address":   invoice.from_address,
-        "from_email":     invoice.from_email,
-        "from_phone":     invoice.from_phone,
-        "to_name":        invoice.to_name,
-        "to_address":     invoice.to_address,
-        "to_email":       invoice.to_email,
-        "currency_code":  currency_code,
-        "page_size":      normalize_page_size(invoice.page_size),
-        "line_items":     line_items,
-        "tax_rate":       invoice.tax_rate,
-        "tax_amount":     tax_amount,
-        "discount":       invoice.discount,
-        "subtotal":       invoice.subtotal,
-        "total":          invoice.total,
-        "notes":          invoice.notes,
-        "payment_info":   invoice.payment_info,
-        "payment_url":    invoice.payment_url,
-        "logo_url":       logo_url,
-        "accent_color":   accent_color,
-        "remove_footer":  remove_footer,
+        "invoice_date": invoice.invoice_date,
+        "due_date": invoice.due_date,
+        "from_company": invoice.from_company,
+        "from_address": invoice.from_address,
+        "from_email": invoice.from_email,
+        "from_phone": invoice.from_phone,
+        "to_name": invoice.to_name,
+        "to_address": invoice.to_address,
+        "to_email": invoice.to_email,
+        "currency_code": currency_code,
+        "page_size": normalize_page_size(invoice.page_size),
+        "line_items": line_items,
+        "tax_rate": invoice.tax_rate,
+        "tax_amount": tax_amount,
+        "discount": invoice.discount,
+        "subtotal": invoice.subtotal,
+        "total": invoice.total,
+        "notes": invoice.notes,
+        "payment_info": invoice.payment_info,
+        "payment_url": invoice.payment_url,
+        "logo_url": logo_url,
+        "accent_color": accent_color,
+        "remove_footer": remove_footer,
     }
 
 

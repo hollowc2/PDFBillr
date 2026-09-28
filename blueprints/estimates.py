@@ -275,9 +275,7 @@ def convert(estimate_id: int):
         raise
 
     flash(f"Draft invoice {invoice.invoice_number} created.", "success")
-    return redirect(
-        url_for("dashboard.invoice_detail", invoice_id=invoice.id)
-    )
+    return redirect(url_for("dashboard.invoice_detail", invoice_id=invoice.id))
 
 
 @bp.route("/view/<token>")
@@ -579,11 +577,7 @@ def _render_form(estimate: Estimate | None, form_data):
         estimate=estimate,
         form_data=form_data,
         form_items=form_items,
-        clients=(
-            Client.query.filter_by(user_id=current_user.id)
-            .order_by(Client.name.asc())
-            .all()
-        ),
+        clients=(Client.query.filter_by(user_id=current_user.id).order_by(Client.name.asc()).all()),
         services=(
             ServiceItem.query.filter_by(user_id=current_user.id)
             .order_by(ServiceItem.name.asc())

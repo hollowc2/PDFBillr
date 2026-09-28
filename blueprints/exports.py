@@ -87,9 +87,7 @@ def _number(value: object | None) -> str:
 
 def _financial_value(invoice: Invoice, decimal_name: str, legacy_name: str) -> str:
     decimal_value = getattr(invoice, decimal_name, None)
-    return _number(
-        decimal_value if decimal_value is not None else getattr(invoice, legacy_name)
-    )
+    return _number(decimal_value if decimal_value is not None else getattr(invoice, legacy_name))
 
 
 def _timestamp(value: object | None) -> str:

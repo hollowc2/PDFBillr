@@ -22,9 +22,7 @@ def _validate_config(app: Flask) -> None:
     environment = str(app.config.get("APP_ENV", "development")).lower()
     secret = app.config.get("SECRET_KEY")
     insecure_secret = (
-        not isinstance(secret, str)
-        or len(secret) < 32
-        or secret == _INSECURE_DEFAULT_SECRET
+        not isinstance(secret, str) or len(secret) < 32 or secret == _INSECURE_DEFAULT_SECRET
     )
 
     if insecure_secret:
@@ -36,7 +34,12 @@ def _validate_config(app: Flask) -> None:
     public_base_url = app.config.get("PUBLIC_BASE_URL", "")
     if public_base_url:
         parsed = urlsplit(public_base_url)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.query or parsed.fragment:
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.netloc
+            or parsed.query
+            or parsed.fragment
+        ):
             raise RuntimeError(
                 "PUBLIC_BASE_URL must be an absolute http(s) URL without a query or fragment."
             )
@@ -56,13 +59,9 @@ def _validate_config(app: Flask) -> None:
     if environment == "production" and any(stripe_values.values()):
         missing = [name for name, value in stripe_values.items() if not value]
         if missing:
-            raise RuntimeError(
-                "Partial Stripe configuration; missing " + ", ".join(missing)
-            )
+            raise RuntimeError("Partial Stripe configuration; missing " + ", ".join(missing))
 
-    limiter_storage = str(
-        app.config.get("RATELIMIT_STORAGE_URI", "memory://")
-    ).strip().lower()
+    limiter_storage = str(app.config.get("RATELIMIT_STORAGE_URI", "memory://")).strip().lower()
     web_concurrency = int(app.config.get("WEB_CONCURRENCY", 1))
     if limiter_storage.startswith("memory://") and (
         environment == "production" or web_concurrency > 1
@@ -79,7 +78,10 @@ def create_app(config_class: type = Config) -> Flask:
     _validate_config(app)
 
     if not app.config.get("STRIPE_WEBHOOK_SECRET"):
-        warnings.warn("STRIPE_WEBHOOK_SECRET env var not set. Webhook signature verification will fail.", stacklevel=1)
+        warnings.warn(
+            "STRIPE_WEBHOOK_SECRET env var not set. Webhook signature verification will fail.",
+            stacklevel=1,
+        )
 
     # Only trust forwarded headers when the deployment explicitly opts in and
     # prevents direct client access to this process.
@@ -105,6 +107,7 @@ def create_app(config_class: type = Config) -> Flask:
 
     # Set Stripe API key once at startup
     import stripe as _stripe_module
+
     _stripe_module.api_key = app.config.get("STRIPE_SECRET_KEY", "")
 
     # Blueprints
@@ -239,28 +242,21 @@ def create_app(config_class: type = Config) -> Flask:
             "camera=(), microphone=(), geolocation=(), payment=()"
         )
         if app.config.get("ENABLE_HSTS"):
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         endpoint = request.endpoint or ""
         if response.status_code >= 400 or (
             current_user.is_authenticated
-            or endpoint.startswith(
-                ("auth.", "dashboard.", "billing.", "clients.", "estimates.")
-            )
+            or endpoint.startswith(("auth.", "dashboard.", "billing.", "clients.", "estimates."))
             or endpoint == "public.invoice_view"
         ):
             response.headers["Cache-Control"] = "no-store, private"
 
         started_ns = getattr(g, "request_started_ns", None)
         duration_ms = (
-            (time.monotonic_ns() - started_ns) / 1_000_000
-            if started_ns is not None
-            else 0.0
+            (time.monotonic_ns() - started_ns) / 1_000_000 if started_ns is not None else 0.0
         )
         app.logger.info(
-            "request_complete request_id=%s method=%s endpoint=%s "
-            "status=%s duration_ms=%.2f",
+            "request_complete request_id=%s method=%s endpoint=%s status=%s duration_ms=%.2f",
             request_id,
             request.method,
             endpoint or "unmatched",

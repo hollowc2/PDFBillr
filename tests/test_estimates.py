@@ -372,9 +372,7 @@ def test_only_accepted_estimate_converts_and_conversion_is_idempotent(
 
     again = client.post(f"/estimates/{estimate_id}/convert")
     assert again.status_code == 302
-    assert again.headers["Location"].endswith(
-        f"/dashboard/invoice/{converted_invoice_id}"
-    )
+    assert again.headers["Location"].endswith(f"/dashboard/invoice/{converted_invoice_id}")
     with app.app_context():
         assert Invoice.query.filter_by(user_id=owner.id).count() == 2
 

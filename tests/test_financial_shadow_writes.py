@@ -65,11 +65,7 @@ def test_invoice_duplicate_populates_shadows_consistently(
 
     assert response.status_code == 302
     with app.app_context():
-        invoices = (
-            Invoice.query.filter_by(user_id=user.id)
-            .order_by(Invoice.id)
-            .all()
-        )
+        invoices = Invoice.query.filter_by(user_id=user.id).order_by(Invoice.id).all()
         assert len(invoices) == 2
         original, duplicate = invoices
         assert duplicate.invoice_date == original.invoice_date
@@ -96,9 +92,7 @@ def test_invoice_duplicate_rejects_out_of_range_legacy_financials(
     response = client.post(f"/dashboard/invoice/{original.id}/duplicate")
 
     assert response.status_code == 302
-    assert response.headers["Location"].endswith(
-        f"/dashboard/invoice/{original.id}"
-    )
+    assert response.headers["Location"].endswith(f"/dashboard/invoice/{original.id}")
     with app.app_context():
         assert Invoice.query.filter_by(user_id=user.id).count() == 1
 

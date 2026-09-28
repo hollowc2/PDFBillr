@@ -2,8 +2,14 @@ from datetime import datetime, timedelta, timezone
 
 import stripe
 from flask import (
-    Blueprint, current_app, flash, jsonify, redirect,
-    render_template, request, url_for,
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
 )
 from flask_login import current_user, login_required
 
@@ -29,6 +35,7 @@ bp = Blueprint("billing", __name__, url_prefix="/billing")
 # Upgrade page (public — shown to any non-Pro user)
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/upgrade")
 def upgrade():
     return render_template("billing/upgrade.html")
@@ -37,6 +44,7 @@ def upgrade():
 # ---------------------------------------------------------------------------
 # Create Stripe Checkout Session
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/create-checkout-session", methods=["POST"])
 @login_required
@@ -55,10 +63,7 @@ def create_checkout_session():
             "mode": "subscription",
             "line_items": [{"price": price_id, "quantity": 1}],
             "client_reference_id": str(current_user.id),
-            "success_url": (
-                external_url("billing.success")
-                + "?session_id={CHECKOUT_SESSION_ID}"
-            ),
+            "success_url": (external_url("billing.success") + "?session_id={CHECKOUT_SESSION_ID}"),
             "cancel_url": external_url("billing.upgrade"),
         }
         if current_user.stripe_customer_id:
@@ -80,6 +85,7 @@ def create_checkout_session():
 # Post-checkout success landing
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/success")
 @login_required
 def success():
@@ -90,6 +96,7 @@ def success():
 # ---------------------------------------------------------------------------
 # Stripe Customer Portal
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/portal")
 @login_required
@@ -113,12 +120,13 @@ def portal():
 # Webhook — no @login_required, verified via Stripe signature
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/webhook", methods=["POST"])
 @csrf.exempt
 def webhook():
-    payload    = request.get_data()
+    payload = request.get_data()
     sig_header = request.headers.get("Stripe-Signature", "")
-    secret     = current_app.config["STRIPE_WEBHOOK_SECRET"]
+    secret = current_app.config["STRIPE_WEBHOOK_SECRET"]
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, secret)
@@ -167,9 +175,7 @@ def webhook():
         # A concurrent duplicate may have won the primary-key race.
         if db.session.get(ProcessedStripeEvent, event_id):
             return jsonify({"received": True}), 200
-        current_app.logger.exception(
-            "Stripe event idempotency conflict for event %s", event_id
-        )
+        current_app.logger.exception("Stripe event idempotency conflict for event %s", event_id)
         return jsonify({"error": "temporary failure"}), 500
     except (SQLAlchemyError, stripe.StripeError, KeyError, TypeError, ValueError):
         db.session.rollback()
@@ -189,6 +195,7 @@ def webhook():
 # ---------------------------------------------------------------------------
 # Webhook handlers
 # ---------------------------------------------------------------------------
+
 
 def _process_event(event_type, data, *, event_created):
     if event_type == "checkout.session.completed":
@@ -275,9 +282,7 @@ def _handle_subscription_updated(sub_obj, *, event_created):
             user.subscription.status = status
             user.subscription.stripe_price_id = price_id
             _record_event_time(user.subscription, event_created)
-        current_app.logger.warning(
-            "Subscription %s uses an unconfigured price", sub_id
-        )
+        current_app.logger.warning("Subscription %s uses an unconfigured price", sub_id)
         return None
 
     _upsert_subscription(
@@ -363,6 +368,7 @@ def _handle_invoice_paid(invoice_obj, *, event_created):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _period_end_from_sub(sub_obj) -> int | None:
     """Extract current_period_end from a Stripe subscription object.
 
@@ -395,11 +401,7 @@ def _invoice_subscription_id(invoice_obj) -> str | None:
     direct = invoice_obj.get("subscription")
     if direct:
         return direct
-    return (
-        invoice_obj.get("parent", {})
-        .get("subscription_details", {})
-        .get("subscription")
-    )
+    return invoice_obj.get("parent", {}).get("subscription_details", {}).get("subscription")
 
 
 def _is_configured_price(price_id: str | None) -> bool:
@@ -429,9 +431,9 @@ def _record_event_time(sub: Subscription, event_created: int) -> None:
 
 
 _BILLING_EMAIL_SUBJECTS = {
-    "emails/payment_confirmed.txt":      "Your PDFBillr Pro subscription is active",
-    "emails/payment_failed.txt":         "Action required: PDFBillr payment failed",
-    "emails/subscription_canceled.txt":  "Your PDFBillr Pro subscription has ended",
+    "emails/payment_confirmed.txt": "Your PDFBillr Pro subscription is active",
+    "emails/payment_failed.txt": "Action required: PDFBillr payment failed",
+    "emails/subscription_canceled.txt": "Your PDFBillr Pro subscription has ended",
 }
 _NOTIFICATION_LEASE = timedelta(minutes=15)
 
@@ -459,9 +461,7 @@ def _dispatch_billing_notifications(
     )
     query = BillingNotificationDelivery.query.filter(eligible)
     if stripe_event_id is not None:
-        query = query.filter(
-            BillingNotificationDelivery.stripe_event_id == stripe_event_id
-        )
+        query = query.filter(BillingNotificationDelivery.stripe_event_id == stripe_event_id)
     delivery_ids = [
         row.id
         for row in (
@@ -476,22 +476,19 @@ def _dispatch_billing_notifications(
 
     sent_count = 0
     for delivery_id in delivery_ids:
-        claimed = (
-            BillingNotificationDelivery.query.filter(
-                BillingNotificationDelivery.id == delivery_id,
-                eligible,
-            )
-            .update(
-                {
-                    BillingNotificationDelivery.status: "sending",
-                    BillingNotificationDelivery.attempt_count: (
-                        BillingNotificationDelivery.attempt_count + 1
-                    ),
-                    BillingNotificationDelivery.last_attempt_at: now,
-                    BillingNotificationDelivery.updated_at: now,
-                },
-                synchronize_session=False,
-            )
+        claimed = BillingNotificationDelivery.query.filter(
+            BillingNotificationDelivery.id == delivery_id,
+            eligible,
+        ).update(
+            {
+                BillingNotificationDelivery.status: "sending",
+                BillingNotificationDelivery.attempt_count: (
+                    BillingNotificationDelivery.attempt_count + 1
+                ),
+                BillingNotificationDelivery.last_attempt_at: now,
+                BillingNotificationDelivery.updated_at: now,
+            },
+            synchronize_session=False,
         )
         db.session.commit()
         if claimed != 1:
@@ -562,10 +559,10 @@ def _upsert_subscription(
         sub = Subscription(user_id=user.id, plan="pro")
         db.session.add(sub)
 
-    sub.plan           = "pro"
-    sub.stripe_sub_id  = stripe_sub_id
-    sub.status         = status
-    sub.updated_at     = datetime.now(timezone.utc)
+    sub.plan = "pro"
+    sub.stripe_sub_id = stripe_sub_id
+    sub.status = status
+    sub.updated_at = datetime.now(timezone.utc)
     if price_id:
         sub.stripe_price_id = price_id
     if period_end is not None:

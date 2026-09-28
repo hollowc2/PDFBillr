@@ -142,9 +142,7 @@ def upgrade_known_legacy_columns(db_obj) -> None:
 
     existing = {column["name"] for column in inspector.get_columns("invoices")}
     dialect = db_obj.engine.dialect.name
-    timestamp_type = (
-        "TIMESTAMP WITH TIME ZONE" if dialect == "postgresql" else "DATETIME"
-    )
+    timestamp_type = "TIMESTAMP WITH TIME ZONE" if dialect == "postgresql" else "DATETIME"
     bool_default = "FALSE" if dialect == "postgresql" else "0"
     invoice_columns = {
         "view_token": "VARCHAR(64)",
@@ -159,28 +157,22 @@ def upgrade_known_legacy_columns(db_obj) -> None:
         for column, column_type in invoice_columns.items():
             if column not in existing:
                 connection.execute(
-                    db_obj.text(
-                        f"ALTER TABLE invoices ADD COLUMN {column} {column_type}"
-                    )
+                    db_obj.text(f"ALTER TABLE invoices ADD COLUMN {column} {column_type}")
                 )
         connection.execute(
             db_obj.text(
-                "CREATE UNIQUE INDEX IF NOT EXISTS ix_invoices_view_token "
-                "ON invoices (view_token)"
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_invoices_view_token ON invoices (view_token)"
             )
         )
 
     inspector = inspect(db_obj.engine)
     if "subscriptions" in inspector.get_table_names():
-        subscription_columns = {
-            column["name"] for column in inspector.get_columns("subscriptions")
-        }
+        subscription_columns = {column["name"] for column in inspector.get_columns("subscriptions")}
         if "last_stripe_event_created" not in subscription_columns:
             with db_obj.engine.begin() as connection:
                 connection.execute(
                     db_obj.text(
-                        "ALTER TABLE subscriptions "
-                        "ADD COLUMN last_stripe_event_created BIGINT"
+                        "ALTER TABLE subscriptions ADD COLUMN last_stripe_event_created BIGINT"
                     )
                 )
 
@@ -195,14 +187,10 @@ def validate_legacy_baseline(db_obj) -> None:
         if table_name not in table_names:
             problems.append(f"missing table {table_name}")
             continue
-        actual_columns = {
-            column["name"] for column in inspector.get_columns(table_name)
-        }
+        actual_columns = {column["name"] for column in inspector.get_columns(table_name)}
         missing_columns = sorted(required_columns - actual_columns)
         if missing_columns:
-            problems.append(
-                f"{table_name} missing columns: {', '.join(missing_columns)}"
-            )
+            problems.append(f"{table_name} missing columns: {', '.join(missing_columns)}")
 
     if problems:
         detail = "; ".join(problems)

@@ -68,9 +68,7 @@ def normalize_payment_url(raw) -> str | None:
         try:
             ascii_host = host.encode("idna").decode("ascii")
         except UnicodeError:
-            raise PaymentURLValidationError(
-                "Payment link must include a valid host."
-            ) from None
+            raise PaymentURLValidationError("Payment link must include a valid host.") from None
         labels = ascii_host.split(".")
         if (
             len(ascii_host) > 253
@@ -82,8 +80,6 @@ def normalize_payment_url(raw) -> str | None:
             ) from None
     else:
         if not address.is_global:
-            raise PaymentURLValidationError(
-                "Payment link must use a public host."
-            )
+            raise PaymentURLValidationError("Payment link must use a public host.")
 
     return value

@@ -28,7 +28,14 @@ def _rendered_points(context: dict, theme: str) -> tuple[int, int]:
 
 @pytest.mark.parametrize(
     ("raw", "expected"),
-    [("letter", "Letter"), (" LETTER ", "Letter"), ("A4", "A4"), ("", "A4"), ("legal", "A4"), (None, "A4")],
+    [
+        ("letter", "Letter"),
+        (" LETTER ", "Letter"),
+        ("A4", "A4"),
+        ("", "A4"),
+        ("legal", "A4"),
+        (None, "A4"),
+    ],
 )
 def test_page_size_input_is_normalized(raw, expected):
     assert normalize_page_size(raw) == expected
@@ -38,8 +45,13 @@ def test_page_size_input_is_normalized(raw, expected):
 @pytest.mark.parametrize("page_size", ["A4", "Letter"])
 def test_every_template_renders_the_requested_paper_size(app, theme, page_size):
     form = MultiDict(
-        [("invoice_number", "P-1"), ("description[]", "Work"), ("qty[]", "1"), ("rate[]", "10"),
-         ("page_size", page_size)]
+        [
+            ("invoice_number", "P-1"),
+            ("description[]", "Work"),
+            ("qty[]", "1"),
+            ("rate[]", "10"),
+            ("page_size", page_size),
+        ]
     )
     with app.app_context(), app.test_request_context():
         assert _rendered_points(build_invoice_context(form), theme) == _POINTS[page_size]
@@ -53,19 +65,31 @@ def test_account_default_prefills_new_invoices_and_saved_invoices_keep_their_siz
 
     saved = client.post(
         "/clients/defaults",
-        data={"default_tax_rate": "0", "default_payment_terms_days": "30", "default_page_size": "Letter"},
+        data={
+            "default_tax_rate": "0",
+            "default_payment_terms_days": "30",
+            "default_page_size": "Letter",
+        },
     )
     assert saved.status_code == 302
     with app.app_context():
-        assert db.session.query(BusinessDefaults).filter_by(user_id=owner.id).one().default_page_size == "Letter"
+        assert (
+            db.session.query(BusinessDefaults).filter_by(user_id=owner.id).one().default_page_size
+            == "Letter"
+        )
 
     form_page = client.get("/app").data.decode()
     assert re.search(r'<option value="Letter"\s+selected', form_page)
 
     client.post(
         "/dashboard/save-draft",
-        data={"invoice_number": "LTR-1", "description[]": "Work", "qty[]": "1", "rate[]": "10",
-              "page_size": "Letter"},
+        data={
+            "invoice_number": "LTR-1",
+            "description[]": "Work",
+            "qty[]": "1",
+            "rate[]": "10",
+            "page_size": "Letter",
+        },
     )
     with app.app_context():
         invoice = Invoice.query.filter_by(invoice_number="LTR-1").one()
@@ -80,7 +104,8 @@ def test_account_default_prefills_new_invoices_and_saved_invoices_keep_their_siz
     rendered = {}
     monkeypatch.setattr(
         "blueprints.dashboard.render_pdf",
-        lambda context, **_kwargs: rendered.setdefault("page_size", context["page_size"]) and b"%PDF-test",
+        lambda context, **_kwargs: rendered.setdefault("page_size", context["page_size"])
+        and b"%PDF-test",
     )
     assert client.get(f"/dashboard/invoice/{invoice_id}/download").status_code == 200
     assert rendered["page_size"] == "Letter"
@@ -153,15 +178,22 @@ def test_page_size_migration_is_additive_and_reversible(tmp_path):
             )
         )
         db.session.execute(
-            text("INSERT INTO invoices (id, user_id, invoice_number, currency_code) VALUES (1, 1, 'OLD', 'USD')")
+            text(
+                "INSERT INTO invoices (id, user_id, invoice_number, currency_code) VALUES (1, 1, 'OLD', 'USD')"
+            )
         )
         db.session.commit()
 
     upgraded = runner.invoke(args=["db", "upgrade", "20260928_13"])
     assert upgraded.exit_code == 0, upgraded.output
     with application.app_context():
-        assert db.session.execute(text("SELECT page_size FROM invoices WHERE id = 1")).scalar_one() == "A4"
-        assert "default_page_size" in {c["name"] for c in inspect(db.engine).get_columns("business_defaults")}
+        assert (
+            db.session.execute(text("SELECT page_size FROM invoices WHERE id = 1")).scalar_one()
+            == "A4"
+        )
+        assert "default_page_size" in {
+            c["name"] for c in inspect(db.engine).get_columns("business_defaults")
+        }
 
     downgraded = runner.invoke(args=["db", "downgrade", "20260928_12"])
     assert downgraded.exit_code == 0, downgraded.output

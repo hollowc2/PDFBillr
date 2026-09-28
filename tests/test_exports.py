@@ -29,7 +29,7 @@ def test_invoice_export_is_owner_scoped_and_spreadsheet_safe(
         invoice_number="+SUM(1,1)",
         invoice_date="2026-07-28",
         due_date="2026-08-28",
-        to_name="  =HYPERLINK(\"https://example.test\")",
+        to_name='  =HYPERLINK("https://example.test")',
         to_email="\t=cmd",
         from_company="@malicious",
         total=42.5,
@@ -121,9 +121,7 @@ def test_invoice_export_combines_search_status_and_date_filters(
         {"status": "=sent"},
     ),
 )
-def test_invoice_export_rejects_invalid_filters(
-    client, make_user, login, query_string
-):
+def test_invoice_export_rejects_invalid_filters(client, make_user, login, query_string):
     owner = make_user("owner@example.test")
     login(owner.email)
 
@@ -132,9 +130,7 @@ def test_invoice_export_rejects_invalid_filters(
     assert response.status_code == 400
 
 
-def test_dashboard_exposes_export_to_free_accounts(
-    client, make_user, login
-):
+def test_dashboard_exposes_export_to_free_accounts(client, make_user, login):
     owner = make_user("owner@example.test")
     login(owner.email)
 

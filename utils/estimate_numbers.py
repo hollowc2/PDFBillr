@@ -31,9 +31,7 @@ def next_available_estimate_number(user_id: int, preferred: str = "EST-001") -> 
     sequence = 2
     while True:
         suffix = f"-{sequence}"
-        candidate = (
-            f"{normalized[: MAX_ESTIMATE_NUMBER_LENGTH - len(suffix)]}{suffix}"
-        )
+        candidate = f"{normalized[: MAX_ESTIMATE_NUMBER_LENGTH - len(suffix)]}{suffix}"
         if not estimate_number_exists(user_id, candidate):
             return candidate
         sequence += 1

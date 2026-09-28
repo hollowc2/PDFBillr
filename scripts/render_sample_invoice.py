@@ -77,8 +77,21 @@ def main() -> int:
         pdf_path.write_bytes(pdf)
         prefix = Path(tmp) / "page"
         subprocess.run(
-            ["pdftoppm", "-png", "-r", str(DPI), "-f", "1", "-l", "1",
-             "-H", str(CROP_HEIGHT), "-singlefile", str(pdf_path), str(prefix)],
+            [
+                "pdftoppm",
+                "-png",
+                "-r",
+                str(DPI),
+                "-f",
+                "1",
+                "-l",
+                "1",
+                "-H",
+                str(CROP_HEIGHT),
+                "-singlefile",
+                str(pdf_path),
+                str(prefix),
+            ],
             check=True,
         )
         for output in OUTPUTS:

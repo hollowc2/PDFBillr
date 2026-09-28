@@ -47,13 +47,11 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint(
-            "before_due_days IS NULL "
-            "OR (before_due_days >= 1 AND before_due_days <= 30)",
+            "before_due_days IS NULL OR (before_due_days >= 1 AND before_due_days <= 30)",
             name="ck_reminder_preferences_before_due_days",
         ),
         sa.CheckConstraint(
-            "overdue_days IS NULL "
-            "OR (overdue_days >= 1 AND overdue_days <= 90)",
+            "overdue_days IS NULL OR (overdue_days >= 1 AND overdue_days <= 90)",
             name="ck_reminder_preferences_overdue_days",
         ),
         sa.ForeignKeyConstraint(

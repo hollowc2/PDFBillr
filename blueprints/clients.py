@@ -38,15 +38,9 @@ _MAX_QUANTITY = Decimal("99999999999999.9999")
 @bp.route("/")
 @login_required
 def index():
-    clients = (
-        Client.query.filter_by(user_id=current_user.id)
-        .order_by(Client.name.asc())
-        .all()
-    )
+    clients = Client.query.filter_by(user_id=current_user.id).order_by(Client.name.asc()).all()
     services = (
-        ServiceItem.query.filter_by(user_id=current_user.id)
-        .order_by(ServiceItem.name.asc())
-        .all()
+        ServiceItem.query.filter_by(user_id=current_user.id).order_by(ServiceItem.name.asc()).all()
     )
     return render_template(
         "clients/index.html",
@@ -194,15 +188,9 @@ def invoice_form_context(
     if not current_user.is_authenticated:
         return context
 
-    clients = (
-        Client.query.filter_by(user_id=current_user.id)
-        .order_by(Client.name.asc())
-        .all()
-    )
+    clients = Client.query.filter_by(user_id=current_user.id).order_by(Client.name.asc()).all()
     services = (
-        ServiceItem.query.filter_by(user_id=current_user.id)
-        .order_by(ServiceItem.name.asc())
-        .all()
+        ServiceItem.query.filter_by(user_id=current_user.id).order_by(ServiceItem.name.asc()).all()
     )
     defaults_record = current_user.business_defaults
 
@@ -229,9 +217,7 @@ def invoice_form_context(
                 }
             )
         terms_days = (
-            defaults_record.default_payment_terms_days
-            if defaults_record is not None
-            else 30
+            defaults_record.default_payment_terms_days if defaults_record is not None else 30
         )
         if selected_client is not None:
             initial.update(
@@ -243,9 +229,7 @@ def invoice_form_context(
                 }
             )
             if selected_client.default_tax_rate is not None:
-                initial["tax_rate"] = _decimal_text(
-                    selected_client.default_tax_rate
-                )
+                initial["tax_rate"] = _decimal_text(selected_client.default_tax_rate)
             if selected_client.default_payment_terms_days is not None:
                 terms_days = selected_client.default_payment_terms_days
         initial["invoice_date"] = today.isoformat()
@@ -259,22 +243,16 @@ def invoice_form_context(
             initial.add("rate[]", _decimal_text(selected_service.default_rate))
         form_data = initial
 
-    default_tax_rate = (
-        defaults_record.default_tax_rate if defaults_record is not None else 0
-    )
+    default_tax_rate = defaults_record.default_tax_rate if defaults_record is not None else 0
     default_terms = (
-        defaults_record.default_payment_terms_days
-        if defaults_record is not None
-        else 30
+        defaults_record.default_payment_terms_days if defaults_record is not None else 30
     )
     context.update(
         {
             "form_data": form_data,
             "clients": clients,
             "service_items": services,
-            "selected_client_id": (
-                selected_client.id if selected_client is not None else None
-            ),
+            "selected_client_id": (selected_client.id if selected_client is not None else None),
             "catalog_data": {
                 "clients": [
                     _client_payload(
@@ -471,9 +449,7 @@ def _business_default_values(form) -> tuple[dict | None, str | None]:
         values[target] = value or None
 
     try:
-        values["default_payment_url"] = normalize_payment_url(
-            form.get("default_payment_url")
-        )
+        values["default_payment_url"] = normalize_payment_url(form.get("default_payment_url"))
     except PaymentURLValidationError as exc:
         return None, str(exc)
 
@@ -546,11 +522,7 @@ def _client_payload(
     fallback_tax_rate=0,
     fallback_terms_days=30,
 ) -> dict:
-    tax_rate = (
-        client.default_tax_rate
-        if client.default_tax_rate is not None
-        else fallback_tax_rate
-    )
+    tax_rate = client.default_tax_rate if client.default_tax_rate is not None else fallback_tax_rate
     terms_days = (
         client.default_payment_terms_days
         if client.default_payment_terms_days is not None
