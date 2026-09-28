@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Business Defaults — PDFBillr{% endblock %}
+{% block title %}Business defaults — PDFBillr{% endblock %}
 
 {% block content %}
 {% set source = request.form if request.method == 'POST' else none %}
 <div class="max-w-3xl mx-auto">
   <div class="mb-6">
-    <a href="{{ url_for('clients.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">← Clients &amp; services</a>
-    <h1 class="mt-3 text-3xl font-bold">Business Defaults</h1>
+    <a href="{{ url_for('clients.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">← Clients and services</a>
+    <h1 class="mt-3 text-3xl font-bold">Business defaults</h1>
     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">New invoices start with these values. Existing invoices never change.</p>
   </div>
 
@@ -20,7 +20,7 @@
   <form method="POST" class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 space-y-5">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
     <div>
-      <label class="block text-sm font-medium mb-1" for="from_company">Company / your name</label>
+      <label class="block text-sm font-medium mb-1" for="from_company">Your name or business</label>
       <input id="from_company" name="from_company" maxlength="200" class="input-field"
              value="{{ source.get('from_company', '') if source else (defaults.from_company if defaults and defaults.from_company else '') }}" />
     </div>
@@ -57,7 +57,7 @@
       <textarea id="default_notes" name="default_notes" rows="3" maxlength="5000" class="input-field resize-none">{{ source.get('default_notes', '') if source else (defaults.default_notes if defaults and defaults.default_notes else '') }}</textarea>
     </div>
     <div>
-      <label class="block text-sm font-medium mb-1" for="default_payment_info">Default payment info</label>
+      <label class="block text-sm font-medium mb-1" for="default_payment_info">Default payment details</label>
       <textarea id="default_payment_info" name="default_payment_info" rows="3" maxlength="5000" class="input-field resize-none">{{ source.get('default_payment_info', '') if source else (defaults.default_payment_info if defaults and defaults.default_payment_info else '') }}</textarea>
     </div>
     <div>
@@ -66,7 +66,7 @@
              maxlength="2048" autocomplete="url" class="input-field"
              placeholder="https://pay.example.com/your-account"
              value="{{ source.get('default_payment_url', '') if source else (defaults.default_payment_url if defaults and defaults.default_payment_url else '') }}" />
-      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional HTTPS checkout or payment page. It is copied to each new invoice and can be changed before sending.</p>
+      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Adds a Pay now button to each new invoice. You can change it before sending. Must start with https://.</p>
     </div>
     <div class="flex justify-end gap-3 pt-2">
       <a href="{{ url_for('clients.index') }}" class="px-5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-semibold">Cancel</a>

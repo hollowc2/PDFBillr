@@ -82,7 +82,7 @@ def create_checkout_session():
 @bp.route("/success")
 @login_required
 def success():
-    flash("Payment received! Your Pro subscription will be active within a few seconds.", "success")
+    flash("Payment received. Pro will be active on your account within a few seconds.", "success")
     return redirect(url_for("dashboard.index"))
 
 

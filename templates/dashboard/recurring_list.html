@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}PDFBillr — Recurring Invoices{% endblock %}
+{% block title %}Recurring invoices — PDFBillr{% endblock %}
 
 {% block content %}
 <div class="flex items-center justify-between mb-6">
   <div>
-    <a href="{{ url_for('dashboard.index') }}" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">← My Invoices</a>
-    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mt-1">Recurring Invoices</h1>
+    <a href="{{ url_for('dashboard.index') }}" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">← Invoices</a>
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mt-1">Recurring invoices</h1>
   </div>
   <a href="{{ url_for('dashboard.recurring_new') }}"
      class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm">
-    + New Recurring
+    New recurring invoice
   </a>
 </div>
 
@@ -101,7 +101,7 @@
   <a href="{{ url_for('dashboard.recurring_new') }}"
      class="inline-block rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors"
      style="padding: 0.625rem 3rem;">
-    Create your first recurring invoice →
+    Create a recurring invoice
   </a>
 </div>
 {% endif %}

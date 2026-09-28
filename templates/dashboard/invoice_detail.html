@@ -1,11 +1,12 @@
 {% extends "base.html" %}
-{% block title %}PDFBillr — Invoice {{ invoice.invoice_number }}{% endblock %}
+{% from "partials/icons.html" import lock %}
+{% block title %}Invoice {{ invoice.invoice_number }} — PDFBillr{% endblock %}
 
 {% block content %}
 <div class="mb-6 flex items-center gap-3">
   <a href="{{ url_for('dashboard.index') }}"
      class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-    ← My Invoices
+    ← Invoices
   </a>
 </div>
 
@@ -70,7 +71,7 @@
       {% if invoice.from_email %}<p class="text-sm text-gray-500 dark:text-gray-400">{{ invoice.from_email }}</p>{% endif %}
     </div>
     <div>
-      <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Bill To</p>
+      <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Bill to</p>
       <p class="font-semibold text-gray-900 dark:text-white">{{ invoice.to_name or '—' }}</p>
       {% if invoice.to_address %}<p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{{ invoice.to_address }}</p>{% endif %}
       {% if invoice.to_email %}<p class="text-sm text-gray-500 dark:text-gray-400">{{ invoice.to_email }}</p>{% endif %}
@@ -155,8 +156,8 @@
           class="mt-4 grid gap-3 sm:grid-cols-2">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Amount</label>
-        <input type="number" name="amount" required
+        <label for="field-amount" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Amount</label>
+        <input id="field-amount" type="number" name="amount" required
                min="{{ currency_input_step(invoice.currency_code) }}"
                step="{{ currency_input_step(invoice.currency_code) }}"
                max="{{ invoice.balance_due }}"
@@ -164,12 +165,12 @@
                class="input-field" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment date</label>
-        <input type="date" name="payment_date" class="input-field" />
+        <label for="field-payment-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment date</label>
+        <input id="field-payment-date" type="date" name="payment_date" class="input-field" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Method</label>
-        <select name="method" class="input-field">
+        <label for="field-method" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Method</label>
+        <select id="field-method" name="method" class="input-field">
           <option value="bank_transfer">Bank transfer</option>
           <option value="cash">Cash</option>
           <option value="card">Card</option>
@@ -178,13 +179,13 @@
         </select>
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Reference</label>
-        <input type="text" name="reference" maxlength="200"
+        <label for="field-reference" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Reference</label>
+        <input id="field-reference" type="text" name="reference" maxlength="200"
                placeholder="Transaction or check number" class="input-field" />
       </div>
       <div class="sm:col-span-2">
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Note</label>
-        <textarea name="note" maxlength="2000" rows="2"
+        <label for="field-note" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Note</label>
+        <textarea id="field-note" name="note" maxlength="2000" rows="2"
                   placeholder="Optional internal note" class="input-field"></textarea>
       </div>
       <div class="sm:col-span-2">
@@ -285,12 +286,12 @@
     {% if is_pro() %}
     <button type="button" id="btn-send-email"
             class="px-4 py-2 rounded-xl border border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950 text-sm font-medium text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900 transition-colors">
-      Send via Email
+      Send by email
     </button>
     {% else %}
     <a href="{{ url_for('billing.upgrade') }}"
        class="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-400 dark:text-gray-500 cursor-default flex items-center gap-1">
-      <span>🔒</span> Send via Email
+      {{ lock() }} Send by email
     </a>
     {% endif %}
 
@@ -322,12 +323,12 @@
 {% if is_pro() %}
 <div id="send-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
   <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 w-full max-w-md shadow-xl">
-    <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Send Invoice by Email</h2>
+    <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Send invoice by email</h2>
     <form method="POST" action="{{ url_for('dashboard.invoice_send', invoice_id=invoice.id) }}" class="space-y-4">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Recipient email</label>
-        <input type="email" name="recipient_email" required
+        <label for="field-recipient-email" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Recipient email</label>
+        <input id="field-recipient-email" type="email" name="recipient_email" required
                value="{{ invoice.to_email or '' }}"
                class="input-field" placeholder="client@example.com" />
       </div>

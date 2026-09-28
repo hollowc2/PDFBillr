@@ -100,7 +100,7 @@ def register():
         session.clear()
         login_user(user, remember=True)
         _send_welcome_email(user)
-        flash("Account created! Welcome to PDFBillr.", "success")
+        flash("Account created. Welcome to PDFBillr.", "success")
         return redirect(url_for("dashboard.index"))
 
     return render_template("auth/register.html")
@@ -158,7 +158,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash("You have been logged out.", "info")
+    flash("You’re signed out.", "info")
     return redirect(url_for("public.landing"))
 
 
@@ -275,7 +275,7 @@ def reset_password(token: str):
 
         user.set_password(password)
         db.session.commit()
-        flash("Password updated. Please log in.", "success")
+        flash("Password updated. Sign in with your new password.", "success")
         return redirect(url_for("auth.login"))
 
     return render_template("auth/reset_password.html", token=token)

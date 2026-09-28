@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}PDFBillr — Custom Branding{% endblock %}
+{% block title %}Branding — PDFBillr{% endblock %}
 
 {% block content %}
 <div class="mb-6 flex items-center gap-3">
   <a href="{{ url_for('dashboard.index') }}"
      class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-    ← My Invoices
+    ← Invoices
   </a>
 </div>
 
-<h1 class="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Custom Branding</h1>
-<p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Personalize your invoices with a logo, accent color, and more.</p>
+<h1 class="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Branding</h1>
+<p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Add your logo and brand color to every invoice.</p>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% for category, message in messages %}
@@ -28,7 +28,7 @@
 
   <!-- Logo upload -->
   <div>
-    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Company Logo</label>
+    <label for="field-logo" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Logo</label>
     {% if profile and profile.logo_filename %}
     <div class="mb-3">
       <img src="{{ url_for('dashboard.branding_logo') }}"
@@ -36,7 +36,7 @@
       <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Current logo — upload a new file to replace it.</p>
     </div>
     {% endif %}
-    <input type="file" name="logo" accept=".png,.jpg,.jpeg,.gif,.webp"
+    <input id="field-logo" type="file" name="logo" accept=".png,.jpg,.jpeg,.gif,.webp"
            class="block w-full text-sm text-gray-700 dark:text-gray-300
                   file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
                   file:text-sm file:font-semibold file:bg-blue-50 dark:file:bg-blue-950
@@ -46,9 +46,9 @@
 
   <!-- Accent color -->
   <div>
-    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Accent Color</label>
+    <label for="field-accent-color" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Accent color</label>
     <div class="flex items-center gap-3">
-      <input type="color" name="accent_color"
+      <input id="field-accent-color" type="color" name="accent_color"
              value="{{ profile.accent_color if profile else '#1e3a8a' }}"
              class="w-10 h-10 rounded cursor-pointer border border-gray-200 dark:border-gray-700 p-0.5" />
       <input type="text" id="accent_hex"
@@ -66,8 +66,8 @@
              {% if profile and profile.remove_footer %}checked{% endif %}
              class="w-4 h-4 rounded text-blue-600 border-gray-300" />
       <div>
-        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Remove "PDFBillr Pro" footer branding</span>
-        <p class="text-xs text-gray-400 dark:text-gray-500">Hides the PDFBillr upgrade banner from your invoices.</p>
+        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Hide the “Generated with PDFBillr” line</span>
+        <p class="text-xs text-gray-400 dark:text-gray-500">Removes the PDFBillr credit from the bottom of your PDFs.</p>
       </div>
     </label>
   </div>
@@ -75,7 +75,7 @@
   <div class="pt-2">
     <button type="submit"
             class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm">
-      Save Branding
+      Save branding
     </button>
   </div>
 </form>

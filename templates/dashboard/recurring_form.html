@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}PDFBillr — {{ 'Edit' if tmpl else 'New' }} Recurring Invoice{% endblock %}
+{% block title %}{{ 'Edit' if tmpl else 'New' }} recurring invoice — PDFBillr{% endblock %}
 
 {% block content %}
 <div class="mb-6">
   <a href="{{ url_for('dashboard.recurring_list') }}" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-    ← Recurring Invoices
+    ← Recurring invoices
   </a>
   <h1 class="text-3xl font-bold text-gray-900 dark:text-white mt-1">
     {{ 'Edit Recurring Invoice' if tmpl else 'New Recurring Invoice' }}
@@ -30,8 +30,8 @@
     <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Schedule</h2>
     <div class="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Repeat</label>
-        <select name="interval" class="input-field">
+        <label for="field-interval" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Repeat</label>
+        <select id="field-interval" name="interval" class="input-field">
           {% for iv in ['weekly', 'biweekly', 'monthly', 'quarterly'] %}
           <option value="{{ iv }}" {{ 'selected' if tmpl and tmpl.interval == iv else ('selected' if not tmpl and iv == 'monthly' else '') }}>
             {{ iv | capitalize }}
@@ -40,26 +40,26 @@
         </select>
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">First run date</label>
-        <input type="date" name="next_run_date" required
+        <label for="field-next-run-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">First run date</label>
+        <input id="field-next-run-date" type="date" name="next_run_date" required
                value="{{ tmpl.next_run_date.isoformat() if tmpl else '' }}"
                class="input-field" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment terms (days)</label>
-        <input type="number" name="net_days" min="0" max="365"
+        <label for="field-net-days" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment terms (days)</label>
+        <input id="field-net-days" type="number" name="net_days" min="0" max="365"
                value="{{ tmpl.net_days if tmpl else 30 }}"
                class="input-field" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Invoice # prefix</label>
-        <input type="text" name="invoice_number_prefix" maxlength="50"
+        <label for="field-invoice-number-prefix" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Invoice number prefix</label>
+        <input id="field-invoice-number-prefix" type="text" name="invoice_number_prefix" maxlength="50"
                value="{{ tmpl.invoice_number_prefix if tmpl else 'INV' }}"
                placeholder="INV"
                class="input-field" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Currency</label>
+        <label for="currency-code" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Currency</label>
         <select id="currency-code" name="currency_code" class="input-field">
           {% set selected_currency = tmpl.currency_code if tmpl else 'USD' %}
           {% for currency in currency_options %}
@@ -90,25 +90,25 @@
     <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">From</h2>
     <div class="grid sm:grid-cols-2 gap-4">
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Company / Name</label>
-        <input type="text" name="from_company" maxlength="200"
+        <label for="field-from-company" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Your name or business</label>
+        <input id="field-from-company" type="text" name="from_company" maxlength="200"
                value="{{ tmpl.from_company or '' }}"
                class="input-field" placeholder="Your Company" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
-        <input type="email" name="from_email" maxlength="200"
+        <label for="field-from-email" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+        <input id="field-from-email" type="email" name="from_email" maxlength="200"
                value="{{ tmpl.from_email or '' }}"
                class="input-field" placeholder="you@example.com" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Address</label>
-        <textarea name="from_address" rows="2" maxlength="1000"
+        <label for="field-from-address" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Address</label>
+        <textarea id="field-from-address" name="from_address" rows="2" maxlength="1000"
                   class="input-field">{{ tmpl.from_address or '' }}</textarea>
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</label>
-        <input type="tel" name="from_phone" maxlength="200"
+        <label for="field-from-phone" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</label>
+        <input id="field-from-phone" type="tel" name="from_phone" maxlength="200"
                value="{{ tmpl.from_phone or '' }}"
                class="input-field" placeholder="+1 555 000 0000" />
       </div>
@@ -117,23 +117,23 @@
 
   <!-- Bill To -->
   <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Bill To</h2>
+    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Bill to</h2>
     <div class="grid sm:grid-cols-2 gap-4">
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client Name</label>
-        <input type="text" name="to_name" maxlength="200"
+        <label for="field-to-name" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client name</label>
+        <input id="field-to-name" type="text" name="to_name" maxlength="200"
                value="{{ tmpl.to_name or '' }}"
-               class="input-field" placeholder="Client Name" />
+               class="input-field" placeholder="Client name" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client Email</label>
-        <input type="email" name="to_email" maxlength="200"
+        <label for="field-to-email" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client email</label>
+        <input id="field-to-email" type="email" name="to_email" maxlength="200"
                value="{{ tmpl.to_email or '' }}"
                class="input-field" placeholder="client@example.com" />
       </div>
       <div class="sm:col-span-2">
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client Address</label>
-        <textarea name="to_address" rows="2" maxlength="1000"
+        <label for="field-to-address" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client address</label>
+        <textarea id="field-to-address" name="to_address" rows="2" maxlength="1000"
                   class="input-field">{{ tmpl.to_address or '' }}</textarea>
       </div>
     </div>
@@ -141,13 +141,13 @@
 
   <!-- Line Items -->
   <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Line Items</h2>
+    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Line items</h2>
     <div id="line-items-container" class="space-y-2 mb-3">
       <!-- Populated by JS -->
     </div>
     <button type="button" id="add-line-item"
             class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-      + Add line item
+      Add line
     </button>
     <input type="hidden" name="line_items_json" id="line_items_json"
            value="{{ tmpl.line_items_json if tmpl else '[]' }}" />
@@ -155,13 +155,13 @@
     <!-- Financials -->
     <div class="grid sm:grid-cols-2 gap-4 mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tax rate (%)</label>
-        <input type="number" name="tax_rate" min="0" max="100" step="0.01"
+        <label for="field-tax-rate" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tax rate (%)</label>
+        <input id="field-tax-rate" type="number" name="tax_rate" min="0" max="100" step="0.01"
                value="{{ tmpl.tax_rate if tmpl else 0 }}"
                class="input-field" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Discount (<span id="discount-currency-code">{{ tmpl.currency_code if tmpl else 'USD' }}</span>)</label>
+        <label for="discount-input" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Discount (<span id="discount-currency-code">{{ tmpl.currency_code if tmpl else 'USD' }}</span>)</label>
         <input id="discount-input" type="number" name="discount" min="0"
                step="{{ currency_input_step(tmpl.currency_code if tmpl else 'USD') }}"
                value="{{ tmpl.discount if tmpl else 0 }}"
@@ -172,24 +172,24 @@
 
   <!-- Notes -->
   <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Notes & Payment Info</h2>
+    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Notes and payment details</h2>
     <div class="grid sm:grid-cols-2 gap-4">
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
-        <textarea name="notes" rows="3" maxlength="2000" class="input-field">{{ tmpl.notes or '' }}</textarea>
+        <label for="field-notes" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
+        <textarea id="field-notes" name="notes" rows="3" maxlength="2000" class="input-field">{{ tmpl.notes or '' }}</textarea>
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment Information</label>
-        <textarea name="payment_info" rows="3" maxlength="2000" class="input-field">{{ tmpl.payment_info or '' }}</textarea>
+        <label for="field-payment-info" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment details</label>
+        <textarea id="field-payment-info" name="payment_info" rows="3" maxlength="2000" class="input-field">{{ tmpl.payment_info or '' }}</textarea>
       </div>
     </div>
     <div class="mt-4">
-      <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Pay now link</label>
-      <input name="payment_url" type="url" maxlength="2048" autocomplete="url"
+      <label for="field-payment-url" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Pay now link</label>
+      <input id="field-payment-url" name="payment_url" type="url" maxlength="2048" autocomplete="url"
              placeholder="https://pay.example.com/invoice"
              value="{{ tmpl.payment_url or '' if tmpl else '' }}"
              class="input-field" />
-      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional HTTPS payment page copied to every generated invoice.</p>
+      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Adds a Pay now button to every generated invoice. Must start with https://.</p>
     </div>
   </div>
 

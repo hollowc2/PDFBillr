@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Clients & Services — PDFBillr{% endblock %}
+{% block title %}Clients and services — PDFBillr{% endblock %}
 
 {% block content %}
 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -16,12 +16,12 @@
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
   <div>
-    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Clients &amp; Services</h1>
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Clients and services</h1>
     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Save the details you reuse on invoices.</p>
   </div>
   <a href="{{ url_for('public.index') }}"
      class="inline-flex justify-center px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">
-    Create invoice
+    New invoice
   </a>
 </div>
 

@@ -141,7 +141,7 @@ body {
     </td>
     <td>
       <div class="party-box">
-        <div class="party-label">Bill To</div>
+        <div class="party-label">Bill to</div>
         {% if to_name %}<div class="party-name">{{ to_name | e }}</div>{% endif %}
         {% if to_address %}<div class="party-info">{{ to_address | e }}</div>{% endif %}
         {% if to_email %}<div class="party-info">{{ to_email | e }}</div>{% endif %}
@@ -179,7 +179,7 @@ body {
         <tr><td class="t-label">Subtotal</td><td class="t-value">{{ subtotal | money(currency_code) }}</td></tr>
         {% if tax_rate %}<tr><td class="t-label">Tax ({{ tax_rate | int if tax_rate == tax_rate | int else tax_rate }}%)</td><td class="t-value">{{ tax_amount | money(currency_code) }}</td></tr>{% endif %}
         {% if discount %}<tr><td class="t-label">Discount</td><td class="t-value">{{ (discount * -1) | money(currency_code) }}</td></tr>{% endif %}
-        <tr class="total-row"><td class="t-label">Total Due</td><td class="t-value">{{ total | money(currency_code) }}</td></tr>
+        <tr class="total-row"><td class="t-label">Total due</td><td class="t-value">{{ total | money(currency_code) }}</td></tr>
       </table>
     </td>
   </tr>

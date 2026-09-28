@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}PDFBillr — Payment Reminders{% endblock %}
+{% block title %}Payment reminders — PDFBillr{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto">
   <div class="mb-6">
     <a href="{{ url_for('dashboard.index') }}"
-       class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">← My Invoices</a>
-    <h1 class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">Payment Reminders</h1>
+       class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">← Invoices</a>
+    <h1 class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">Payment reminders</h1>
     <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-      Choose when Pro sends automatic reminders. Leave an offset blank to disable that stage.
+      Choose when clients get automatic reminders. Leave a field blank to skip that reminder.
     </p>
   </div>
 

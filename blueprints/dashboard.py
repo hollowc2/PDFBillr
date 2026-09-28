@@ -687,7 +687,7 @@ def invoice_send(invoice_id: int):
             inv.id,
             type(exc).__name__,
         )
-        flash("Failed to send email. Please check your mail configuration.", "error")
+        flash("The email couldn’t be sent. Try again in a few minutes.", "error")
         return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
 
     inv.sent_at = datetime.now(timezone.utc)
@@ -1240,7 +1240,7 @@ def _render_invoice_edit(inv: Invoice, form_data):
                 "dashboard.invoice_edit",
                 invoice_id=inv.id,
             ),
-            "form_title": f"Edit Invoice {inv.invoice_number}",
+            "form_title": f"Edit invoice {inv.invoice_number}",
             "edit_mode": True,
             "invoice": inv,
         }
@@ -1302,14 +1302,14 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
     """
     interval = request.form.get("interval", "monthly").strip()
     if interval not in _VALID_INTERVALS:
-        flash("Invalid interval.", "error")
+        flash("Choose how often this invoice repeats.", "error")
         return None
 
     try:
         next_run_str = request.form.get("next_run_date", "").strip()
         next_run = datetime.strptime(next_run_str, "%Y-%m-%d").date()
     except ValueError:
-        flash("Invalid start date.", "error")
+        flash("Enter a valid first run date.", "error")
         return None
 
     try:
@@ -1317,7 +1317,7 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
         if not 0 <= net_days <= 365:
             raise ValueError
     except ValueError:
-        flash("Net days must be an integer from 0 to 365.", "error")
+        flash("Payment terms must be a whole number of days from 0 to 365.", "error")
         return None
 
     # Validate and parse line items from JSON submitted by the form
@@ -1327,7 +1327,7 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
         if not isinstance(line_items, list):
             raise ValueError
     except (ValueError, TypeError):
-        flash("Invalid line items.", "error")
+        flash("The line items couldn’t be read. Reload the page and try again.", "error")
         return None
 
     if not line_items:

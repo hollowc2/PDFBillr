@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}PDFBillr — Create Account{% endblock %}
+{% block title %}Create account — PDFBillr{% endblock %}
 
 {% block content %}
 <div class="max-w-md mx-auto mt-8">
   <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 shadow-sm">
     <h1 class="text-2xl font-bold mb-1 text-gray-900 dark:text-white">Create account</h1>
-    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Free forever — no credit card required.</p>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Free for unlimited invoices. No credit card needed.</p>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for category, message in messages %}
@@ -20,18 +20,18 @@
     <form method="POST" action="{{ url_for('auth.register') }}" novalidate class="space-y-4">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
-        <input type="email" name="email" required autocomplete="email"
+        <label for="field-email" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+        <input id="field-email" type="email" name="email" required autocomplete="email"
                class="input-field" placeholder="you@example.com" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Password</label>
-        <input type="password" name="password" required autocomplete="new-password" minlength="8"
+        <label for="field-password" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Password</label>
+        <input id="field-password" type="password" name="password" required autocomplete="new-password" minlength="8"
                class="input-field" placeholder="At least 8 characters" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Confirm password</label>
-        <input type="password" name="confirm_password" required autocomplete="new-password"
+        <label for="field-confirm-password" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Confirm password</label>
+        <input id="field-confirm-password" type="password" name="confirm_password" required autocomplete="new-password"
                class="input-field" placeholder="Repeat password" />
         <span id="pw-match-error" class="text-xs text-red-500 hidden mt-1 block">Passwords do not match.</span>
       </div>

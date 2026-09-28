@@ -9,7 +9,7 @@
 {% endwith %}
 
 <div class="mb-6">
-  <a href="{{ url_for('estimates.detail', estimate_id=estimate.id) if estimate else url_for('estimates.index') }}" class="text-sm text-blue-700 hover:underline dark:text-blue-400">← Back to estimates</a>
+  <a href="{{ url_for('estimates.detail', estimate_id=estimate.id) if estimate else url_for('estimates.index') }}" class="text-sm text-blue-700 hover:underline dark:text-blue-400">← Estimates</a>
   <h1 class="mt-2 text-2xl font-bold">{{ "Edit estimate" if estimate else "New estimate" }}</h1>
 </div>
 
@@ -104,7 +104,7 @@
       <label class="block text-sm font-medium">Notes
         <textarea class="input-field mt-1" name="notes" maxlength="5000" rows="4">{{ form_data.get('notes', '') }}</textarea>
       </label>
-      <label class="block text-sm font-medium">Payment information
+      <label class="block text-sm font-medium">Payment details
         <textarea class="input-field mt-1" name="payment_info" maxlength="5000" rows="3">{{ form_data.get('payment_info', '') }}</textarea>
       </label>
     </div>

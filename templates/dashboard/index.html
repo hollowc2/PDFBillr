@@ -1,12 +1,13 @@
 {% extends "base.html" %}
-{% block title %}PDFBillr — My Invoices{% endblock %}
+{% from "partials/icons.html" import lock %}
+{% block title %}Invoices — PDFBillr{% endblock %}
 
 {% block content %}
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-3xl font-bold text-gray-900 dark:text-white">My Invoices</h1>
+  <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Invoices</h1>
   <a href="{{ url_for('public.index') }}"
      class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm">
-    + New Invoice
+    New invoice
   </a>
 </div>
 
@@ -57,26 +58,26 @@
   </a>
   <a href="{{ url_for('dashboard.branding') if is_pro() else url_for('billing.upgrade') }}"
      class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    {% if not is_pro() %}<span class="text-yellow-500">🔒</span>{% endif %}
-    Custom Branding
+    {% if not is_pro() %}<span class="text-graphite">{{ lock() }}</span>{% endif %}
+    Branding
   </a>
   {% if is_pro() %}
   <a href="{{ url_for('dashboard.reminder_settings') }}"
      class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    Payment Reminders
+    Payment reminders
   </a>
   <a href="{{ url_for('dashboard.recurring_list') }}"
      class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    Recurring Invoices
+    Recurring invoices
   </a>
   <a href="{{ url_for('billing.portal') }}"
      class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    Manage Subscription
+    Subscription
   </a>
   {% else %}
   <a href="{{ url_for('billing.upgrade') }}"
      class="flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950 text-sm font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors">
-    Upgrade to Pro →
+    Upgrade to Pro
   </a>
   {% endif %}
 </div>
@@ -131,9 +132,9 @@
   <table class="w-full text-sm">
     <thead class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
       <tr>
-        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">Invoice #</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">Invoice</th>
         <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider hidden sm:table-cell">Client</th>
-        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider hidden md:table-cell">Date</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider hidden md:table-cell">Issued</th>
         <th class="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">Total</th>
         <th class="text-center px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider hidden sm:table-cell">Status</th>
         <th class="px-4 py-3"></th>
@@ -211,12 +212,13 @@
       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
   </svg>
   {% if q or filters.status != 'all' or filters.due_from or filters.due_to %}
-  <p class="text-sm">No invoices match the selected filters.</p>
+  <p class="text-sm">No invoices match these filters.</p>
   {% else %}
-  <p class="text-sm">No invoices yet.</p>
+  <p class="text-sm font-semibold text-ink">No invoices yet</p>
+  <p class="mt-1 text-sm">Invoices, drafts and payments you record will show up here.</p>
   <a href="{{ url_for('public.index') }}"
      class="inline-block mt-4 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors">
-    Create your first invoice →
+    New invoice
   </a>
   {% endif %}
 </div>
