@@ -35,9 +35,7 @@ def _edit_payload(invoice_number: str = "INV-EDITED", **overrides):
     return data
 
 
-def test_owner_can_open_prefilled_edit_form(
-    client, make_user, make_invoice, login
-):
+def test_owner_can_open_prefilled_edit_form(client, make_user, make_invoice, login):
     owner = make_user("owner@example.test", pro=True)
     invoice = make_invoice(
         owner.id,
@@ -86,9 +84,7 @@ def test_edit_recalculates_authoritative_totals_and_shadow_values(
     )
 
     assert response.status_code == 302
-    assert response.headers["Location"].endswith(
-        f"/dashboard/invoice/{invoice.id}"
-    )
+    assert response.headers["Location"].endswith(f"/dashboard/invoice/{invoice.id}")
     with app.app_context():
         stored = db.session.get(Invoice, invoice.id)
         assert stored.invoice_number == "INV-EDITED"
@@ -134,9 +130,7 @@ def test_edit_rejects_duplicate_number_without_mutating_invoice(
 
 
 @pytest.mark.parametrize("method", ["get", "post"])
-def test_invoice_edit_denies_cross_user_access(
-    client, make_user, make_invoice, login, method
-):
+def test_invoice_edit_denies_cross_user_access(client, make_user, make_invoice, login, method):
     owner = make_user("owner@example.test")
     attacker = make_user("attacker@example.test", pro=True)
     invoice = make_invoice(owner.id)
@@ -151,9 +145,7 @@ def test_invoice_edit_denies_cross_user_access(
 
 
 @pytest.mark.parametrize("status", ["paid", "void"])
-def test_paid_and_void_invoices_are_immutable(
-    client, app, make_user, make_invoice, login, status
-):
+def test_paid_and_void_invoices_are_immutable(client, app, make_user, make_invoice, login, status):
     owner = make_user("owner@example.test")
     invoice = make_invoice(
         owner.id,
@@ -212,9 +204,7 @@ def test_edit_preserves_sent_status_and_delivery_metadata(
         assert stored.reminder_7d_sent is False
 
 
-def test_zero_total_draft_remains_editable_draft(
-    client, app, make_user, make_invoice, login
-):
+def test_zero_total_draft_remains_editable_draft(client, app, make_user, make_invoice, login):
     owner = make_user("owner@example.test")
     invoice = make_invoice(owner.id, invoice_number="NO-CHARGE", status="draft")
     login(owner.email)
@@ -332,9 +322,7 @@ def test_partial_invoice_edit_syncs_status_against_revised_total(
         assert stored.paid_at is not None
 
 
-def test_edit_applies_pro_theme_and_branding_gates(
-    client, app, make_user, make_invoice, login
-):
+def test_edit_applies_pro_theme_and_branding_gates(client, app, make_user, make_invoice, login):
     free_user = make_user("free@example.test")
     invoice = make_invoice(
         free_user.id,

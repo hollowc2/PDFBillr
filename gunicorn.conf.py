@@ -7,12 +7,8 @@ bind = "0.0.0.0:8000"
 # rejects the in-memory backend in production so limits cannot silently become
 # per-process.
 workers = Config.WEB_CONCURRENCY
-if workers > 1 and Config.RATELIMIT_STORAGE_URI.strip().lower().startswith(
-    "memory://"
-):
-    raise RuntimeError(
-        "WEB_CONCURRENCY > 1 requires a shared RATELIMIT_STORAGE_URI"
-    )
+if workers > 1 and Config.RATELIMIT_STORAGE_URI.strip().lower().startswith("memory://"):
+    raise RuntimeError("WEB_CONCURRENCY > 1 requires a shared RATELIMIT_STORAGE_URI")
 threads = 8
 worker_class = "gthread"
 timeout = 120

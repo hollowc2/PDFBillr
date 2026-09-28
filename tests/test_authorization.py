@@ -37,9 +37,7 @@ def test_invoice_routes_deny_cross_user_access(
     assert response.status_code == 404
 
 
-def test_cross_user_denial_does_not_mutate_invoice(
-    client, app, make_user, make_invoice, login
-):
+def test_cross_user_denial_does_not_mutate_invoice(client, app, make_user, make_invoice, login):
     owner = make_user("owner@example.test")
     attacker = make_user("attacker@example.test", pro=True)
     invoice = make_invoice(owner.id)
@@ -74,9 +72,7 @@ def test_recurring_routes_deny_cross_user_access(
     assert response.status_code == 404
 
 
-def test_owner_can_delete_invoice(
-    client, app, make_user, make_invoice, login
-):
+def test_owner_can_delete_invoice(client, app, make_user, make_invoice, login):
     owner = make_user("owner@example.test")
     invoice = make_invoice(owner.id)
     login(owner.email)

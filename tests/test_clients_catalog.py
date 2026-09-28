@@ -81,9 +81,7 @@ def test_catalog_routes_require_login(client, method, path):
     assert "/auth/login" in response.headers["Location"]
 
 
-def test_client_crud_rejects_case_insensitive_duplicate(
-    client, app, make_user, login
-):
+def test_client_crud_rejects_case_insensitive_duplicate(client, app, make_user, login):
     owner = make_user("owner@example.test")
     login(owner.email)
 
@@ -118,9 +116,7 @@ def test_client_crud_rejects_case_insensitive_duplicate(
         assert updated.email == "accounts@northwind.example"
 
 
-def test_service_crud_validation_and_duplicate_handling(
-    client, app, make_user, login
-):
+def test_service_crud_validation_and_duplicate_handling(client, app, make_user, login):
     owner = make_user("owner@example.test")
     login(owner.email)
 
@@ -149,9 +145,7 @@ def test_service_crud_validation_and_duplicate_handling(
         assert service.default_quantity == Decimal("1.0000")
 
 
-def test_business_and_client_defaults_prefill_new_invoice(
-    client, app, make_user, login
-):
+def test_business_and_client_defaults_prefill_new_invoice(client, app, make_user, login):
     owner = make_user("owner@example.test")
     login(owner.email)
     defaults_response = client.post(
@@ -190,9 +184,7 @@ def test_business_and_client_defaults_prefill_new_invoice(
     assert b"Pay by ACH" in response.data
 
 
-def test_service_query_prefills_line_item_and_catalog_selector(
-    client, app, make_user, login
-):
+def test_service_query_prefills_line_item_and_catalog_selector(client, app, make_user, login):
     owner = make_user("owner@example.test")
     login(owner.email)
     client.post("/clients/services/new", data=_service_payload())
@@ -271,9 +263,7 @@ def test_created_invoice_keeps_client_and_service_snapshots(
         assert invoice.to_address == "42 Harbor Road\nPortland, OR"
 
 
-def test_catalog_and_selected_records_are_owner_scoped(
-    client, app, make_user, login
-):
+def test_catalog_and_selected_records_are_owner_scoped(client, app, make_user, login):
     owner = make_user("owner@example.test")
     attacker = make_user("attacker@example.test")
     with app.app_context():
@@ -299,19 +289,9 @@ def test_catalog_and_selected_records_are_owner_scoped(
     login(attacker.email)
 
     assert client.get(f"/clients/{foreign_client_id}/edit").status_code == 404
-    assert (
-        client.post(f"/clients/{foreign_client_id}/delete").status_code == 404
-    )
-    assert (
-        client.get(f"/clients/services/{foreign_service_id}/edit").status_code
-        == 404
-    )
-    assert (
-        client.post(
-            f"/clients/services/{foreign_service_id}/delete"
-        ).status_code
-        == 404
-    )
+    assert client.post(f"/clients/{foreign_client_id}/delete").status_code == 404
+    assert client.get(f"/clients/services/{foreign_service_id}/edit").status_code == 404
+    assert client.post(f"/clients/services/{foreign_service_id}/delete").status_code == 404
     assert client.get(f"/app?client_id={foreign_client_id}").status_code == 404
     assert client.get(f"/app?service_id={foreign_service_id}").status_code == 404
     search = client.get("/clients/search?q=Secret")
@@ -354,9 +334,7 @@ def test_invoice_creation_rejects_foreign_client_before_rendering(
         assert Invoice.query.filter_by(user_id=attacker.id).count() == 0
 
 
-def test_same_normalized_names_are_allowed_for_different_owners(
-    client, app, make_user, login
-):
+def test_same_normalized_names_are_allowed_for_different_owners(client, app, make_user, login):
     first = make_user("first@example.test")
     second = make_user("second@example.test")
     login(first.email)
@@ -369,15 +347,11 @@ def test_same_normalized_names_are_allowed_for_different_owners(
         assert Client.query.filter_by(normalized_name="northwind studio").count() == 2
         assert {
             saved.user_id
-            for saved in Client.query.filter_by(
-                normalized_name="northwind studio"
-            ).all()
+            for saved in Client.query.filter_by(normalized_name="northwind studio").all()
         } == {first.id, second.id}
 
 
-def test_invalid_defaults_do_not_create_partial_record(
-    client, app, make_user, login
-):
+def test_invalid_defaults_do_not_create_partial_record(client, app, make_user, login):
     owner = make_user("owner@example.test")
     login(owner.email)
 

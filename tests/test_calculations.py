@@ -127,10 +127,13 @@ def test_authenticated_generation_rejects_duplicate_invoice_number(
     assert b"invoice number is already in use" in response.data
     assert render_calls == []
     with app.app_context():
-        assert Invoice.query.filter_by(
-            user_id=user.id,
-            invoice_number="CLIENT-42",
-        ).count() == 1
+        assert (
+            Invoice.query.filter_by(
+                user_id=user.id,
+                invoice_number="CLIENT-42",
+            ).count()
+            == 1
+        )
 
 
 def test_pdf_render_failure_does_not_persist_authenticated_invoice(
@@ -159,9 +162,7 @@ def test_pdf_render_failure_does_not_persist_authenticated_invoice(
         assert Invoice.query.filter_by(user_id=user.id).count() == 0
 
 
-def test_malformed_generation_does_not_persist_invoice(
-    client, app, make_user, login
-):
+def test_malformed_generation_does_not_persist_invoice(client, app, make_user, login):
     user = make_user("person@example.test")
     login(user.email)
     response = client.post(
@@ -192,9 +193,7 @@ def test_recurring_form_normalizes_tampered_amount_and_generated_invoice(
             "next_run_date": date.today().isoformat(),
             "net_days": "0",
             "invoice_number_prefix": "SAFE",
-            "line_items_json": json.dumps(
-                [item(2, 5, amount=1_000_000)]
-            ),
+            "line_items_json": json.dumps([item(2, 5, amount=1_000_000)]),
             "tax_rate": "0",
             "discount": "100",
         },

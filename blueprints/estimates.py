@@ -21,6 +21,7 @@ from werkzeug.datastructures import MultiDict
 
 from extensions import db, limiter
 from models import BusinessDefaults, Client, Estimate, Invoice, ServiceItem
+from utils.branding import account_page_size
 from utils.currency import SUPPORTED_CURRENCIES
 from utils.estimate_numbers import (
     estimate_number_exists,
@@ -217,6 +218,7 @@ def convert(estimate_id: int):
         client_id=estimate.client_id,
         invoice_number=invoice_number,
         currency_code=estimate.currency_code,
+        page_size=account_page_size(current_user),
         invoice_date=invoice_date.isoformat(),
         due_date=due_date.isoformat(),
         invoice_date_value=shadows["invoice_date_value"],
@@ -273,9 +275,7 @@ def convert(estimate_id: int):
         raise
 
     flash(f"Draft invoice {invoice.invoice_number} created.", "success")
-    return redirect(
-        url_for("dashboard.invoice_detail", invoice_id=invoice.id)
-    )
+    return redirect(url_for("dashboard.invoice_detail", invoice_id=invoice.id))
 
 
 @bp.route("/view/<token>")
@@ -577,11 +577,7 @@ def _render_form(estimate: Estimate | None, form_data):
         estimate=estimate,
         form_data=form_data,
         form_items=form_items,
-        clients=(
-            Client.query.filter_by(user_id=current_user.id)
-            .order_by(Client.name.asc())
-            .all()
-        ),
+        clients=(Client.query.filter_by(user_id=current_user.id).order_by(Client.name.asc()).all()),
         services=(
             ServiceItem.query.filter_by(user_id=current_user.id)
             .order_by(ServiceItem.name.asc())

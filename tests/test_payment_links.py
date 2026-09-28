@@ -97,9 +97,7 @@ def test_business_default_prefills_and_creation_snapshots_payment_url(
         assert invoice.payment_url == PAYMENT_URL
 
 
-def test_invalid_default_link_does_not_create_partial_record(
-    client, app, make_user, login
-):
+def test_invalid_default_link_does_not_create_partial_record(client, app, make_user, login):
     owner = make_user("invalid-default-link@example.test")
     login(owner.email)
 
@@ -117,9 +115,7 @@ def test_invalid_default_link_does_not_create_partial_record(
         assert BusinessDefaults.query.filter_by(user_id=owner.id).first() is None
 
 
-def test_edit_duplicate_and_cross_owner_protection(
-    client, app, make_user, make_invoice, login
-):
+def test_edit_duplicate_and_cross_owner_protection(client, app, make_user, make_invoice, login):
     owner = make_user("payment-owner@example.test")
     attacker = make_user("payment-attacker@example.test")
     invoice = make_invoice(
@@ -191,9 +187,7 @@ def test_public_pay_now_visibility_tracks_invoice_state(
     assert (PAYMENT_URL.encode() in response.data) is visible
 
 
-def test_marking_invoice_paid_removes_public_payment_link(
-    client, make_user, make_invoice, login
-):
+def test_marking_invoice_paid_removes_public_payment_link(client, make_user, make_invoice, login):
     owner = make_user("paid-link@example.test")
     invoice = make_invoice(
         owner.id,
@@ -210,9 +204,7 @@ def test_marking_invoice_paid_removes_public_payment_link(
     assert b"Pay now" not in client.get("/invoice/view/pay-then-hide").data
 
 
-def test_recurring_payment_link_is_validated_and_snapshotted(
-    client, app, make_user, login
-):
+def test_recurring_payment_link_is_validated_and_snapshotted(client, app, make_user, login):
     owner = make_user("recurring-payment-link@example.test", pro=True)
     login(owner.email)
     response = client.post(
@@ -223,9 +215,7 @@ def test_recurring_payment_link_is_validated_and_snapshotted(
             "net_days": "0",
             "invoice_number_prefix": "PAYLINK",
             "currency_code": "EUR",
-            "line_items_json": json.dumps(
-                [{"description": "Service", "qty": 1, "rate": 25}]
-            ),
+            "line_items_json": json.dumps([{"description": "Service", "qty": 1, "rate": 25}]),
             "tax_rate": "0",
             "discount": "0",
             "payment_url": PAYMENT_URL,
@@ -243,9 +233,7 @@ def test_recurring_payment_link_is_validated_and_snapshotted(
         assert invoice.currency_code == "EUR"
 
 
-def test_recurring_rejects_non_https_payment_link(
-    client, app, make_user, login
-):
+def test_recurring_rejects_non_https_payment_link(client, app, make_user, login):
     owner = make_user("invalid-recurring-link@example.test", pro=True)
     login(owner.email)
     response = client.post(
@@ -254,9 +242,7 @@ def test_recurring_rejects_non_https_payment_link(
             "interval": "monthly",
             "next_run_date": date.today().isoformat(),
             "net_days": "30",
-            "line_items_json": json.dumps(
-                [{"description": "Service", "qty": 1, "rate": 25}]
-            ),
+            "line_items_json": json.dumps([{"description": "Service", "qty": 1, "rate": 25}]),
             "payment_url": "data:text/html,bad",
         },
     )
@@ -329,32 +315,27 @@ def test_payment_link_migration_is_additive_and_reversible(tmp_path):
     with application.app_context():
         inspector = inspect(db.engine)
         assert "default_payment_url" in {
-            column["name"]
-            for column in inspector.get_columns("business_defaults")
+            column["name"] for column in inspector.get_columns("business_defaults")
         }
+        assert "payment_url" in {column["name"] for column in inspector.get_columns("invoices")}
         assert "payment_url" in {
-            column["name"] for column in inspector.get_columns("invoices")
+            column["name"] for column in inspector.get_columns("recurring_invoices")
         }
-        assert "payment_url" in {
-            column["name"]
-            for column in inspector.get_columns("recurring_invoices")
-        }
-        assert db.session.execute(
-            text("SELECT payment_url FROM invoices WHERE id = 1")
-        ).scalar_one_or_none() is None
+        assert (
+            db.session.execute(
+                text("SELECT payment_url FROM invoices WHERE id = 1")
+            ).scalar_one_or_none()
+            is None
+        )
 
     downgraded = runner.invoke(args=["db", "downgrade", "20260728_10"])
     assert downgraded.exit_code == 0, downgraded.output
     with application.app_context():
         inspector = inspect(db.engine)
         assert "default_payment_url" not in {
-            column["name"]
-            for column in inspector.get_columns("business_defaults")
+            column["name"] for column in inspector.get_columns("business_defaults")
         }
+        assert "payment_url" not in {column["name"] for column in inspector.get_columns("invoices")}
         assert "payment_url" not in {
-            column["name"] for column in inspector.get_columns("invoices")
-        }
-        assert "payment_url" not in {
-            column["name"]
-            for column in inspector.get_columns("recurring_invoices")
+            column["name"] for column in inspector.get_columns("recurring_invoices")
         }

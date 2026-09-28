@@ -91,8 +91,7 @@ def upgrade():
             name="ck_estimates_date_order",
         ),
         sa.CheckConstraint(
-            "status IN ('draft', 'sent', 'accepted', 'declined', "
-            "'expired', 'converted')",
+            "status IN ('draft', 'sent', 'accepted', 'declined', 'expired', 'converted')",
             name="ck_estimates_status",
         ),
         sa.CheckConstraint(

@@ -9,11 +9,7 @@ def _compute_is_pro(u) -> bool:
     if not u or not u.is_authenticated:
         return False
     sub = u.subscription
-    if (
-        not sub
-        or sub.plan != "pro"
-        or sub.status not in ("active", "trialing")
-    ):
+    if not sub or sub.plan != "pro" or sub.status not in ("active", "trialing"):
         return False
     configured_price = current_app.config.get("STRIPE_PRICE_ID_PRO")
     if configured_price and sub.stripe_price_id != configured_price:
@@ -32,7 +28,7 @@ def is_pro(user=None) -> bool:
         # Explicit user arg (e.g. webhook handlers) — bypass cache
         return _compute_is_pro(user)
     # Cache per-request on Flask g to avoid repeated DB hits
-    if not hasattr(g, '_is_pro'):
+    if not hasattr(g, "_is_pro"):
         g._is_pro = _compute_is_pro(current_user)
     return g._is_pro
 
@@ -44,4 +40,5 @@ def pro_required(f):
             flash("This feature requires PDFBillr Pro.", "warning")
             return redirect(url_for("billing.upgrade"))
         return f(*args, **kwargs)
+
     return decorated

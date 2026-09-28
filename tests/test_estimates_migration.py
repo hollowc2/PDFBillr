@@ -56,9 +56,7 @@ def test_estimates_migration_upgrades_and_downgrades_without_invoice_loss(
     with application.app_context():
         inspector = inspect(db.engine)
         assert "estimates" in inspector.get_table_names()
-        estimate_columns = {
-            column["name"] for column in inspector.get_columns("estimates")
-        }
+        estimate_columns = {column["name"] for column in inspector.get_columns("estimates")}
         assert {
             "user_id",
             "client_id",
@@ -100,15 +98,19 @@ def test_estimates_migration_upgrades_and_downgrades_without_invoice_loss(
                     "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
                 )
             )
-        assert db.session.execute(
-            text("SELECT status FROM estimates WHERE id = 1")
-        ).scalar_one() == "accepted"
+        assert (
+            db.session.execute(text("SELECT status FROM estimates WHERE id = 1")).scalar_one()
+            == "accepted"
+        )
 
     downgraded = runner.invoke(args=["db", "downgrade", "20260728_09"])
     assert downgraded.exit_code == 0, downgraded.output
     with application.app_context():
         inspector = inspect(db.engine)
         assert "estimates" not in inspector.get_table_names()
-        assert db.session.execute(
-            text("SELECT invoice_number FROM invoices WHERE id = 1")
-        ).scalar_one() == "INV-001"
+        assert (
+            db.session.execute(
+                text("SELECT invoice_number FROM invoices WHERE id = 1")
+            ).scalar_one()
+            == "INV-001"
+        )

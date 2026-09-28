@@ -10,8 +10,16 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from flask import (
-    Blueprint, abort, current_app, flash, make_response,
-    redirect, render_template, request, send_file, url_for,
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
 )
 from flask_login import current_user, login_required
 from flask_mail import Message
@@ -55,6 +63,7 @@ from utils.uploads import (
     resolve_logo_path,
     store_logo,
 )
+from utils.mail import invoice_reply_to
 from utils.urls import external_url
 from utils.validation import (
     PaymentURLValidationError,
@@ -80,7 +89,6 @@ _DASHBOARD_STATUSES = {
     "all",
     "draft",
     "sent",
-    "finalized",
     "partial",
     "overdue",
     "paid",
@@ -99,12 +107,15 @@ _DASHBOARD_SORTS = {
 # Invoice list
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/")
 @login_required
 def index():
     page = max(request.args.get("page", 1, type=int), 1)
     q = request.args.get("q", "").strip()
     status = request.args.get("status", "all").strip().lower()
+    if status == "finalized":  # legacy filter links; effective_status reports "sent"
+        status = "sent"
     sort = request.args.get("sort", "newest").strip().lower()
     due_from_raw = request.args.get("due_from", "").strip()
     due_to_raw = request.args.get("due_to", "").strip()
@@ -113,9 +124,7 @@ def index():
     if sort not in _DASHBOARD_SORTS:
         sort = "newest"
 
-    all_invoices = current_user.invoices.options(
-        selectinload(Invoice.payments)
-    ).all()
+    all_invoices = current_user.invoices.options(selectinload(Invoice.payments)).all()
     invoices = all_invoices
     if q:
         query_text = q.casefold()
@@ -132,23 +141,19 @@ def index():
 
     if status != "all":
         invoices = [
-            invoice
-            for invoice in invoices
-            if invoice.effective_status(as_of=today) == status
+            invoice for invoice in invoices if invoice.effective_status(as_of=today) == status
         ]
     if due_from is not None:
         invoices = [
             invoice
             for invoice in invoices
-            if invoice.due_date_as_date is not None
-            and invoice.due_date_as_date >= due_from
+            if invoice.due_date_as_date is not None and invoice.due_date_as_date >= due_from
         ]
     if due_to is not None:
         invoices = [
             invoice
             for invoice in invoices
-            if invoice.due_date_as_date is not None
-            and invoice.due_date_as_date <= due_to
+            if invoice.due_date_as_date is not None and invoice.due_date_as_date <= due_to
         ]
 
     invoices = _sort_dashboard_invoices(invoices, sort)
@@ -174,14 +179,13 @@ def index():
 # Invoice detail
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/invoice/<int:invoice_id>")
 @login_required
 def invoice_detail(invoice_id: int):
     inv = _own_invoice(invoice_id)
     public_view_url = (
-        external_url("public.invoice_view", token=inv.view_token)
-        if inv.view_token
-        else None
+        external_url("public.invoice_view", token=inv.view_token) if inv.view_token else None
     )
     return render_template(
         "dashboard/invoice_detail.html",
@@ -214,6 +218,7 @@ def invoice_reminders(invoice_id: int):
 # ---------------------------------------------------------------------------
 # Payment lifecycle
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/invoice/<int:invoice_id>/payments", methods=["POST"])
 @login_required
@@ -266,8 +271,7 @@ def invoice_record_payment(invoice_id: int):
         flash("Payment recorded. This invoice is now paid.", "success")
     else:
         flash(
-            "Payment recorded. "
-            f"{format_currency(inv.balance_due, inv.currency_code)} remains due.",
+            f"Payment recorded. {format_currency(inv.balance_due, inv.currency_code)} remains due.",
             "success",
         )
     return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
@@ -315,8 +319,7 @@ def invoice_void(invoice_id: int):
         return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
     if inv.amount_paid > 0:
         flash(
-            "An invoice with recorded payments cannot be voided. "
-            "Reconcile those payments first.",
+            "An invoice with recorded payments cannot be voided. Reconcile those payments first.",
             "error",
         )
         return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
@@ -332,6 +335,7 @@ def invoice_void(invoice_id: int):
 # ---------------------------------------------------------------------------
 # Edit
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/invoice/<int:invoice_id>/edit", methods=["GET", "POST"])
 @login_required
@@ -356,9 +360,7 @@ def invoice_edit(invoice_id: int):
         logo_filename = branding.logo_filename
         raw_accent = branding.accent_color or DEFAULT_ACCENT_COLOR
         accent_color = (
-            raw_accent
-            if re.fullmatch(r"#[0-9a-fA-F]{6}", raw_accent)
-            else DEFAULT_ACCENT_COLOR
+            raw_accent if re.fullmatch(r"#[0-9a-fA-F]{6}", raw_accent) else DEFAULT_ACCENT_COLOR
         )
         remove_footer = bool(branding.remove_footer)
 
@@ -368,9 +370,7 @@ def invoice_edit(invoice_id: int):
 
     from blueprints.clients import selected_owned_client_id
 
-    selected_client_id = selected_owned_client_id(
-        request.form.get("client_id")
-    )
+    selected_client_id = selected_owned_client_id(request.form.get("client_id"))
 
     try:
         context = build_invoice_context(
@@ -414,10 +414,8 @@ def invoice_edit(invoice_id: int):
         return _render_invoice_edit(inv, request.form)
 
     recorded_payments = inv.amount_paid
-    if (
-        recorded_payments > 0
-        and context["currency_code"]
-        != normalize_currency_code(inv.currency_code)
+    if recorded_payments > 0 and context["currency_code"] != normalize_currency_code(
+        inv.currency_code
     ):
         flash(
             "Currency cannot be changed after a payment has been recorded.",
@@ -436,6 +434,7 @@ def invoice_edit(invoice_id: int):
     inv.client_id = selected_client_id
     inv.invoice_number = context["invoice_number"]
     inv.currency_code = context["currency_code"]
+    inv.page_size = context["page_size"]
     inv.invoice_date = context["invoice_date"]
     inv.due_date = context["due_date"]
     inv.from_company = context["from_company"]
@@ -467,9 +466,7 @@ def invoice_edit(invoice_id: int):
         inv.reminder_7d_sent = False
         InvoiceDelivery.query.filter(
             InvoiceDelivery.invoice_id == inv.id,
-            InvoiceDelivery.delivery_kind.in_(
-                {"reminder_3d", "reminder_0d", "reminder_7d"}
-            ),
+            InvoiceDelivery.delivery_kind.in_({"reminder_3d", "reminder_0d", "reminder_7d"}),
         ).delete(synchronize_session=False)
 
     # A revision never resets a sent invoice to draft. Invoices with recorded
@@ -488,8 +485,7 @@ def invoice_edit(invoice_id: int):
             exclude_id=inv.id,
         ):
             flash(
-                "That invoice number was just used by another request. "
-                "Choose a different number.",
+                "That invoice number was just used by another request. Choose a different number.",
                 "error",
             )
             inv = _own_invoice(invoice_id)
@@ -504,6 +500,7 @@ def invoice_edit(invoice_id: int):
 # Download (re-generate PDF from stored data)
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/invoice/<int:invoice_id>/download")
 @login_required
 @limiter.limit("10 per minute")
@@ -512,21 +509,22 @@ def invoice_download(invoice_id: int):
     context = context_from_invoice(inv)
     pdf_bytes = render_pdf(context, theme=inv.theme or "default")
 
-    safe_number  = _safe_filename(inv.invoice_number)
-    filename     = f"Invoice-{safe_number}.pdf"
-    encoded      = quote(filename, safe="")
-    content_disp = f'attachment; filename="{filename}"; filename*=UTF-8\'\'{encoded}'
+    safe_number = _safe_filename(inv.invoice_number)
+    filename = f"Invoice-{safe_number}.pdf"
+    encoded = quote(filename, safe="")
+    content_disp = f"attachment; filename=\"{filename}\"; filename*=UTF-8''{encoded}"
 
     response = make_response(pdf_bytes)
-    response.headers["Content-Type"]        = "application/pdf"
+    response.headers["Content-Type"] = "application/pdf"
     response.headers["Content-Disposition"] = content_disp
-    response.headers["Cache-Control"]       = "no-store"
+    response.headers["Cache-Control"] = "no-store"
     return response
 
 
 # ---------------------------------------------------------------------------
 # Duplicate
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/invoice/<int:invoice_id>/duplicate", methods=["POST"])
 @login_required
@@ -548,8 +546,7 @@ def invoice_duplicate(invoice_id: int):
             extra={"invoice_id": orig.id},
         )
         flash(
-            "This invoice contains invalid legacy financial or date data "
-            "and cannot be duplicated.",
+            "This invoice contains invalid legacy financial or date data and cannot be duplicated.",
             "error",
         )
         return redirect(url_for("dashboard.invoice_detail", invoice_id=orig.id))
@@ -558,37 +555,38 @@ def invoice_duplicate(invoice_id: int):
         current_user.id,
         f"{orig.invoice_number}-copy",
     )
-    dup  = Invoice(
-        user_id         = current_user.id,
-        client_id       = orig.client_id,
-        invoice_number  = duplicate_number,
-        currency_code   = normalize_currency_code(orig.currency_code),
-        invoice_date    = orig.invoice_date,
-        due_date        = orig.due_date,
-        from_company    = orig.from_company,
-        from_address    = orig.from_address,
-        from_email      = orig.from_email,
-        from_phone      = orig.from_phone,
-        to_name         = orig.to_name,
-        to_address      = orig.to_address,
-        to_email        = orig.to_email,
-        line_items_json = orig.line_items_json,
-        tax_rate        = orig.tax_rate,
-        discount        = orig.discount,
-        subtotal        = orig.subtotal,
-        total           = orig.total,
+    dup = Invoice(
+        user_id=current_user.id,
+        client_id=orig.client_id,
+        invoice_number=duplicate_number,
+        currency_code=normalize_currency_code(orig.currency_code),
+        page_size=orig.page_size,
+        invoice_date=orig.invoice_date,
+        due_date=orig.due_date,
+        from_company=orig.from_company,
+        from_address=orig.from_address,
+        from_email=orig.from_email,
+        from_phone=orig.from_phone,
+        to_name=orig.to_name,
+        to_address=orig.to_address,
+        to_email=orig.to_email,
+        line_items_json=orig.line_items_json,
+        tax_rate=orig.tax_rate,
+        discount=orig.discount,
+        subtotal=orig.subtotal,
+        total=orig.total,
         invoice_date_value=shadow_values["invoice_date_value"],
         due_date_value=shadow_values["due_date_value"],
         tax_rate_decimal=shadow_values["tax_rate_decimal"],
         discount_decimal=shadow_values["discount_decimal"],
         subtotal_decimal=shadow_values["subtotal_decimal"],
         total_decimal=shadow_values["total_decimal"],
-        notes           = orig.notes,
-        payment_info    = orig.payment_info,
-        payment_url     = orig.payment_url,
-        logo_filename   = orig.logo_filename,
-        theme           = orig.theme,
-        status          = "draft",
+        notes=orig.notes,
+        payment_info=orig.payment_info,
+        payment_url=orig.payment_url,
+        logo_filename=orig.logo_filename,
+        theme=orig.theme,
+        status="draft",
     )
     db.session.add(dup)
     db.session.commit()
@@ -599,6 +597,7 @@ def invoice_duplicate(invoice_id: int):
 # ---------------------------------------------------------------------------
 # Delete
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/invoice/<int:invoice_id>/delete", methods=["POST"])
 @login_required
@@ -613,6 +612,7 @@ def invoice_delete(invoice_id: int):
 # ---------------------------------------------------------------------------
 # Public link management
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/invoice/<int:invoice_id>/public-link/rotate", methods=["POST"])
 @login_required
@@ -638,6 +638,7 @@ def invoice_public_link_revoke(invoice_id: int):
 # Send via email (Pro only)
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/invoice/<int:invoice_id>/send", methods=["POST"])
 @login_required
 @pro_required
@@ -648,9 +649,7 @@ def invoice_send(invoice_id: int):
         flash("A void invoice cannot be sent.", "error")
         return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
 
-    recipient = normalize_email(
-        request.form.get("recipient_email", "").strip() or inv.to_email
-    )
+    recipient = normalize_email(request.form.get("recipient_email", "").strip() or inv.to_email)
     if not is_valid_email(recipient):
         flash("A valid recipient email address is required.", "error")
         return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
@@ -659,12 +658,12 @@ def invoice_send(invoice_id: int):
     if not inv.view_token:
         inv.view_token = secrets.token_urlsafe(32)
 
-    context   = context_from_invoice(inv)
+    context = context_from_invoice(inv)
     pdf_bytes = render_pdf(context, theme=inv.theme or "default")
 
     safe_number = _safe_filename(inv.invoice_number)
-    filename    = f"Invoice-{safe_number}.pdf"
-    view_url    = external_url("public.invoice_view", token=inv.view_token)
+    filename = f"Invoice-{safe_number}.pdf"
+    view_url = external_url("public.invoice_view", token=inv.view_token)
 
     body = render_template(
         "emails/invoice_body.txt",
@@ -676,6 +675,7 @@ def invoice_send(invoice_id: int):
     msg = Message(
         subject=f"Invoice {inv.invoice_number} from {inv.from_company or 'PDFBillr'}",
         recipients=[recipient],
+        reply_to=invoice_reply_to(inv),
         body=body,
     )
     msg.attach(filename, "application/pdf", pdf_bytes)
@@ -704,6 +704,7 @@ def invoice_send(invoice_id: int):
 # Branding (Pro only)
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/branding", methods=["GET", "POST"])
 @login_required
 @pro_required
@@ -717,8 +718,11 @@ def branding():
 
         # Accent color — validate strict hex to prevent CSS injection
         accent = request.form.get("accent_color", DEFAULT_ACCENT_COLOR).strip()
-        if not re.match(r'^#[0-9a-fA-F]{6}$', accent):
-            flash(f"Enter the accent color as a 6-digit hex code, for example {DEFAULT_ACCENT_COLOR}.", "error")
+        if not re.match(r"^#[0-9a-fA-F]{6}$", accent):
+            flash(
+                f"Enter the accent color as a 6-digit hex code, for example {DEFAULT_ACCENT_COLOR}.",
+                "error",
+            )
             return render_template("dashboard/branding.html", profile=profile)
         profile.accent_color = accent
 
@@ -754,9 +758,7 @@ def branding():
                     user_id=current_user.id,
                     upload_folder=current_app.config["UPLOAD_FOLDER"],
                 )
-            current_app.logger.exception(
-                "Failed to save branding for user %s", current_user.id
-            )
+            current_app.logger.exception("Failed to save branding for user %s", current_user.id)
             flash("Branding could not be saved. Please try again.", "error")
             return render_template("dashboard/branding.html", profile=profile)
 
@@ -792,6 +794,7 @@ def branding_logo():
 # ---------------------------------------------------------------------------
 # Payment reminder preferences (Pro only)
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/reminders", methods=["GET", "POST"])
 @login_required
@@ -844,6 +847,7 @@ def reminder_settings():
 # Save Draft (no PDF generation)
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/save-draft", methods=["POST"])
 @login_required
 def save_draft():
@@ -851,14 +855,14 @@ def save_draft():
     from utils.pdf import build_invoice_context
 
     logo_filename = None
-    accent_color  = DEFAULT_ACCENT_COLOR
+    accent_color = DEFAULT_ACCENT_COLOR
     remove_footer = False
 
     branding = current_user.branding
     if branding and is_pro():
         logo_filename = branding.logo_filename
-        raw_accent    = branding.accent_color or DEFAULT_ACCENT_COLOR
-        accent_color  = raw_accent if _HEX_RE.match(raw_accent) else DEFAULT_ACCENT_COLOR
+        raw_accent = branding.accent_color or DEFAULT_ACCENT_COLOR
+        accent_color = raw_accent if _HEX_RE.match(raw_accent) else DEFAULT_ACCENT_COLOR
         remove_footer = branding.remove_footer
 
     theme = request.form.get("theme", "default")
@@ -907,13 +911,13 @@ def save_draft():
 # Recurring Invoices (Pro only)
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/recurring")
 @login_required
 @pro_required
 def recurring_list():
     templates = (
-        RecurringInvoice.query
-        .filter_by(user_id=current_user.id)
+        RecurringInvoice.query.filter_by(user_id=current_user.id)
         .order_by(RecurringInvoice.created_at.desc())
         .all()
     )
@@ -929,11 +933,11 @@ def recurring_new():
         if tmpl:
             flash("Recurring invoice created.", "success")
             return redirect(url_for("dashboard.recurring_list"))
-        return render_template("dashboard/recurring_form.html", tmpl=None,
-                               intervals=_VALID_INTERVALS)
+        return render_template(
+            "dashboard/recurring_form.html", tmpl=None, intervals=_VALID_INTERVALS
+        )
 
-    return render_template("dashboard/recurring_form.html", tmpl=None,
-                           intervals=_VALID_INTERVALS)
+    return render_template("dashboard/recurring_form.html", tmpl=None, intervals=_VALID_INTERVALS)
 
 
 @bp.route("/recurring/<int:tmpl_id>/edit", methods=["GET", "POST"])
@@ -946,10 +950,10 @@ def recurring_edit(tmpl_id: int):
         if updated:
             flash("Recurring invoice updated.", "success")
             return redirect(url_for("dashboard.recurring_list"))
-        return render_template("dashboard/recurring_form.html", tmpl=tmpl,
-                               intervals=_VALID_INTERVALS)
-    return render_template("dashboard/recurring_form.html", tmpl=tmpl,
-                           intervals=_VALID_INTERVALS)
+        return render_template(
+            "dashboard/recurring_form.html", tmpl=tmpl, intervals=_VALID_INTERVALS
+        )
+    return render_template("dashboard/recurring_form.html", tmpl=tmpl, intervals=_VALID_INTERVALS)
 
 
 @bp.route("/recurring/<int:tmpl_id>/toggle", methods=["POST"])
@@ -978,6 +982,7 @@ def recurring_delete(tmpl_id: int):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _dashboard_today() -> date:
     timezone_name = current_app.config.get("SCHEDULER_TIMEZONE", "UTC")
@@ -1009,15 +1014,9 @@ def _payment_business_date(value: datetime, timezone_name: str) -> date:
 def _receivables_metrics(invoices: list[Invoice], *, today: date) -> dict:
     due_soon_through = today + timedelta(days=7)
     timezone_name = current_app.config.get("SCHEDULER_TIMEZONE", "UTC")
-    currency_codes = {
-        normalize_currency_code(invoice.currency_code)
-        for invoice in invoices
-    }
+    currency_codes = {normalize_currency_code(invoice.currency_code) for invoice in invoices}
     metrics: dict[str, dict[str, Decimal]] = {
-        name: {
-            currency_code: Decimal("0.00")
-            for currency_code in currency_codes
-        }
+        name: {currency_code: Decimal("0.00") for currency_code in currency_codes}
         for name in (
             "outstanding",
             "overdue",
@@ -1049,24 +1048,17 @@ def _receivables_metrics(invoices: list[Invoice], *, today: date) -> dict:
                 )
 
         for payment in invoice.payments:
-            if (
-                payment.paid_at is not None
-                and _payment_business_date(
-                    payment.paid_at,
-                    timezone_name,
-                ).replace(day=1)
-                == today.replace(day=1)
-            ):
+            if payment.paid_at is not None and _payment_business_date(
+                payment.paid_at,
+                timezone_name,
+            ).replace(day=1) == today.replace(day=1):
                 _add_metric_amount(
                     metrics["paid_this_month"],
                     currency_code,
                     payment.amount,
                 )
 
-    return {
-        name: dict(sorted(amounts.items()))
-        for name, amounts in metrics.items()
-    }
+    return {name: dict(sorted(amounts.items())) for name, amounts in metrics.items()}
 
 
 def _add_metric_amount(
@@ -1074,9 +1066,9 @@ def _add_metric_amount(
     currency_code: str,
     amount: Decimal,
 ) -> None:
-    amounts[currency_code] = (
-        amounts.get(currency_code, Decimal("0.00")) + amount
-    ).quantize(Decimal("0.01"))
+    amounts[currency_code] = (amounts.get(currency_code, Decimal("0.00")) + amount).quantize(
+        Decimal("0.01")
+    )
 
 
 def _sort_dashboard_invoices(
@@ -1156,9 +1148,7 @@ def _optional_bounded_int(
     except ValueError as exc:
         raise ValueError(f"{label} must be a whole number.") from exc
     if parsed < minimum or parsed > maximum:
-        raise ValueError(
-            f"{label} must be between {minimum} and {maximum} days."
-        )
+        raise ValueError(f"{label} must be between {minimum} and {maximum} days.")
     return parsed
 
 
@@ -1263,6 +1253,7 @@ def _invoice_form_data(inv: Invoice) -> MultiDict:
             ("invoice_number", inv.invoice_number or ""),
             ("client_id", str(inv.client_id or "")),
             ("currency_code", normalize_currency_code(inv.currency_code)),
+            ("page_size", inv.page_size or "A4"),
             ("invoice_date", inv.invoice_date or ""),
             ("due_date", inv.due_date or ""),
             ("from_company", inv.from_company or ""),
@@ -1353,45 +1344,43 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
         tmpl = RecurringInvoice(user_id=current_user.id)
         db.session.add(tmpl)
 
-    tmpl.invoice_number_prefix = request.form.get("invoice_number_prefix", "INV")[:50].strip() or "INV"
-    tmpl.currency_code = normalize_currency_code(
-        request.form.get("currency_code")
+    tmpl.invoice_number_prefix = (
+        request.form.get("invoice_number_prefix", "INV")[:50].strip() or "INV"
     )
-    tmpl.from_company  = request.form.get("from_company", "")[:200]
-    tmpl.from_address  = request.form.get("from_address", "")[:1000]
-    tmpl.from_email    = request.form.get("from_email", "")[:200]
-    tmpl.from_phone    = request.form.get("from_phone", "")[:200]
-    tmpl.to_name       = request.form.get("to_name", "")[:200]
-    tmpl.to_address    = request.form.get("to_address", "")[:1000]
+    tmpl.currency_code = normalize_currency_code(request.form.get("currency_code"))
+    tmpl.from_company = request.form.get("from_company", "")[:200]
+    tmpl.from_address = request.form.get("from_address", "")[:1000]
+    tmpl.from_email = request.form.get("from_email", "")[:200]
+    tmpl.from_phone = request.form.get("from_phone", "")[:200]
+    tmpl.to_name = request.form.get("to_name", "")[:200]
+    tmpl.to_address = request.form.get("to_address", "")[:1000]
     to_email = normalize_email(request.form.get("to_email", ""))
     if to_email and not is_valid_email(to_email):
         flash("A valid client email address is required.", "error")
         return None
-    tmpl.to_email      = to_email
+    tmpl.to_email = to_email
     tmpl.line_items_json = json.dumps(calculated.line_items)
-    tmpl.tax_rate      = float(calculated.tax_rate)
-    tmpl.discount      = float(calculated.discount)
+    tmpl.tax_rate = float(calculated.tax_rate)
+    tmpl.discount = float(calculated.discount)
     shadow_values = recurring_invoice_shadow_values(
         tax_rate=calculated.tax_rate,
         discount=calculated.discount,
     )
     tmpl.tax_rate_decimal = shadow_values["tax_rate_decimal"]
     tmpl.discount_decimal = shadow_values["discount_decimal"]
-    tmpl.notes         = request.form.get("notes", "")[:2000]
-    tmpl.payment_info  = request.form.get("payment_info", "")[:2000]
+    tmpl.notes = request.form.get("notes", "")[:2000]
+    tmpl.payment_info = request.form.get("payment_info", "")[:2000]
     try:
-        tmpl.payment_url = normalize_payment_url(
-            request.form.get("payment_url")
-        )
+        tmpl.payment_url = normalize_payment_url(request.form.get("payment_url"))
     except PaymentURLValidationError as exc:
         flash(str(exc), "error")
         return None
     theme = request.form.get("theme", "default")
-    tmpl.theme         = theme if theme in ALLOWED_THEMES else "default"
-    tmpl.interval      = interval
-    tmpl.net_days      = net_days
+    tmpl.theme = theme if theme in ALLOWED_THEMES else "default"
+    tmpl.interval = interval
+    tmpl.net_days = net_days
     tmpl.next_run_date = next_run
-    tmpl.auto_send     = bool(request.form.get("auto_send"))
+    tmpl.auto_send = bool(request.form.get("auto_send"))
 
     db.session.commit()
     return tmpl

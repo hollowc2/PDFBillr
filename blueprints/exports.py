@@ -87,9 +87,7 @@ def _number(value: object | None) -> str:
 
 def _financial_value(invoice: Invoice, decimal_name: str, legacy_name: str) -> str:
     decimal_value = getattr(invoice, decimal_name, None)
-    return _number(
-        decimal_value if decimal_value is not None else getattr(invoice, legacy_name)
-    )
+    return _number(decimal_value if decimal_value is not None else getattr(invoice, legacy_name))
 
 
 def _timestamp(value: object | None) -> str:
@@ -111,6 +109,8 @@ def invoices_csv():
     status = request.args.get("status", "").strip().lower()
     if status == "all":
         status = ""
+    elif status == "finalized":  # legacy value; effective_status reports "sent"
+        status = "sent"
     if status and not _STATUS_RE.fullmatch(status):
         abort(400, description="Invalid status filter.")
 

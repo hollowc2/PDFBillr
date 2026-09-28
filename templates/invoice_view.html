@@ -18,7 +18,7 @@
  {% if lifecycle_status == 'paid' %}bg-paid-tint text-paid 
  {% elif lifecycle_status == 'overdue' %}bg-overdue-tint text-overdue 
  {% elif lifecycle_status == 'partial' %}bg-due-tint text-due 
- {% elif lifecycle_status in ('sent', 'finalized') %}bg-accent-tint text-accent 
+ {% elif lifecycle_status == 'sent' %}bg-accent-tint text-accent 
  {% else %}bg-ink/5 text-graphite {% endif %}">
         {{ "Payment Due" if lifecycle_status == "sent" else lifecycle_status | capitalize }}
       </span>

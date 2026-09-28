@@ -12,6 +12,9 @@ environment-specific settings and secrets outside Git.
 3. Configure `SESSION_COOKIE_SECURE=true` and `ENABLE_HSTS=true` only after
    HTTPS is confirmed end to end.
 4. Provide production SMTP and Stripe settings only for enabled features.
+   Set `SUPPORT_EMAIL` to a monitored inbox so error pages show a contact and
+   replies to account emails reach you; invoice emails always reply to the
+   invoice sender.
 5. Use a shared rate-limit store such as Redis when running more than one web
    process. `memory://` is intended only for one process.
 

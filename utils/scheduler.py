@@ -15,6 +15,9 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+from utils.branding import account_page_size
+from utils.mail import invoice_reply_to
+
 log = logging.getLogger(__name__)
 
 _INTERVAL_DELTAS = {
@@ -29,8 +32,7 @@ _REMINDER_SPECS = {
         "reminder_3d_sent",
         "emails/reminder_due_soon.txt",
         lambda inv, days: (
-            f"Invoice {inv.invoice_number} due in {days} "
-            f"{'day' if days == 1 else 'days'}"
+            f"Invoice {inv.invoice_number} due in {days} {'day' if days == 1 else 'days'}"
         ),
     ),
     "reminder_0d": (
@@ -74,19 +76,13 @@ def send_payment_reminders(app) -> None:
             Invoice.query.filter(
                 or_(
                     Invoice.status == "sent",
-                    (
-                        (Invoice.status == "partial")
-                        & Invoice.sent_at.isnot(None)
-                    ),
+                    ((Invoice.status == "partial") & Invoice.sent_at.isnot(None)),
                 )
             )
             .filter(
                 or_(
                     Invoice.due_date_value.isnot(None),
-                    (
-                        Invoice.due_date.isnot(None)
-                        & (Invoice.due_date != "")
-                    ),
+                    (Invoice.due_date.isnot(None) & (Invoice.due_date != "")),
                 )
             )
             .all()
@@ -128,9 +124,7 @@ def send_payment_reminders(app) -> None:
 
             if delivery_kind:
                 _view_url_for(inv)
-                if _ensure_invoice_delivery(
-                    db, InvoiceDelivery, inv.id, delivery_kind
-                ):
+                if _ensure_invoice_delivery(db, InvoiceDelivery, inv.id, delivery_kind):
                     enqueued_count += 1
 
         try:
@@ -192,9 +186,7 @@ def process_recurring_invoices(app) -> None:
                 # A previous process committed this occurrence. Advance a stale
                 # template pointer without creating a second invoice.
                 tmpl.last_run_date = scheduled_for
-                tmpl.next_run_date = _next_run_date(
-                    scheduled_for, tmpl.interval
-                )
+                tmpl.next_run_date = _next_run_date(scheduled_for, tmpl.interval)
                 db.session.commit()
                 continue
 
@@ -315,10 +307,7 @@ def _dispatch_invoice_deliveries(
     stale_before = now - _DELIVERY_LEASE
     eligible = or_(
         InvoiceDelivery.status.in_(("pending", "failed")),
-        (
-            (InvoiceDelivery.status == "sending")
-            & (InvoiceDelivery.last_attempt_at < stale_before)
-        ),
+        ((InvoiceDelivery.status == "sending") & (InvoiceDelivery.last_attempt_at < stale_before)),
     )
     delivery_ids = [
         row.id
@@ -335,22 +324,17 @@ def _dispatch_invoice_deliveries(
 
     sent_count = 0
     for delivery_id in delivery_ids:
-        claimed = (
-            InvoiceDelivery.query.filter(
-                InvoiceDelivery.id == delivery_id,
-                eligible,
-            )
-            .update(
-                {
-                    InvoiceDelivery.status: "sending",
-                    InvoiceDelivery.attempt_count: (
-                        InvoiceDelivery.attempt_count + 1
-                    ),
-                    InvoiceDelivery.last_attempt_at: now,
-                    InvoiceDelivery.updated_at: now,
-                },
-                synchronize_session=False,
-            )
+        claimed = InvoiceDelivery.query.filter(
+            InvoiceDelivery.id == delivery_id,
+            eligible,
+        ).update(
+            {
+                InvoiceDelivery.status: "sending",
+                InvoiceDelivery.attempt_count: (InvoiceDelivery.attempt_count + 1),
+                InvoiceDelivery.last_attempt_at: now,
+                InvoiceDelivery.updated_at: now,
+            },
+            synchronize_session=False,
         )
         db_obj.session.commit()
         if claimed != 1:
@@ -415,9 +399,7 @@ def _send_invoice_delivery(
 
     inv = delivery.invoice
     if inv is None or not inv.to_email:
-        raise PermanentDeliveryError(
-            "delivery invoice or recipient is unavailable"
-        )
+        raise PermanentDeliveryError("delivery invoice or recipient is unavailable")
     if inv.user is None or not is_pro(inv.user):
         raise PermanentDeliveryError("delivery owner is no longer eligible")
 
@@ -434,13 +416,9 @@ def _send_invoice_delivery(
         return
 
     try:
-        flag_name, template, subject_factory = _REMINDER_SPECS[
-            delivery.delivery_kind
-        ]
+        flag_name, template, subject_factory = _REMINDER_SPECS[delivery.delivery_kind]
     except KeyError as exc:
-        raise PermanentDeliveryError(
-            "unknown invoice delivery kind"
-        ) from exc
+        raise PermanentDeliveryError("unknown invoice delivery kind") from exc
 
     # A payment or void can occur after this delivery was queued or after a
     # prior SMTP attempt failed. Re-check at dispatch time so durable retries
@@ -496,7 +474,12 @@ def _send_reminder(
         view_url=view_url,
         reminder_days=reminder_days,
     )
-    msg = Message(subject=subject, recipients=[inv.to_email], body=body)
+    msg = Message(
+        subject=subject,
+        recipients=[inv.to_email],
+        body=body,
+        reply_to=invoice_reply_to(inv),
+    )
     mail_obj.send(msg)
 
 
@@ -555,18 +538,14 @@ def _generate_from_template(tmpl, scheduled_for, db):
     from models import Invoice
 
     existing_count = Invoice.query.filter_by(user_id=tmpl.user_id).count()
-    preferred_number = (
-        f"{prefix}-{scheduled_for.year}-{existing_count + 1:03d}"
-    )
+    preferred_number = f"{prefix}-{scheduled_for.year}-{existing_count + 1:03d}"
     invoice_number = next_available_invoice_number(
         tmpl.user_id,
         preferred_number,
     )
 
     due_date_obj = (
-        scheduled_for + timedelta(days=tmpl.net_days)
-        if tmpl.net_days is not None
-        else None
+        scheduled_for + timedelta(days=tmpl.net_days) if tmpl.net_days is not None else None
     )
     shadow_values = invoice_shadow_values(
         invoice_date=scheduled_for,
@@ -578,35 +557,36 @@ def _generate_from_template(tmpl, scheduled_for, db):
     )
 
     inv = Invoice(
-        user_id         = tmpl.user_id,
-        invoice_number  = invoice_number,
-        currency_code   = normalize_currency_code(tmpl.currency_code),
-        invoice_date    = scheduled_for.isoformat(),
-        due_date        = due_date_obj.isoformat() if due_date_obj else None,
-        from_company    = tmpl.from_company,
-        from_address    = tmpl.from_address,
-        from_email      = tmpl.from_email,
-        from_phone      = tmpl.from_phone,
-        to_name         = tmpl.to_name,
-        to_address      = tmpl.to_address,
-        to_email        = tmpl.to_email,
-        line_items_json = json.dumps(calculated.line_items),
-        tax_rate        = financials["tax_rate"],
-        discount        = financials["discount"],
-        subtotal        = financials["subtotal"],
-        total           = financials["total"],
+        user_id=tmpl.user_id,
+        invoice_number=invoice_number,
+        currency_code=normalize_currency_code(tmpl.currency_code),
+        page_size=account_page_size(tmpl.user),
+        invoice_date=scheduled_for.isoformat(),
+        due_date=due_date_obj.isoformat() if due_date_obj else None,
+        from_company=tmpl.from_company,
+        from_address=tmpl.from_address,
+        from_email=tmpl.from_email,
+        from_phone=tmpl.from_phone,
+        to_name=tmpl.to_name,
+        to_address=tmpl.to_address,
+        to_email=tmpl.to_email,
+        line_items_json=json.dumps(calculated.line_items),
+        tax_rate=financials["tax_rate"],
+        discount=financials["discount"],
+        subtotal=financials["subtotal"],
+        total=financials["total"],
         invoice_date_value=shadow_values["invoice_date_value"],
         due_date_value=shadow_values["due_date_value"],
         tax_rate_decimal=shadow_values["tax_rate_decimal"],
         discount_decimal=shadow_values["discount_decimal"],
         subtotal_decimal=shadow_values["subtotal_decimal"],
         total_decimal=shadow_values["total_decimal"],
-        notes           = tmpl.notes,
-        payment_info    = tmpl.payment_info,
-        payment_url     = tmpl.payment_url,
-        theme           = tmpl.theme or "default",
-        status          = "draft",
-        view_token      = secrets.token_urlsafe(32),
+        notes=tmpl.notes,
+        payment_info=tmpl.payment_info,
+        payment_url=tmpl.payment_url,
+        theme=tmpl.theme or "default",
+        status="draft",
+        view_token=secrets.token_urlsafe(32),
     )
     db.session.add(inv)
     db.session.flush()
@@ -642,6 +622,7 @@ def _send_generated_invoice(
     msg = Message(
         subject=f"Invoice {inv.invoice_number} from {sender_name}",
         recipients=[inv.to_email],
+        reply_to=invoice_reply_to(inv),
         body=body,
     )
     msg.attach(filename, "application/pdf", pdf_bytes)

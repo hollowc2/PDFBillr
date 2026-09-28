@@ -144,8 +144,7 @@ def test_dashboard_status_date_and_sort_filters_use_business_dates(
 
     login(owner.email)
     response = client.get(
-        "/dashboard/?status=overdue&due_from=2026-07-20"
-        "&due_to=2026-07-27&sort=amount_high"
+        "/dashboard/?status=overdue&due_from=2026-07-20&due_to=2026-07-27&sort=amount_high"
     )
 
     html = response.get_data(as_text=True)
@@ -243,10 +242,13 @@ def test_reminder_settings_are_owner_scoped_and_validate_bounds(
     )
     assert toggled.status_code == 302
     with app.app_context():
-        assert db.session.get(
-            Invoice,
-            owner_invoice.id,
-        ).payment_reminders_enabled is False
+        assert (
+            db.session.get(
+                Invoice,
+                owner_invoice.id,
+            ).payment_reminders_enabled
+            is False
+        )
 
     forbidden = client.post(
         f"/dashboard/invoice/{other_invoice.id}/reminders",
@@ -254,10 +256,13 @@ def test_reminder_settings_are_owner_scoped_and_validate_bounds(
     )
     assert forbidden.status_code == 404
     with app.app_context():
-        assert db.session.get(
-            Invoice,
-            other_invoice.id,
-        ).payment_reminders_enabled is True
+        assert (
+            db.session.get(
+                Invoice,
+                other_invoice.id,
+            ).payment_reminders_enabled
+            is True
+        )
 
 
 def test_invoice_and_global_disable_prevent_new_and_retry_reminders(
@@ -417,15 +422,10 @@ def test_reminder_migration_is_additive_and_reversible(tmp_path):
     with application.app_context():
         inspector = inspect(db.engine)
         assert "reminder_preferences" in inspector.get_table_names()
-        invoice_columns = {
-            column["name"] for column in inspector.get_columns("invoices")
-        }
+        invoice_columns = {column["name"] for column in inspector.get_columns("invoices")}
         assert "payment_reminders_enabled" in invoice_columns
         enabled = db.session.execute(
-            text(
-                "SELECT payment_reminders_enabled "
-                "FROM invoices WHERE id = 1"
-            )
+            text("SELECT payment_reminders_enabled FROM invoices WHERE id = 1")
         ).scalar_one()
         assert enabled == 1
         db.session.execute(
@@ -444,10 +444,11 @@ def test_reminder_migration_is_additive_and_reversible(tmp_path):
     with application.app_context():
         inspector = inspect(db.engine)
         assert "reminder_preferences" not in inspector.get_table_names()
-        invoice_columns = {
-            column["name"] for column in inspector.get_columns("invoices")
-        }
+        invoice_columns = {column["name"] for column in inspector.get_columns("invoices")}
         assert "payment_reminders_enabled" not in invoice_columns
-        assert db.session.execute(
-            text("SELECT invoice_number FROM invoices WHERE id = 1")
-        ).scalar_one() == "INV-001"
+        assert (
+            db.session.execute(
+                text("SELECT invoice_number FROM invoices WHERE id = 1")
+            ).scalar_one()
+            == "INV-001"
+        )

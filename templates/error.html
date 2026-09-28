@@ -25,11 +25,13 @@
         {% if status_code == 404 %}
           This page doesn’t exist, or the link has expired. Check the address, or go back to the start.
         {% elif status_code >= 500 %}
-          Something went wrong on our side. Try again in a moment. If it keeps happening, the
-          reference below lets us find exactly what failed.
+          Something went wrong on our side. Try again in a moment.{% if support_email %} If it keeps
+          happening, email <span class="text-ink select-all">{{ support_email }}</span> and include the reference below.{% else %}
+          If it keeps happening, the reference below lets us find exactly what failed.{% endif %}
         {% else %}
-          We couldn’t complete that request. Go back and try again. If it keeps happening, the
-          reference below lets us find exactly what failed.
+          We couldn’t complete that request. Go back and try again.{% if support_email %} If it keeps
+          happening, email <span class="text-ink select-all">{{ support_email }}</span> and include the reference below.{% else %}
+          If it keeps happening, the reference below lets us find exactly what failed.{% endif %}
         {% endif %}
       </p>
       <a href="{{ home_path }}"

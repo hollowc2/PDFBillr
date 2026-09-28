@@ -96,9 +96,7 @@ def _parse_date(value: str | date | None, field_name: str) -> date | None:
             f"{field_name} must be a valid date in YYYY-MM-DD format."
         ) from None
     if parsed.isoformat() != value:
-        raise FinancialShadowValueError(
-            f"{field_name} must be a valid date in YYYY-MM-DD format."
-        )
+        raise FinancialShadowValueError(f"{field_name} must be a valid date in YYYY-MM-DD format.")
     return parsed
 
 
@@ -116,9 +114,7 @@ def _quantize_decimal(
     try:
         decimal_value = Decimal(str(value))
     except (InvalidOperation, TypeError, ValueError):
-        raise FinancialShadowValueError(
-            f"{field_name} must be a valid number."
-        ) from None
+        raise FinancialShadowValueError(f"{field_name} must be a valid number.") from None
     if not decimal_value.is_finite():
         raise FinancialShadowValueError(f"{field_name} must be finite.")
     if decimal_value < 0:
@@ -128,6 +124,4 @@ def _quantize_decimal(
     try:
         return decimal_value.quantize(quantum, rounding=ROUND_HALF_UP)
     except InvalidOperation:
-        raise FinancialShadowValueError(
-            f"{field_name} cannot be represented safely."
-        ) from None
+        raise FinancialShadowValueError(f"{field_name} cannot be represented safely.") from None

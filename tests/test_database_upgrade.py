@@ -58,9 +58,7 @@ def test_fresh_database_bootstrap_reaches_head_and_is_rerunnable(tmp_path):
             "service_items",
             "reminder_preferences",
         } <= set(inspector.get_table_names())
-        user_columns = {
-            column["name"] for column in inspector.get_columns("users")
-        }
+        user_columns = {column["name"] for column in inspector.get_columns("users")}
         assert "auth_session_version" in user_columns
         invoice_unique_constraints = {
             tuple(constraint["column_names"])
@@ -68,10 +66,7 @@ def test_fresh_database_bootstrap_reaches_head_and_is_rerunnable(tmp_path):
         }
         assert ("user_id", "invoice_number") in invoice_unique_constraints
         billing_columns = {
-            column["name"]
-            for column in inspector.get_columns(
-                "billing_notification_deliveries"
-            )
+            column["name"] for column in inspector.get_columns("billing_notification_deliveries")
         }
         assert {
             "stripe_event_id",
@@ -87,21 +82,14 @@ def test_fresh_database_bootstrap_reaches_head_and_is_rerunnable(tmp_path):
         } <= billing_columns
         billing_unique_constraints = {
             tuple(constraint["column_names"])
-            for constraint in inspector.get_unique_constraints(
-                "billing_notification_deliveries"
-            )
+            for constraint in inspector.get_unique_constraints("billing_notification_deliveries")
         }
         assert ("stripe_event_id",) in billing_unique_constraints
         billing_indexes = {
-            index["name"]
-            for index in inspector.get_indexes(
-                "billing_notification_deliveries"
-            )
+            index["name"] for index in inspector.get_indexes("billing_notification_deliveries")
         }
         assert "ix_billing_notification_deliveries_status" in billing_indexes
-        invoice_columns = {
-            column["name"] for column in inspector.get_columns("invoices")
-        }
+        invoice_columns = {column["name"] for column in inspector.get_columns("invoices")}
         assert {
             "invoice_date_value",
             "due_date_value",
@@ -115,9 +103,7 @@ def test_fresh_database_bootstrap_reaches_head_and_is_rerunnable(tmp_path):
             "payment_reminders_enabled",
             "currency_code",
         } <= invoice_columns
-        payment_columns = {
-            column["name"] for column in inspector.get_columns("invoice_payments")
-        }
+        payment_columns = {column["name"] for column in inspector.get_columns("invoice_payments")}
         assert {
             "id",
             "invoice_id",
@@ -128,22 +114,17 @@ def test_fresh_database_bootstrap_reaches_head_and_is_rerunnable(tmp_path):
             "note",
             "created_at",
         } <= payment_columns
-        payment_indexes = {
-            index["name"] for index in inspector.get_indexes("invoice_payments")
-        }
+        payment_indexes = {index["name"] for index in inspector.get_indexes("invoice_payments")}
         assert "ix_invoice_payments_invoice_id" in payment_indexes
         recurring_columns = {
-            column["name"]
-            for column in inspector.get_columns("recurring_invoices")
+            column["name"] for column in inspector.get_columns("recurring_invoices")
         }
         assert {
             "tax_rate_decimal",
             "discount_decimal",
         } <= recurring_columns
-        revision = db.session.execute(
-            text("SELECT version_num FROM alembic_version")
-        ).scalar_one()
-        assert revision == "20260728_11"
+        revision = db.session.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+        assert revision == "20260928_13"
 
 
 def test_migration_logging_does_not_disable_application_loggers(tmp_path):
@@ -166,11 +147,9 @@ def test_development_auto_create_uses_alembic_head(tmp_path):
     )
 
     with application.app_context():
-        revision = db.session.execute(
-            text("SELECT version_num FROM alembic_version")
-        ).scalar_one()
+        revision = db.session.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
 
-    assert revision == "20260728_11"
+    assert revision == "20260928_13"
 
 
 def test_financial_shadow_migration_is_additive_and_reversible(tmp_path):
@@ -238,18 +217,18 @@ def test_financial_shadow_migration_is_additive_and_reversible(tmp_path):
     assert downgraded.exit_code == 0, downgraded.output
     with application.app_context():
         inspector = inspect(db.engine)
-        invoice_columns = {
-            column["name"] for column in inspector.get_columns("invoices")
-        }
+        invoice_columns = {column["name"] for column in inspector.get_columns("invoices")}
         recurring_columns = {
-            column["name"]
-            for column in inspector.get_columns("recurring_invoices")
+            column["name"] for column in inspector.get_columns("recurring_invoices")
         }
         assert "invoice_date_value" not in invoice_columns
         assert "tax_rate_decimal" not in recurring_columns
-        assert db.session.execute(
-            text("SELECT invoice_number FROM invoices WHERE id = 1")
-        ).scalar_one() == "INV-001"
+        assert (
+            db.session.execute(
+                text("SELECT invoice_number FROM invoices WHERE id = 1")
+            ).scalar_one()
+            == "INV-001"
+        )
 
 
 def test_payment_lifecycle_migration_is_additive_and_reversible(tmp_path):
@@ -296,10 +275,7 @@ def test_payment_lifecycle_migration_is_additive_and_reversible(tmp_path):
         )
         db.session.commit()
         payment = db.session.execute(
-            text(
-                "SELECT invoice_id, amount, method "
-                "FROM invoice_payments WHERE id = 1"
-            )
+            text("SELECT invoice_id, amount, method FROM invoice_payments WHERE id = 1")
         ).one()
         assert tuple(payment) == (1, 25, "cash")
 
@@ -308,14 +284,15 @@ def test_payment_lifecycle_migration_is_additive_and_reversible(tmp_path):
     with application.app_context():
         inspector = inspect(db.engine)
         assert "invoice_payments" not in inspector.get_table_names()
-        invoice_columns = {
-            column["name"] for column in inspector.get_columns("invoices")
-        }
+        invoice_columns = {column["name"] for column in inspector.get_columns("invoices")}
         assert "paid_at" not in invoice_columns
         assert "voided_at" not in invoice_columns
-        assert db.session.execute(
-            text("SELECT invoice_number FROM invoices WHERE id = 1")
-        ).scalar_one() == "INV-001"
+        assert (
+            db.session.execute(
+                text("SELECT invoice_number FROM invoices WHERE id = 1")
+            ).scalar_one()
+            == "INV-001"
+        )
 
 
 def test_sqlite_connections_enforce_declared_foreign_keys(app):
@@ -363,11 +340,7 @@ def test_legacy_upgrade_preserves_rows_with_foreign_keys(tmp_path):
                 )
             )
             connection.execute(
-                text(
-                    "INSERT INTO invoices "
-                    "(id, user_id, invoice_number) "
-                    "VALUES (1, 1, 'INV-001')"
-                )
+                text("INSERT INTO invoices (id, user_id, invoice_number) VALUES (1, 1, 'INV-001')")
             )
             connection.execute(
                 text(
@@ -381,12 +354,16 @@ def test_legacy_upgrade_preserves_rows_with_foreign_keys(tmp_path):
 
     assert result.exit_code == 0, result.output
     with application.app_context():
-        assert db.session.execute(
-            text("SELECT invoice_number FROM invoices WHERE id = 1")
-        ).scalar_one() == "INV-001"
-        assert db.session.execute(
-            text("SELECT plan FROM subscriptions WHERE id = 1")
-        ).scalar_one() == "free"
+        assert (
+            db.session.execute(
+                text("SELECT invoice_number FROM invoices WHERE id = 1")
+            ).scalar_one()
+            == "INV-001"
+        )
+        assert (
+            db.session.execute(text("SELECT plan FROM subscriptions WHERE id = 1")).scalar_one()
+            == "free"
+        )
 
 
 def test_unknown_partial_legacy_schema_fails_without_stamping(tmp_path):
@@ -400,9 +377,7 @@ def test_unknown_partial_legacy_schema_fails_without_stamping(tmp_path):
     result = application.test_cli_runner().invoke(args=["db-bootstrap"])
 
     assert result.exit_code != 0
-    assert "does not match a supported PDFBillr legacy schema" in str(
-        result.exception
-    )
+    assert "does not match a supported PDFBillr legacy schema" in str(result.exception)
     with application.app_context():
         assert "alembic_version" not in inspect(db.engine).get_table_names()
 
@@ -435,9 +410,7 @@ def test_duplicate_invoice_numbers_block_constraint_migration(tmp_path):
     assert result.exit_code != 0
     assert "duplicate group(s) exist" in str(result.exception)
     with application.app_context():
-        revision = db.session.execute(
-            text("SELECT version_num FROM alembic_version")
-        ).scalar_one()
+        revision = db.session.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
         assert revision == BASELINE_REVISION
 
 
@@ -484,9 +457,7 @@ def test_clients_catalog_migration_is_additive_and_reversible(tmp_path):
             "clients",
             "service_items",
         } <= set(inspector.get_table_names())
-        assert "client_id" in {
-            column["name"] for column in inspector.get_columns("invoices")
-        }
+        assert "client_id" in {column["name"] for column in inspector.get_columns("invoices")}
         assert "ix_invoices_client_id" in {
             index["name"] for index in inspector.get_indexes("invoices")
         }
@@ -506,11 +477,7 @@ def test_clients_catalog_migration_is_additive_and_reversible(tmp_path):
                     "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
                 )
             )
-            connection.execute(
-                text(
-                    "UPDATE invoices SET client_id = 1 WHERE id = 1"
-                )
-            )
+            connection.execute(text("UPDATE invoices SET client_id = 1 WHERE id = 1"))
             connection.execute(
                 text(
                     "INSERT INTO service_items "
@@ -526,11 +493,10 @@ def test_clients_catalog_migration_is_additive_and_reversible(tmp_path):
     assert downgraded.exit_code == 0, downgraded.output
     with application.app_context():
         inspector = inspect(db.engine)
-        assert "client_id" not in {
-            column["name"] for column in inspector.get_columns("invoices")
-        }
+        assert "client_id" not in {column["name"] for column in inspector.get_columns("invoices")}
         assert "clients" not in inspector.get_table_names()
         assert "service_items" not in inspector.get_table_names()
-        assert db.session.execute(
-            text("SELECT to_name FROM invoices WHERE id = 1")
-        ).scalar_one() == "Snapshot Client"
+        assert (
+            db.session.execute(text("SELECT to_name FROM invoices WHERE id = 1")).scalar_one()
+            == "Snapshot Client"
+        )

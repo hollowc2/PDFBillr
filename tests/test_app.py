@@ -15,7 +15,9 @@ def test_importing_factory_does_not_construct_application():
     assert not hasattr(app_module, "app")
 
 
-@pytest.mark.parametrize("secret", ["", "short", "dev-only-insecure-default-do-not-use-in-production"])
+@pytest.mark.parametrize(
+    "secret", ["", "short", "dev-only-insecure-default-do-not-use-in-production"]
+)
 def test_production_rejects_insecure_secret(secret):
     class ProductionConfig:
         APP_ENV = "production"
@@ -75,9 +77,7 @@ def test_production_requires_shared_rate_limit_storage():
     with pytest.raises(RuntimeError, match="shared RATELIMIT_STORAGE_URI"):
         _validate_config(production_app)
 
-    production_app.config["RATELIMIT_STORAGE_URI"] = (
-        "redis://cache.internal:6379/0"
-    )
+    production_app.config["RATELIMIT_STORAGE_URI"] = "redis://cache.internal:6379/0"
     _validate_config(production_app)
 
 
@@ -106,9 +106,7 @@ def test_security_headers_are_present(client):
     assert response.headers["Permissions-Policy"]
 
 
-def test_request_ids_are_generated_locally_and_logged_without_url_paths(
-    client, caplog
-):
+def test_request_ids_are_generated_locally_and_logged_without_url_paths(client, caplog):
     supplied_id = "attacker-controlled"
     with caplog.at_level("INFO"):
         first = client.get(
@@ -184,9 +182,7 @@ def test_health_starts_with_scheduler_disabled(client):
     assert response.get_json()["checks"]["rate_limiter"] is True
 
 
-def test_readiness_checks_configured_shared_rate_limiter(
-    client, app, monkeypatch
-):
+def test_readiness_checks_configured_shared_rate_limiter(client, app, monkeypatch):
     app.config["RATELIMIT_STORAGE_URI"] = "redis://cache.example.test/0"
     monkeypatch.setattr(
         "blueprints.public.limiter._storage",
@@ -209,9 +205,7 @@ def test_liveness_does_not_probe_dependencies(client, monkeypatch):
     assert response.get_json() == {"status": "ok"}
 
 
-def test_readiness_returns_503_and_rolls_back_on_database_failure(
-    client, monkeypatch
-):
+def test_readiness_returns_503_and_rolls_back_on_database_failure(client, monkeypatch):
     rolled_back = []
 
     def fail(*_args, **_kwargs):

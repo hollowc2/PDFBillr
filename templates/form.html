@@ -240,11 +240,20 @@
 
   <!-- ── PDF template ──────────────────────────────────────────── -->
   <div class="card p-6 mb-6">
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
       <h2 class="section-title">PDF template</h2>
-      {% if not is_pro() %}
-      <a href="{{ url_for('billing.upgrade') }}" class="text-xs font-semibold text-accent hover:underline">More templates with Pro</a>
-      {% endif %}
+      <div class="flex items-center gap-4">
+        {% if not is_pro() %}
+        <a href="{{ url_for('billing.upgrade') }}" class="text-xs font-semibold text-accent hover:underline">More templates with Pro</a>
+        {% endif %}
+        {% set selected_page_size = form_data.get('page_size', 'A4') if form_data else 'A4' %}
+        <label for="page-size" class="text-xs font-medium text-graphite">Paper</label>
+        <select id="page-size" name="page_size" class="input-field w-auto h-8 py-0 text-xs">
+          {% for value, label in page_size_options %}
+          <option value="{{ value }}" {{ 'selected' if selected_page_size == value else '' }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
     {% set selected_theme = form_data.get('theme', 'default') if form_data and is_pro() else 'default' %}
     {% set templates_list = [

@@ -126,9 +126,7 @@ def test_due_date_edit_removes_only_stale_reminder_deliveries(
         assert stored.reminder_7d_sent is False
         kinds = {
             delivery.delivery_kind
-            for delivery in InvoiceDelivery.query.filter_by(
-                invoice_id=invoice.id
-            )
+            for delivery in InvoiceDelivery.query.filter_by(invoice_id=invoice.id)
         }
         assert kinds == {"recurring_auto_send"}
 
@@ -168,9 +166,7 @@ def test_manual_payment_date_round_trips_in_business_timezone(
         stored_time = payment.paid_at
         if stored_time.tzinfo is None:
             stored_time = stored_time.replace(tzinfo=timezone.utc)
-        assert stored_time.astimezone(
-            ZoneInfo("America/Los_Angeles")
-        ).date() == business_day
+        assert stored_time.astimezone(ZoneInfo("America/Los_Angeles")).date() == business_day
 
 
 def test_manual_payment_rejects_future_business_date(
@@ -292,11 +288,7 @@ def test_public_and_export_status_use_configured_business_date(
     public_response = client.get(f"/invoice/view/{token}")
     login(owner.email)
     export_response = client.get("/dashboard/invoices.csv")
-    rows = list(
-        csv.DictReader(
-            io.StringIO(export_response.data.decode("utf-8-sig"))
-        )
-    )
+    rows = list(csv.DictReader(io.StringIO(export_response.data.decode("utf-8-sig"))))
 
     assert public_response.status_code == 200
     assert b"Payment Due" in public_response.data

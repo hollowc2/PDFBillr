@@ -11,9 +11,7 @@ from models import Invoice, RecurringInvoice, User
 from utils.financial_data_audit import audit_legacy_financial_data
 
 
-VALID_ITEMS = (
-    '[{"description":"Work","qty":1.25,"rate":8,"amount":10}]'
-)
+VALID_ITEMS = '[{"description":"Work","qty":1.25,"rate":8,"amount":10}]'
 
 
 def _user() -> User:
@@ -148,9 +146,7 @@ def test_financial_audit_cli_fails_for_blockers_without_writing(app):
             event.remove(db.engine, "before_cursor_execute", capture_statement)
 
         invoice_count = db.session.scalar(select(db.func.count(Invoice.id)))
-        recurring_count = db.session.scalar(
-            select(db.func.count(RecurringInvoice.id))
-        )
+        recurring_count = db.session.scalar(select(db.func.count(RecurringInvoice.id)))
 
     assert first.exit_code == 1
     assert second.exit_code == 1
@@ -214,9 +210,7 @@ def test_financial_audit_blocks_internally_inconsistent_totals(app):
             user_id=user.id,
             invoice_number="AUDIT-CALC",
             invoice_date="2026-07-28",
-            line_items_json=(
-                '[{"description":"Work","qty":2,"rate":5,"amount":9}]'
-            ),
+            line_items_json=('[{"description":"Work","qty":2,"rate":5,"amount":9}]'),
             tax_rate=10,
             discount=99,
             subtotal=9,
@@ -225,9 +219,7 @@ def test_financial_audit_blocks_internally_inconsistent_totals(app):
         recurring = RecurringInvoice(
             user_id=user.id,
             next_run_date=date(2026, 8, 1),
-            line_items_json=(
-                '[{"description":"Work","qty":2,"rate":5,"amount":8}]'
-            ),
+            line_items_json=('[{"description":"Work","qty":2,"rate":5,"amount":8}]'),
             tax_rate=0,
             discount=99,
         )
@@ -258,9 +250,7 @@ def test_financial_audit_blocks_internally_inconsistent_totals(app):
         "count": 1,
         "row_ids": [recurring_id],
     }
-    assert audit["blockers"][
-        "recurring_invoice_discount_normalization_mismatch"
-    ] == {
+    assert audit["blockers"]["recurring_invoice_discount_normalization_mismatch"] == {
         "count": 1,
         "row_ids": [recurring_id],
     }

@@ -37,12 +37,8 @@ class FinancialDataAudit:
 
     invoices_scanned: int = 0
     recurring_invoices_scanned: int = 0
-    blockers: dict[str, set[int]] = field(
-        default_factory=lambda: defaultdict(set)
-    )
-    pending_backfill: dict[str, set[int]] = field(
-        default_factory=lambda: defaultdict(set)
-    )
+    blockers: dict[str, set[int]] = field(default_factory=lambda: defaultdict(set))
+    pending_backfill: dict[str, set[int]] = field(default_factory=lambda: defaultdict(set))
 
     @property
     def blocker_count(self) -> int:
@@ -194,13 +190,8 @@ def _audit_calculation_consistency(
         )
     except ValueError:
         stored_discount = None
-    if (
-        stored_discount is not None
-        and stored_discount != expected_discount
-    ):
-        result.blockers[
-            f"{table_prefix}_discount_normalization_mismatch"
-        ].add(row_id)
+    if stored_discount is not None and stored_discount != expected_discount:
+        result.blockers[f"{table_prefix}_discount_normalization_mismatch"].add(row_id)
 
     if table_prefix != "invoice":
         return
@@ -222,9 +213,7 @@ def _audit_calculation_consistency(
             rounding=ROUND_HALF_UP,
         )
         if stored != expected:
-            result.blockers[
-                f"invoice_{field_name}_calculation_mismatch"
-            ].add(row_id)
+            result.blockers[f"invoice_{field_name}_calculation_mismatch"].add(row_id)
 
 
 def _audit_date(
@@ -269,9 +258,7 @@ def _audit_money(
         return
 
     if shadow_value is None:
-        result.pending_backfill[f"{table_prefix}_{field_name}_decimal"].add(
-            row_id
-        )
+        result.pending_backfill[f"{table_prefix}_{field_name}_decimal"].add(row_id)
         return
     try:
         actual = _decimal(
@@ -280,14 +267,10 @@ def _audit_money(
             quantum=quantum,
         )
     except ValueError:
-        result.blockers[
-            f"{table_prefix}_{field_name}_shadow_mismatch"
-        ].add(row_id)
+        result.blockers[f"{table_prefix}_{field_name}_shadow_mismatch"].add(row_id)
         return
     if actual != expected:
-        result.blockers[
-            f"{table_prefix}_{field_name}_shadow_mismatch"
-        ].add(row_id)
+        result.blockers[f"{table_prefix}_{field_name}_shadow_mismatch"].add(row_id)
 
 
 def audit_legacy_financial_data(engine: Engine) -> FinancialDataAudit:
@@ -324,9 +307,7 @@ def audit_legacy_financial_data(engine: Engine) -> FinancialDataAudit:
     # A Core connection avoids ORM autoflush. Only SELECT statements are
     # issued, and the context manager rolls back the implicit read transaction.
     with engine.connect() as connection:
-        invoice_rows = connection.execute(
-            select(*invoice_columns).order_by(Invoice.id)
-        )
+        invoice_rows = connection.execute(select(*invoice_columns).order_by(Invoice.id))
         for row in invoice_rows.mappings():
             row_id = row["id"]
             result.invoices_scanned += 1
@@ -362,9 +343,7 @@ def audit_legacy_financial_data(engine: Engine) -> FinancialDataAudit:
                 )
             line_items = _parse_line_items(row["line_items_json"])
             if line_items is None:
-                result.blockers["invoice_malformed_line_items_json"].add(
-                    row_id
-                )
+                result.blockers["invoice_malformed_line_items_json"].add(row_id)
             else:
                 _audit_calculation_consistency(
                     result,
@@ -400,9 +379,7 @@ def audit_legacy_financial_data(engine: Engine) -> FinancialDataAudit:
                 )
             line_items = _parse_line_items(row["line_items_json"])
             if line_items is None:
-                result.blockers[
-                    "recurring_invoice_malformed_line_items_json"
-                ].add(row_id)
+                result.blockers["recurring_invoice_malformed_line_items_json"].add(row_id)
             else:
                 _audit_calculation_consistency(
                     result,

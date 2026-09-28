@@ -91,9 +91,7 @@ def calculate_tax_amount(
     currency_code: Any = "USD",
 ) -> float:
     quantum = currency_quantum(currency_code)
-    subtotal_decimal = quantize_money(subtotal).quantize(
-        quantum, rounding=ROUND_HALF_UP
-    )
+    subtotal_decimal = quantize_money(subtotal).quantize(quantum, rounding=ROUND_HALF_UP)
     try:
         rate_decimal = Decimal(str(tax_rate or 0))
     except (InvalidOperation, ValueError):

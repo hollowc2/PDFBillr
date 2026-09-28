@@ -5,7 +5,7 @@ from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from extensions import db
-from utils.branding import DEFAULT_ACCENT_COLOR
+from utils.branding import DEFAULT_ACCENT_COLOR, DEFAULT_PAGE_SIZE
 
 
 def _now():
@@ -18,9 +18,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    auth_session_version = db.Column(
-        db.Integer, nullable=False, default=1, server_default="1"
-    )
+    auth_session_version = db.Column(db.Integer, nullable=False, default=1, server_default="1")
     created_at = db.Column(db.DateTime(timezone=True), default=_now)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     stripe_customer_id = db.Column(db.String(255), nullable=True)
@@ -101,8 +99,7 @@ class BusinessDefaults(db.Model):
             name="ck_business_defaults_tax_rate_range",
         ),
         db.CheckConstraint(
-            "default_payment_terms_days >= 0 "
-            "AND default_payment_terms_days <= 3650",
+            "default_payment_terms_days >= 0 AND default_payment_terms_days <= 3650",
             name="ck_business_defaults_payment_terms_range",
         ),
     )
@@ -121,18 +118,15 @@ class BusinessDefaults(db.Model):
     default_notes = db.Column(db.Text, nullable=True)
     default_payment_info = db.Column(db.Text, nullable=True)
     default_payment_url = db.Column(db.String(2048), nullable=True)
-    default_tax_rate = db.Column(
-        db.Numeric(7, 4), nullable=False, default=0, server_default="0"
+    default_page_size = db.Column(
+        db.String(10), nullable=False, default=DEFAULT_PAGE_SIZE, server_default=DEFAULT_PAGE_SIZE
     )
+    default_tax_rate = db.Column(db.Numeric(7, 4), nullable=False, default=0, server_default="0")
     default_payment_terms_days = db.Column(
         db.Integer, nullable=False, default=30, server_default="30"
     )
-    created_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=_now
-    )
-    updated_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=_now, onupdate=_now
-    )
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_now)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)
 
     user = db.relationship("User", back_populates="business_defaults")
 
@@ -148,8 +142,7 @@ class Client(db.Model):
             name="uq_clients_user_id_normalized_name",
         ),
         db.CheckConstraint(
-            "default_tax_rate IS NULL "
-            "OR (default_tax_rate >= 0 AND default_tax_rate <= 100)",
+            "default_tax_rate IS NULL OR (default_tax_rate >= 0 AND default_tax_rate <= 100)",
             name="ck_clients_tax_rate_range",
         ),
         db.CheckConstraint(
@@ -173,12 +166,8 @@ class Client(db.Model):
     address = db.Column(db.Text, nullable=True)
     default_tax_rate = db.Column(db.Numeric(7, 4), nullable=True)
     default_payment_terms_days = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=_now
-    )
-    updated_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=_now, onupdate=_now
-    )
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_now)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)
 
     user = db.relationship("User", back_populates="clients")
     invoices = db.relationship(
@@ -224,15 +213,9 @@ class ServiceItem(db.Model):
     normalized_name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
     default_rate = db.Column(db.Numeric(18, 2), nullable=False)
-    default_quantity = db.Column(
-        db.Numeric(18, 4), nullable=False, default=1, server_default="1"
-    )
-    created_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=_now
-    )
-    updated_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=_now, onupdate=_now
-    )
+    default_quantity = db.Column(db.Numeric(18, 4), nullable=False, default=1, server_default="1")
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_now)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)
 
     user = db.relationship("User", back_populates="service_items")
 
@@ -261,9 +244,7 @@ class Invoice(db.Model):
     )
 
     invoice_number = db.Column(db.String(200), nullable=False)
-    currency_code = db.Column(
-        db.String(3), nullable=False, default="USD", server_default="USD"
-    )
+    currency_code = db.Column(db.String(3), nullable=False, default="USD", server_default="USD")
     invoice_date = db.Column(db.String(50), nullable=True)
     due_date = db.Column(db.String(50), nullable=True)
     # Nullable typed shadows support a staged, reversible data migration.
@@ -295,6 +276,9 @@ class Invoice(db.Model):
     notes = db.Column(db.Text, nullable=True)
     payment_info = db.Column(db.Text, nullable=True)
     payment_url = db.Column(db.String(2048), nullable=True)
+    page_size = db.Column(
+        db.String(10), nullable=False, default=DEFAULT_PAGE_SIZE, server_default=DEFAULT_PAGE_SIZE
+    )
     logo_filename = db.Column(db.String(255), nullable=True)
     theme = db.Column(db.String(50), default="default")
 
@@ -308,7 +292,7 @@ class Invoice(db.Model):
 
     # View tracking
     view_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
-    viewed_at  = db.Column(db.DateTime(timezone=True), nullable=True)
+    viewed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     view_count = db.Column(db.Integer, default=0)
 
     # Payment reminder tracking (Pro)
@@ -337,9 +321,7 @@ class Invoice(db.Model):
         """Return the invoice total as a currency-safe Decimal."""
         source = self.total_decimal if self.total_decimal is not None else self.total
         try:
-            return Decimal(str(source or 0)).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP
-            )
+            return Decimal(str(source or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         except (InvalidOperation, TypeError, ValueError):
             return Decimal("0.00")
 
@@ -383,6 +365,9 @@ class Invoice(db.Model):
             and self.due_date_as_date < (as_of or date.today())
         ):
             return "overdue"
+        if self.status == "finalized":
+            # Legacy state no longer written by the app; users only ever see "sent".
+            return "sent"
         return self.status or "draft"
 
     @property
@@ -425,8 +410,7 @@ class Estimate(db.Model):
             name="ck_estimates_currency_code",
         ),
         db.CheckConstraint(
-            "status IN ('draft', 'sent', 'accepted', 'declined', "
-            "'expired', 'converted')",
+            "status IN ('draft', 'sent', 'accepted', 'declined', 'expired', 'converted')",
             name="ck_estimates_status",
         ),
         db.CheckConstraint(
@@ -465,14 +449,10 @@ class Estimate(db.Model):
 
     estimate_number = db.Column(db.String(200), nullable=False)
     public_token = db.Column(db.String(64), unique=True, nullable=False, index=True)
-    status = db.Column(
-        db.String(20), nullable=False, default="draft", server_default="draft"
-    )
+    status = db.Column(db.String(20), nullable=False, default="draft", server_default="draft")
     issue_date = db.Column(db.Date, nullable=False)
     expiry_date = db.Column(db.Date, nullable=False)
-    currency_code = db.Column(
-        db.String(3), nullable=False, default="USD", server_default="USD"
-    )
+    currency_code = db.Column(db.String(3), nullable=False, default="USD", server_default="USD")
 
     from_company = db.Column(db.String(200), nullable=True)
     from_address = db.Column(db.Text, nullable=True)
@@ -483,18 +463,10 @@ class Estimate(db.Model):
     to_email = db.Column(db.String(200), nullable=True)
 
     line_items_json = db.Column(db.Text, nullable=False)
-    tax_rate = db.Column(
-        db.Numeric(7, 4), nullable=False, default=0, server_default="0"
-    )
-    discount = db.Column(
-        db.Numeric(18, 2), nullable=False, default=0, server_default="0"
-    )
-    subtotal = db.Column(
-        db.Numeric(18, 2), nullable=False, default=0, server_default="0"
-    )
-    total = db.Column(
-        db.Numeric(18, 2), nullable=False, default=0, server_default="0"
-    )
+    tax_rate = db.Column(db.Numeric(7, 4), nullable=False, default=0, server_default="0")
+    discount = db.Column(db.Numeric(18, 2), nullable=False, default=0, server_default="0")
+    subtotal = db.Column(db.Numeric(18, 2), nullable=False, default=0, server_default="0")
+    total = db.Column(db.Numeric(18, 2), nullable=False, default=0, server_default="0")
     notes = db.Column(db.Text, nullable=True)
     payment_info = db.Column(db.Text, nullable=True)
     client_comment = db.Column(db.Text, nullable=True)
@@ -502,12 +474,8 @@ class Estimate(db.Model):
     sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
     responded_at = db.Column(db.DateTime(timezone=True), nullable=True)
     converted_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    created_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=_now
-    )
-    updated_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=_now, onupdate=_now
-    )
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_now)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)
 
     user = db.relationship("User", back_populates="estimates")
     client = db.relationship("Client", back_populates="estimates")
@@ -516,9 +484,7 @@ class Estimate(db.Model):
     @property
     def total_amount(self) -> Decimal:
         try:
-            return Decimal(str(self.total or 0)).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP
-            )
+            return Decimal(str(self.total or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         except (InvalidOperation, TypeError, ValueError):
             return Decimal("0.00")
 
@@ -549,9 +515,7 @@ class InvoicePayment(db.Model):
     """A manually recorded payment applied to an invoice."""
 
     __tablename__ = "invoice_payments"
-    __table_args__ = (
-        db.CheckConstraint("amount > 0", name="ck_invoice_payments_amount_positive"),
-    )
+    __table_args__ = (db.CheckConstraint("amount > 0", name="ck_invoice_payments_amount_positive"),)
 
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(
@@ -565,9 +529,7 @@ class InvoicePayment(db.Model):
     method = db.Column(db.String(50), nullable=True)
     reference = db.Column(db.String(200), nullable=True)
     note = db.Column(db.Text, nullable=True)
-    created_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=_now
-    )
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_now)
 
     invoice = db.relationship("Invoice", back_populates="payments")
 
@@ -578,8 +540,7 @@ class ReminderPreference(db.Model):
     __tablename__ = "reminder_preferences"
     __table_args__ = (
         db.CheckConstraint(
-            "before_due_days IS NULL "
-            "OR (before_due_days >= 1 AND before_due_days <= 30)",
+            "before_due_days IS NULL OR (before_due_days >= 1 AND before_due_days <= 30)",
             name="ck_reminder_preferences_before_due_days",
         ),
         db.CheckConstraint(
@@ -636,6 +597,7 @@ class ReminderPreference(db.Model):
 
 class ProcessedStripeEvent(db.Model):
     """Tracks processed Stripe event IDs to ensure webhook idempotency."""
+
     __tablename__ = "processed_stripe_events"
 
     stripe_event_id = db.Column(db.String(255), primary_key=True)
@@ -670,16 +632,12 @@ class BillingNotificationDelivery(db.Model):
         nullable=False,
         index=True,
     )
-    attempt_count = db.Column(
-        db.Integer, default=0, server_default="0", nullable=False
-    )
+    attempt_count = db.Column(db.Integer, default=0, server_default="0", nullable=False)
     last_attempt_at = db.Column(db.DateTime(timezone=True), nullable=True)
     sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
     last_error = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=_now, nullable=False)
-    updated_at = db.Column(
-        db.DateTime(timezone=True), default=_now, onupdate=_now, nullable=False
-    )
+    updated_at = db.Column(db.DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
 
     user = db.relationship("User")
 
@@ -693,39 +651,37 @@ class RecurringInvoice(db.Model):
         ),
     )
 
-    id      = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     # Invoice template fields
     invoice_number_prefix = db.Column(db.String(100), nullable=True)
-    currency_code = db.Column(
-        db.String(3), nullable=False, default="USD", server_default="USD"
-    )
-    from_company  = db.Column(db.String(200), nullable=True)
-    from_address  = db.Column(db.Text, nullable=True)
-    from_email    = db.Column(db.String(200), nullable=True)
-    from_phone    = db.Column(db.String(200), nullable=True)
-    to_name       = db.Column(db.String(200), nullable=True)
-    to_address    = db.Column(db.Text, nullable=True)
-    to_email      = db.Column(db.String(200), nullable=True)
+    currency_code = db.Column(db.String(3), nullable=False, default="USD", server_default="USD")
+    from_company = db.Column(db.String(200), nullable=True)
+    from_address = db.Column(db.Text, nullable=True)
+    from_email = db.Column(db.String(200), nullable=True)
+    from_phone = db.Column(db.String(200), nullable=True)
+    to_name = db.Column(db.String(200), nullable=True)
+    to_address = db.Column(db.Text, nullable=True)
+    to_email = db.Column(db.String(200), nullable=True)
     line_items_json = db.Column(db.Text, nullable=True)
-    tax_rate      = db.Column(db.Float, default=0.0)
-    discount      = db.Column(db.Float, default=0.0)
+    tax_rate = db.Column(db.Float, default=0.0)
+    discount = db.Column(db.Float, default=0.0)
     tax_rate_decimal = db.Column(db.Numeric(7, 4), nullable=True)
     discount_decimal = db.Column(db.Numeric(18, 2), nullable=True)
-    notes         = db.Column(db.Text, nullable=True)
-    payment_info  = db.Column(db.Text, nullable=True)
-    payment_url   = db.Column(db.String(2048), nullable=True)
-    theme         = db.Column(db.String(50), default="default")
+    notes = db.Column(db.Text, nullable=True)
+    payment_info = db.Column(db.Text, nullable=True)
+    payment_url = db.Column(db.String(2048), nullable=True)
+    theme = db.Column(db.String(50), default="default")
 
     # Schedule — interval: monthly | weekly | biweekly | quarterly
-    interval      = db.Column(db.String(20), nullable=False, default="monthly")
-    net_days      = db.Column(db.Integer, default=30)  # days until due on generated invoice
+    interval = db.Column(db.String(20), nullable=False, default="monthly")
+    net_days = db.Column(db.Integer, default=30)  # days until due on generated invoice
     next_run_date = db.Column(db.Date, nullable=False)
     last_run_date = db.Column(db.Date, nullable=True)
-    auto_send     = db.Column(db.Boolean, default=False)
-    is_active     = db.Column(db.Boolean, default=True)
-    created_at    = db.Column(db.DateTime(timezone=True), default=_now)
+    auto_send = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=_now)
 
     user = db.relationship("User", backref="recurring_invoices")
 
@@ -787,16 +743,12 @@ class InvoiceDelivery(db.Model):
         nullable=False,
         index=True,
     )
-    attempt_count = db.Column(
-        db.Integer, default=0, server_default="0", nullable=False
-    )
+    attempt_count = db.Column(db.Integer, default=0, server_default="0", nullable=False)
     last_attempt_at = db.Column(db.DateTime(timezone=True), nullable=True)
     sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
     last_error = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=_now, nullable=False)
-    updated_at = db.Column(
-        db.DateTime(timezone=True), default=_now, onupdate=_now, nullable=False
-    )
+    updated_at = db.Column(db.DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
 
     invoice = db.relationship("Invoice")
 

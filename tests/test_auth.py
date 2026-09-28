@@ -100,9 +100,7 @@ def test_login_next_accepts_only_local_absolute_path(client, make_user):
     assert response.headers["Location"].endswith("/app")
 
 
-def test_reset_email_uses_canonical_origin_not_forwarded_host(
-    client, app, make_user
-):
+def test_reset_email_uses_canonical_origin_not_forwarded_host(client, app, make_user):
     make_user("person@example.test")
 
     with app.app_context(), mail.record_messages() as outbox:
@@ -130,8 +128,7 @@ def test_password_reset_token_is_single_use(client, app, make_user):
             data={"email": "person@example.test"},
         )
     reset_url = next(
-        line for line in outbox[0].body.splitlines()
-        if "/auth/reset-password/" in line
+        line for line in outbox[0].body.splitlines() if "/auth/reset-password/" in line
     )
     token_path = f"/auth/reset-password/{reset_url.rsplit('/', 1)[1]}"
 
@@ -153,26 +150,30 @@ def test_password_reset_token_is_single_use(client, app, make_user):
         assert not user.check_password("attacker password")
 
 
-def test_password_reset_revokes_existing_sessions_and_remember_cookie(
-    app, make_user
-):
+def test_password_reset_revokes_existing_sessions_and_remember_cookie(app, make_user):
     make_user("person@example.test")
     session_client = app.test_client()
     remember_client = app.test_client()
     reset_client = app.test_client()
 
-    assert session_client.post(
-        "/auth/login",
-        data={"email": "person@example.test", "password": "correct horse"},
-    ).status_code == 302
-    assert remember_client.post(
-        "/auth/login",
-        data={
-            "email": "person@example.test",
-            "password": "correct horse",
-            "remember": "1",
-        },
-    ).status_code == 302
+    assert (
+        session_client.post(
+            "/auth/login",
+            data={"email": "person@example.test", "password": "correct horse"},
+        ).status_code
+        == 302
+    )
+    assert (
+        remember_client.post(
+            "/auth/login",
+            data={
+                "email": "person@example.test",
+                "password": "correct horse",
+                "remember": "1",
+            },
+        ).status_code
+        == 302
+    )
     remember_client.delete_cookie("session")
 
     with app.app_context(), mail.record_messages() as outbox:
@@ -181,32 +182,30 @@ def test_password_reset_revokes_existing_sessions_and_remember_cookie(
             data={"email": "person@example.test"},
         )
     reset_url = next(
-        line
-        for line in outbox[0].body.splitlines()
-        if "/auth/reset-password/" in line
+        line for line in outbox[0].body.splitlines() if "/auth/reset-password/" in line
     )
     token_path = f"/auth/reset-password/{reset_url.rsplit('/', 1)[1]}"
-    assert reset_client.post(
-        token_path,
-        data={
-            "password": "new secure password",
-            "confirm_password": "new secure password",
-        },
-    ).status_code == 302
+    assert (
+        reset_client.post(
+            token_path,
+            data={
+                "password": "new secure password",
+                "confirm_password": "new secure password",
+            },
+        ).status_code
+        == 302
+    )
 
     assert session_client.get("/dashboard/").status_code == 302
     remember_response = remember_client.get("/dashboard/")
     assert remember_response.status_code == 302
     remember_headers = remember_response.headers.getlist("Set-Cookie")
     assert any(
-        value.startswith("remember_token=;") and "Expires=" in value
-        for value in remember_headers
+        value.startswith("remember_token=;") and "Expires=" in value for value in remember_headers
     )
 
 
-def test_login_identity_includes_current_auth_session_version(
-    client, app, make_user, login
-):
+def test_login_identity_includes_current_auth_session_version(client, app, make_user, login):
     user = make_user("person@example.test")
     login(user.email)
 

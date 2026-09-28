@@ -73,9 +73,7 @@ def test_webhook_rejects_invalid_signature(client, monkeypatch):
     assert response.status_code == 400
 
 
-def test_duplicate_webhook_is_harmless_and_unknown_customer_is_recorded(
-    client, app, monkeypatch
-):
+def test_duplicate_webhook_is_harmless_and_unknown_customer_is_recorded(client, app, monkeypatch):
     event = stripe_event(
         "evt_unknown",
         "customer.subscription.updated",
@@ -187,9 +185,7 @@ def test_checkout_completion_grants_only_configured_price_after_commit(
         assert stored.stripe_customer_id == "cus_1"
         assert stored.subscription.plan == "pro"
         assert stored.subscription.stripe_price_id == "price_pro"
-        delivery = BillingNotificationDelivery.query.filter_by(
-            stripe_event_id="evt_checkout"
-        ).one()
+        delivery = BillingNotificationDelivery.query.filter_by(stripe_event_id="evt_checkout").one()
         assert delivery.status == "sent"
         assert delivery.attempt_count == 1
 
@@ -243,9 +239,9 @@ def test_failed_billing_notification_is_retried_on_duplicate_webhook(
 
     assert client.post("/billing/webhook").status_code == 200
     with app.app_context():
-        assert ProcessedStripeEvent.query.filter_by(
-            stripe_event_id="evt_checkout_retry"
-        ).count() == 1
+        assert (
+            ProcessedStripeEvent.query.filter_by(stripe_event_id="evt_checkout_retry").count() == 1
+        )
         delivery = BillingNotificationDelivery.query.filter_by(
             stripe_event_id="evt_checkout_retry"
         ).one()
@@ -258,9 +254,7 @@ def test_failed_billing_notification_is_retried_on_duplicate_webhook(
     ]
 
 
-def test_failed_commit_keeps_event_retryable_without_notification(
-    client, app, monkeypatch
-):
+def test_failed_commit_keeps_event_retryable_without_notification(client, app, monkeypatch):
     event = stripe_event("evt_commit_fail", "unhandled.event", {})
     monkeypatch.setattr(
         "blueprints.billing.stripe.Webhook.construct_event",
@@ -286,9 +280,7 @@ def test_failed_commit_keeps_event_retryable_without_notification(
     assert notifications == []
 
 
-def test_checkout_reuses_existing_customer(
-    client, app, make_user, login, monkeypatch
-):
+def test_checkout_reuses_existing_customer(client, app, make_user, login, monkeypatch):
     user = make_user("person@example.test")
     with app.app_context():
         stored = db.session.get(User, user.id)

@@ -3,6 +3,6 @@
 {%- endmacro %}
 
 {% macro status_pill(status) -%}
-{%- set styles = {'paid': 'pill-paid', 'overdue': 'pill-overdue', 'partial': 'pill-due', 'sent': 'pill-sent', 'finalized': 'pill-sent'} -%}
+{%- set styles = {'paid': 'pill-paid', 'overdue': 'pill-overdue', 'partial': 'pill-due', 'sent': 'pill-sent'} -%}
 <span class="{{ styles.get(status, 'pill-draft') }}">{{ status | capitalize }}</span>
 {%- endmacro %}

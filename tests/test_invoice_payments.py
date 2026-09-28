@@ -52,9 +52,7 @@ def test_recording_partial_then_final_payment_updates_balance_and_status(
 
 
 @pytest.mark.parametrize("amount", ["", "not-money", "0", "-1", "1.001", "NaN"])
-def test_invalid_payment_amount_is_rejected(
-    client, app, make_user, make_invoice, login, amount
-):
+def test_invalid_payment_amount_is_rejected(client, app, make_user, make_invoice, login, amount):
     owner = make_user(f"owner-{amount}@example.test")
     invoice = make_invoice(owner.id, total=10.0)
     login(owner.email)
@@ -70,9 +68,7 @@ def test_invalid_payment_amount_is_rejected(
         assert db.session.get(Invoice, invoice.id).status == "draft"
 
 
-def test_overpayment_is_rejected_without_mutation(
-    client, app, make_user, make_invoice, login
-):
+def test_overpayment_is_rejected_without_mutation(client, app, make_user, make_invoice, login):
     owner = make_user("owner@example.test")
     invoice = make_invoice(owner.id, total=10.0)
     login(owner.email)
@@ -138,9 +134,7 @@ def test_void_stops_collection_and_rejects_new_payments(
         assert InvoicePayment.query.filter_by(invoice_id=invoice.id).count() == 0
 
 
-def test_invoice_with_payment_cannot_be_voided(
-    client, app, make_user, make_invoice, login
-):
+def test_invoice_with_payment_cannot_be_voided(client, app, make_user, make_invoice, login):
     owner = make_user("owner@example.test")
     invoice = make_invoice(owner.id, total=10.0)
     login(owner.email)
@@ -181,9 +175,7 @@ def test_paid_invoice_rejects_additional_payment_and_void(
         assert InvoicePayment.query.filter_by(invoice_id=invoice.id).count() == 1
 
 
-def test_overdue_is_derived_without_rewriting_persisted_status(
-    app, make_user, make_invoice
-):
+def test_overdue_is_derived_without_rewriting_persisted_status(app, make_user, make_invoice):
     owner = make_user("owner@example.test")
     invoice = make_invoice(
         owner.id,
@@ -198,6 +190,29 @@ def test_overdue_is_derived_without_rewriting_persisted_status(
         assert stored.status == "sent"
         stored.status = "paid"
         assert stored.display_status == "paid"
+
+
+def test_legacy_finalized_invoices_are_shown_and_filtered_as_sent(
+    client, app, make_user, make_invoice, login
+):
+    owner = make_user("owner@example.test")
+    login(owner.email)
+    legacy = make_invoice(
+        owner.id,
+        invoice_number="LEGACY-1",
+        status="finalized",
+        due_date=(date.today() + timedelta(days=10)).isoformat(),
+    )
+    make_invoice(owner.id, invoice_number="DRAFT-1", status="draft")
+
+    with app.app_context():
+        assert db.session.get(Invoice, legacy.id).display_status == "sent"
+
+    for query in ("sent", "finalized"):
+        response = client.get(f"/dashboard/?status={query}")
+        assert b"LEGACY-1" in response.data
+        assert b"DRAFT-1" not in response.data
+    assert b"Finalized" not in client.get("/dashboard/").data
 
 
 @pytest.mark.parametrize(
@@ -228,9 +243,7 @@ def test_payment_routes_deny_cross_user_access(
         assert stored.amount_paid == Decimal("0.00")
 
 
-def test_deleting_invoice_cascades_payment_records(
-    client, app, make_user, make_invoice, login
-):
+def test_deleting_invoice_cascades_payment_records(client, app, make_user, make_invoice, login):
     owner = make_user("owner@example.test")
     invoice = make_invoice(owner.id, total=10.0)
     login(owner.email)

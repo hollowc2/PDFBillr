@@ -9,6 +9,6 @@ With a free account you can save invoices and clients, send estimates your clien
 
 Pro adds email sending, automatic payment reminders, recurring invoices and your own branding, for $5 a month.
 
-Questions? Just reply to this email.
+{% if support_email %}Questions? Just reply to this email.
 
-— PDFBillr
+{% endif %}— PDFBillr
