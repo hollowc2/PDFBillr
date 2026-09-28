@@ -7,7 +7,7 @@ import pytest
 from PIL import Image
 
 from models import BrandingProfile
-from utils.pdf import _restricted_url_fetcher, build_invoice_context, render_pdf
+from utils.pdf import RestrictedURLFetcher, build_invoice_context, render_pdf
 
 
 def image_upload(filename="logo.png", *, size=(16, 16)):
@@ -141,12 +141,83 @@ def test_failed_replacement_preserves_existing_logo(
         "http://169.254.169.254/latest/meta-data",
         "https://example.test/logo.png",
         "file:///etc/passwd",
+        "FILE:///etc/passwd",
+        "ftp://example.test/logo.png",
         "data:text/html;base64,SGVsbG8=",
+        "data:image/svg+xml;base64,PHN2Zy8+",
+        "data:image/png,not-base64",
+        "/etc/passwd",
     ],
 )
 def test_pdf_fetcher_rejects_external_local_and_non_image_resources(url):
     with pytest.raises(ValueError, match="disabled"):
-        _restricted_url_fetcher(url)
+        RestrictedURLFetcher().fetch(url)
+
+
+def test_pdf_fetcher_allows_inline_logo_images():
+    # 1x1 transparent PNG, the shape normalized logos are embedded in.
+    png = (
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAA"
+        "DUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+    )
+    response = RestrictedURLFetcher().fetch(png)
+    try:
+        assert response.read().startswith(b"\x89PNG")
+    finally:
+        response.close()
+
+
+def test_pdf_fetcher_rejected_request_is_not_replayed(tmp_path):
+    from urllib.request import Request
+
+    secret = tmp_path / "secret.txt"
+    secret.write_text("TOP-SECRET-CANARY")
+    fetcher = RestrictedURLFetcher()
+    with pytest.raises(ValueError, match="disabled"):
+        fetcher.open(Request(secret.as_uri()))
+
+    response = fetcher.fetch(
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAA"
+        "DUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+    )
+    try:
+        body = response.read()
+    finally:
+        response.close()
+    assert b"TOP-SECRET-CANARY" not in body
+    assert body.startswith(b"\x89PNG")
+
+
+def test_pdf_render_blocks_local_stylesheets(tmp_path):
+    from weasyprint import HTML
+
+    sheet = tmp_path / "evil.css"
+    sheet.write_text("@page { size: 1234px 5678px }")
+    html = f'<link rel="stylesheet" href="{sheet.as_uri()}"><p>x</p>'
+
+    page = HTML(string=html, url_fetcher=RestrictedURLFetcher()).render().pages[0]
+
+    assert (round(page.width), round(page.height)) != (1234, 5678)
+
+
+def test_render_pdf_uses_restricted_fetcher(app, monkeypatch):
+    captured = {}
+
+    class FakeHTML:
+        def __init__(self, *, string, url_fetcher):
+            captured["url_fetcher"] = url_fetcher
+
+        def write_pdf(self):
+            return b"%PDF-test"
+
+    monkeypatch.setattr("utils.pdf.HTML", FakeHTML)
+    from werkzeug.datastructures import MultiDict
+
+    form = MultiDict([("invoice_number", "F-1"), ("description[]", "x"), ("qty[]", "1"), ("rate[]", "1")])
+    with app.app_context(), app.test_request_context():
+        render_pdf(build_invoice_context(form))
+
+    assert isinstance(captured["url_fetcher"], RestrictedURLFetcher)
 
 
 def test_hostile_invoice_text_is_escaped_and_pdf_renders(app):

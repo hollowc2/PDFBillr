@@ -422,10 +422,12 @@ coverage==7.15.2 \
     --hash=sha256:f653e5d7248c1191ec988a85c72edeab46c3ff44f90639a4ed4874ec0be90243 \
     --hash=sha256:fe41909c9515c3bfdb5f02c4d1f857dba322d9a9a1178069b91eea77889df63a
     # via pytest-cov
-cssselect2==0.9.0 \
-    --hash=sha256:6a99e5f91f9a016a304dd929b0966ca464bcfda15177b6fb4a118fc0fb5d9563 \
-    --hash=sha256:759aa22c216326356f65e62e791d66160a0f9c91d1424e8d8adc5e74dddfc6fb
-    # via weasyprint
+cssselect2==0.10.1 \
+    --hash=sha256:25cc4494d55985d6a6da359be48da6ce98c28dcbafa2314c383ace3fc32ec868 \
+    --hash=sha256:83b0d820ef589dabaf693289b647c2f5b410f76d285f56deba911ffa75a7b9d1
+    # via
+    #   -r requirements.txt
+    #   weasyprint
 cyclonedx-python-lib==11.11.0 \
     --hash=sha256:3049fc83e06a059b5c5907a527625a8ed5073caab10607ed4c9e5503b590fd44 \
     --hash=sha256:4b3194db72b613717f2912447e67ab618c75ff7dcac6c4af3c0e9e1ac617c102
@@ -615,10 +617,6 @@ gunicorn==22.0.0 \
     --hash=sha256:350679f91b24062c86e386e198a15438d53a7a8207235a78ba1b53df4c4378d9 \
     --hash=sha256:4a0b436239ff76fb33f11c07a16482c521a7e09c1ce3cc293c2330afe01bec63
     # via -r requirements.txt
-html5lib==1.1 \
-    --hash=sha256:0d78f8fde1c230e99fe37986a60526d7049ed4bf8a9fadbad5f00e22e58e041d \
-    --hash=sha256:b2e5b40261e20f354d198eae92afc10d750afb487ed5e50f9c4eaf07c184146f
-    # via weasyprint
 idna==3.18 \
     --hash=sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2 \
     --hash=sha256:ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848
@@ -1034,9 +1032,9 @@ pycparser==3.0 \
     --hash=sha256:600f49d217304a5902ac3c37e1281c9fe94e4d0489de643a9504c5cdfdfc6b29 \
     --hash=sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992
     # via cffi
-pydyf==0.10.0 \
-    --hash=sha256:357194593efaf61d7b48ab97c3d59722114934967c3df3d7878ca6dd25b04c30 \
-    --hash=sha256:ef76b6c0976a091a9e15827fb5800e5e37e7cd1a3ca4d4bd19d10a14ea8c0ae3
+pydyf==0.12.1 \
+    --hash=sha256:ea25b4e1fe7911195cb57067560daaa266639184e8335365cc3ee5214e7eaadc \
+    --hash=sha256:fbd7e759541ac725c29c506612003de393249b94310ea78ae44cb1d04b220095
     # via
     #   -r requirements.txt
     #   weasyprint
@@ -1112,7 +1110,6 @@ six==1.17.0 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
     # via
     #   apscheduler
-    #   html5lib
     #   python-dateutil
 sortedcontainers==2.4.0 \
     --hash=sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88 \
@@ -1190,6 +1187,10 @@ tinycss2==1.5.1 \
     # via
     #   cssselect2
     #   weasyprint
+tinyhtml5==2.1.0 \
+    --hash=sha256:60a50ec3d938a37e491efa01af895853060943dcebb5627de5b10d188b338a67 \
+    --hash=sha256:6e11cfff38515834268daf89d5f85bbde0b6dd02e8d9e212d1385c2289b89f0a
+    # via weasyprint
 tomli==2.4.1 \
     --hash=sha256:01f520d4f53ef97964a240a035ec2a869fe1a37dde002b57ebc4417a27ccd853 \
     --hash=sha256:0d85819802132122da43cb86656f8d1f8c6587d54ae7dcaf30e90533028b49fe \
@@ -1262,17 +1263,17 @@ urllib3==2.7.0 \
     --hash=sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c \
     --hash=sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897
     # via requests
-weasyprint==60.2 \
-    --hash=sha256:0c0cdd617a78699262b80026e67fa1692e3802cfa966395436eeaf6f787dd126 \
-    --hash=sha256:3e98eedcc1c5a14cb310c293c6d59a479f59a13f0d705ff07106482827fa5705
+weasyprint==70.0 \
+    --hash=sha256:5043e55e38d2a2af2b2b871e869697b1f65dad5f8b4a3677961d04ceacf9c5fe \
+    --hash=sha256:c263abf0e86c747b12af678b67f85f4abbfb97d18a20503031e7ba94e4b8cf8c
     # via -r requirements.txt
 webencodings==0.5.1 \
     --hash=sha256:a0af1213f3c2226497a97e2b3aa01a7e4bee4f403f95be16fc9acd2947514a78 \
     --hash=sha256:b36a1c245f2d304965eb4e0a82848379241dc04b865afcc4aab16748587e1923
     # via
     #   cssselect2
-    #   html5lib
     #   tinycss2
+    #   tinyhtml5
 werkzeug==3.1.8 \
     --hash=sha256:63a77fb8892bf28ebc3178683445222aa500e48ebad5ec77b0ad80f8726b1f50 \
     --hash=sha256:9bad61a4268dac112f1c5cd4630a56ede601b6ed420300677a869083d70a4c44
