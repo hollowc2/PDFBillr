@@ -15,6 +15,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+from utils.branding import account_page_size
 from utils.mail import invoice_reply_to
 
 log = logging.getLogger(__name__)
@@ -588,6 +589,7 @@ def _generate_from_template(tmpl, scheduled_for, db):
         user_id         = tmpl.user_id,
         invoice_number  = invoice_number,
         currency_code   = normalize_currency_code(tmpl.currency_code),
+        page_size       = account_page_size(tmpl.user),
         invoice_date    = scheduled_for.isoformat(),
         due_date        = due_date_obj.isoformat() if due_date_obj else None,
         from_company    = tmpl.from_company,

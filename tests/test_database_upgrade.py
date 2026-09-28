@@ -143,7 +143,7 @@ def test_fresh_database_bootstrap_reaches_head_and_is_rerunnable(tmp_path):
         revision = db.session.execute(
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
-        assert revision == "20260728_11"
+        assert revision == "20260928_13"
 
 
 def test_migration_logging_does_not_disable_application_loggers(tmp_path):
@@ -170,7 +170,7 @@ def test_development_auto_create_uses_alembic_head(tmp_path):
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
 
-    assert revision == "20260728_11"
+    assert revision == "20260928_13"
 
 
 def test_financial_shadow_migration_is_additive_and_reversible(tmp_path):

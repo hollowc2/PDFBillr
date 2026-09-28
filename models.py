@@ -5,7 +5,7 @@ from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from extensions import db
-from utils.branding import DEFAULT_ACCENT_COLOR
+from utils.branding import DEFAULT_ACCENT_COLOR, DEFAULT_PAGE_SIZE
 
 
 def _now():
@@ -121,6 +121,9 @@ class BusinessDefaults(db.Model):
     default_notes = db.Column(db.Text, nullable=True)
     default_payment_info = db.Column(db.Text, nullable=True)
     default_payment_url = db.Column(db.String(2048), nullable=True)
+    default_page_size = db.Column(
+        db.String(10), nullable=False, default=DEFAULT_PAGE_SIZE, server_default=DEFAULT_PAGE_SIZE
+    )
     default_tax_rate = db.Column(
         db.Numeric(7, 4), nullable=False, default=0, server_default="0"
     )
@@ -295,6 +298,9 @@ class Invoice(db.Model):
     notes = db.Column(db.Text, nullable=True)
     payment_info = db.Column(db.Text, nullable=True)
     payment_url = db.Column(db.String(2048), nullable=True)
+    page_size = db.Column(
+        db.String(10), nullable=False, default=DEFAULT_PAGE_SIZE, server_default=DEFAULT_PAGE_SIZE
+    )
     logo_filename = db.Column(db.String(255), nullable=True)
     theme = db.Column(db.String(50), default="default")
 

@@ -19,6 +19,7 @@ from werkzeug.datastructures import MultiDict
 
 from extensions import db
 from models import BusinessDefaults, Client, Invoice, ServiceItem
+from utils.branding import normalize_page_size
 from utils.validation import (
     PaymentURLValidationError,
     is_valid_email,
@@ -224,6 +225,7 @@ def invoice_form_context(
                     "payment_info": defaults_record.default_payment_info or "",
                     "payment_url": defaults_record.default_payment_url or "",
                     "tax_rate": _decimal_text(defaults_record.default_tax_rate),
+                    "page_size": defaults_record.default_page_size or "A4",
                 }
             )
         terms_days = (
@@ -494,6 +496,7 @@ def _business_default_values(form) -> tuple[dict | None, str | None]:
         return None, error
     values["default_tax_rate"] = tax_rate
     values["default_payment_terms_days"] = terms_days
+    values["default_page_size"] = normalize_page_size(form.get("default_page_size"))
     return values, None
 
 

@@ -19,7 +19,7 @@ from utils.currency import normalize_currency_code
 from utils.invoice_calculations import calculate_invoice, calculate_tax_amount
 from utils.uploads import resolve_logo_path
 from utils.validation import normalize_payment_url
-from utils.branding import DEFAULT_ACCENT_COLOR
+from utils.branding import DEFAULT_ACCENT_COLOR, normalize_page_size
 
 ALLOWED_THEMES = {"default", "minimal", "corporate", "creative"}
 
@@ -112,6 +112,7 @@ def build_invoice_context(form, logo_filename=None, accent_color=DEFAULT_ACCENT_
         "to_address":     to_address,
         "to_email":       to_email,
         "currency_code":  currency_code,
+        "page_size":      normalize_page_size(form.get("page_size")),
         **financials,
         "notes":          notes,
         "payment_info":   payment_info,
@@ -152,6 +153,7 @@ def context_from_invoice(invoice) -> dict:
         "to_address":     invoice.to_address,
         "to_email":       invoice.to_email,
         "currency_code":  currency_code,
+        "page_size":      normalize_page_size(invoice.page_size),
         "line_items":     line_items,
         "tax_rate":       invoice.tax_rate,
         "tax_amount":     tax_amount,

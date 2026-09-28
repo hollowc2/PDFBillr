@@ -276,6 +276,7 @@ def create_app(config_class: type = Config) -> Flask:
         currency_symbol,
         format_currency,
     )
+    from utils.branding import PAGE_SIZE_OPTIONS
     from utils.gating import is_pro
 
     app.jinja_env.filters["money"] = format_currency
@@ -287,6 +288,7 @@ def create_app(config_class: type = Config) -> Flask:
         return {
             "is_pro": is_pro,
             "currency_options": currency_options(),
+            "page_size_options": PAGE_SIZE_OPTIONS,
         }
 
     return app

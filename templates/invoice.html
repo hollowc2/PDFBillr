@@ -9,7 +9,7 @@
 
 /* ── Page setup ─────────────────────────────────────────────────── */
 @page {
-  size: A4;
+  size: {{ page_size | default('A4') }};
   margin: 14mm 16mm 20mm 16mm;
   @bottom-center {
     content: "Page " counter(page) " of " counter(pages);

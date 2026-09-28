@@ -21,6 +21,7 @@ from werkzeug.datastructures import MultiDict
 
 from extensions import db, limiter
 from models import BusinessDefaults, Client, Estimate, Invoice, ServiceItem
+from utils.branding import account_page_size
 from utils.currency import SUPPORTED_CURRENCIES
 from utils.estimate_numbers import (
     estimate_number_exists,
@@ -217,6 +218,7 @@ def convert(estimate_id: int):
         client_id=estimate.client_id,
         invoice_number=invoice_number,
         currency_code=estimate.currency_code,
+        page_size=account_page_size(current_user),
         invoice_date=invoice_date.isoformat(),
         due_date=due_date.isoformat(),
         invoice_date_value=shadows["invoice_date_value"],

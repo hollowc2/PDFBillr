@@ -438,6 +438,7 @@ def invoice_edit(invoice_id: int):
     inv.client_id = selected_client_id
     inv.invoice_number = context["invoice_number"]
     inv.currency_code = context["currency_code"]
+    inv.page_size = context["page_size"]
     inv.invoice_date = context["invoice_date"]
     inv.due_date = context["due_date"]
     inv.from_company = context["from_company"]
@@ -565,6 +566,7 @@ def invoice_duplicate(invoice_id: int):
         client_id       = orig.client_id,
         invoice_number  = duplicate_number,
         currency_code   = normalize_currency_code(orig.currency_code),
+        page_size       = orig.page_size,
         invoice_date    = orig.invoice_date,
         due_date        = orig.due_date,
         from_company    = orig.from_company,
@@ -1266,6 +1268,7 @@ def _invoice_form_data(inv: Invoice) -> MultiDict:
             ("invoice_number", inv.invoice_number or ""),
             ("client_id", str(inv.client_id or "")),
             ("currency_code", normalize_currency_code(inv.currency_code)),
+            ("page_size", inv.page_size or "A4"),
             ("invoice_date", inv.invoice_date or ""),
             ("due_date", inv.due_date or ""),
             ("from_company", inv.from_company or ""),

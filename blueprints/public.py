@@ -178,6 +178,7 @@ def _save_invoice(
         client_id      = client_id,
         invoice_number = invoice_number,
         currency_code  = context["currency_code"],
+        page_size      = context["page_size"],
         invoice_date   = context["invoice_date"],
         due_date       = context["due_date"],
         from_company   = context["from_company"],
