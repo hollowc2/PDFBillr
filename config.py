@@ -59,6 +59,8 @@ class Config:
     MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
     MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
     MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "noreply@pdfbillr.com")
+    # Optional. Shown on error pages and used as Reply-To on account emails.
+    SUPPORT_EMAIL = os.environ.get("SUPPORT_EMAIL", "").strip()
 
     # Stripe
     STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")

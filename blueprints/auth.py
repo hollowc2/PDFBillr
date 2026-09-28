@@ -9,6 +9,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from extensions import db, limiter, mail, login_manager
 from models import User
+from utils.mail import support_reply_to
 from utils.urls import external_url
 from utils.validation import is_valid_email, normalize_email
 
@@ -198,6 +199,7 @@ def _send_reset_email(user: User) -> None:
     msg = Message(
         subject="Reset your PDFBillr password",
         recipients=[user.email],
+        reply_to=support_reply_to(),
         body=render_template("emails/reset_password.txt", reset_url=reset_url),
     )
     try:
@@ -217,9 +219,11 @@ def _send_welcome_email(user: User) -> None:
     msg = Message(
         subject="Welcome to PDFBillr",
         recipients=[user.email],
+        reply_to=support_reply_to(),
         body=render_template(
             "emails/welcome.txt",
             user=user,
+            support_email=support_reply_to(),
             app_url=external_url("public.index"),
         ),
     )

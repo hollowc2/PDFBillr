@@ -55,6 +55,7 @@ from utils.uploads import (
     resolve_logo_path,
     store_logo,
 )
+from utils.mail import invoice_reply_to
 from utils.urls import external_url
 from utils.validation import (
     PaymentURLValidationError,
@@ -677,6 +678,7 @@ def invoice_send(invoice_id: int):
     msg = Message(
         subject=f"Invoice {inv.invoice_number} from {inv.from_company or 'PDFBillr'}",
         recipients=[recipient],
+        reply_to=invoice_reply_to(inv),
         body=body,
     )
     msg.attach(filename, "application/pdf", pdf_bytes)

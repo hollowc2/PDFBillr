@@ -179,6 +179,8 @@ def create_app(config_class: type = Config) -> Flask:
             >= request.accept_mimetypes["text/html"]
         )
 
+    from utils.mail import support_reply_to
+
     @app.errorhandler(HTTPException)
     def _render_http_error(error: HTTPException):
         request_id = getattr(g, "request_id", uuid.uuid4().hex)
@@ -204,6 +206,7 @@ def create_app(config_class: type = Config) -> Flask:
         else:
             response.data = render_template(
                 "error.html",
+                support_email=support_reply_to(),
                 error_name=error.name,
                 home_path=f"{request.script_root}/",
                 request_id=request_id,

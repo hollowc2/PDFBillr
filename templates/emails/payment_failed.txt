@@ -7,6 +7,6 @@ To keep Pro, update your payment method:
 
 If the payment method isn't updated, the subscription will be canceled and your account will move to the free plan. Your invoices and data stay safe either way.
 
-If you think this is a mistake, check with your card issuer or reply to this email.
+If you think this is a mistake, check with your card issuer{% if support_email %} or reply to this email{% endif %}.
 
 — PDFBillr

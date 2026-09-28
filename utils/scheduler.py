@@ -15,6 +15,8 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+from utils.mail import invoice_reply_to
+
 log = logging.getLogger(__name__)
 
 _INTERVAL_DELTAS = {
@@ -496,7 +498,12 @@ def _send_reminder(
         view_url=view_url,
         reminder_days=reminder_days,
     )
-    msg = Message(subject=subject, recipients=[inv.to_email], body=body)
+    msg = Message(
+        subject=subject,
+        recipients=[inv.to_email],
+        body=body,
+        reply_to=invoice_reply_to(inv),
+    )
     mail_obj.send(msg)
 
 
@@ -642,6 +649,7 @@ def _send_generated_invoice(
     msg = Message(
         subject=f"Invoice {inv.invoice_number} from {sender_name}",
         recipients=[inv.to_email],
+        reply_to=invoice_reply_to(inv),
         body=body,
     )
     msg.attach(filename, "application/pdf", pdf_bytes)

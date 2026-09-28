@@ -19,6 +19,7 @@ from models import (
     User,
 )
 from utils.gating import is_pro
+from utils.mail import support_reply_to
 from utils.urls import external_url
 
 bp = Blueprint("billing", __name__, url_prefix="/billing")
@@ -536,9 +537,11 @@ def _send_billing_email(user: User, template: str) -> None:
     msg = Message(
         subject=subject,
         recipients=[user.email],
+        reply_to=support_reply_to(),
         body=render_template(
             template,
             user=user,
+            support_email=support_reply_to(),
             portal_url=external_url("billing.portal"),
             upgrade_url=external_url("billing.upgrade"),
         ),
