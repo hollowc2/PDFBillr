@@ -17,7 +17,7 @@ CSS_OUT := static/css/app.css
 
 .DEFAULT_GOAL := help
 
-.PHONY: help test lint format-check check db-bootstrap up tailwind css css-check
+.PHONY: help test lint format-check check db-bootstrap up tailwind css css-check sample-invoice
 
 help: ## Show available commands.
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*?##/ {printf "\033[36m%-16s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -53,3 +53,6 @@ css: $(TAILWIND) ## Rebuild static/css/app.css from templates and static/js.
 
 css-check: css ## Fail if the committed app.css is out of date.
 	@git diff --exit-code --stat -- $(CSS_OUT) || (echo "static/css/app.css is stale: run make css and commit it."; exit 1)
+
+sample-invoice: ## Re-render static/img/sample-invoice.png from the real PDF template (needs pdftoppm).
+	$(PYTHON) scripts/render_sample_invoice.py

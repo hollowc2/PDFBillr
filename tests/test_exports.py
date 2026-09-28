@@ -150,8 +150,8 @@ def test_product_copy_matches_free_persistence_and_pro_features(client):
     upgrade = client.get("/billing/upgrade")
 
     assert landing.status_code == 200
-    assert b"Anonymous invoices are not stored" in landing.data
-    assert b"Optional free account for history" in landing.data
+    assert b"Invoices you make without an account are never saved" in landing.data
+    assert b"Free account for invoice history" in landing.data
     assert b"Client history &amp; saved invoices" not in landing.data
     assert upgrade.status_code == 200
     assert b"Invoice history" not in upgrade.data
