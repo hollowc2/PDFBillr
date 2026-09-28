@@ -383,6 +383,9 @@ class Invoice(db.Model):
             and self.due_date_as_date < (as_of or date.today())
         ):
             return "overdue"
+        if self.status == "finalized":
+            # Legacy state no longer written by the app; users only ever see "sent".
+            return "sent"
         return self.status or "draft"
 
     @property

@@ -80,7 +80,6 @@ _DASHBOARD_STATUSES = {
     "all",
     "draft",
     "sent",
-    "finalized",
     "partial",
     "overdue",
     "paid",
@@ -105,6 +104,8 @@ def index():
     page = max(request.args.get("page", 1, type=int), 1)
     q = request.args.get("q", "").strip()
     status = request.args.get("status", "all").strip().lower()
+    if status == "finalized":  # legacy filter links; effective_status reports "sent"
+        status = "sent"
     sort = request.args.get("sort", "newest").strip().lower()
     due_from_raw = request.args.get("due_from", "").strip()
     due_to_raw = request.args.get("due_to", "").strip()

@@ -111,6 +111,8 @@ def invoices_csv():
     status = request.args.get("status", "").strip().lower()
     if status == "all":
         status = ""
+    elif status == "finalized":  # legacy value; effective_status reports "sent"
+        status = "sent"
     if status and not _STATUS_RE.fullmatch(status):
         abort(400, description="Invalid status filter.")
 

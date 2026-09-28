@@ -200,6 +200,29 @@ def test_overdue_is_derived_without_rewriting_persisted_status(
         assert stored.display_status == "paid"
 
 
+def test_legacy_finalized_invoices_are_shown_and_filtered_as_sent(
+    client, app, make_user, make_invoice, login
+):
+    owner = make_user("owner@example.test")
+    login(owner.email)
+    legacy = make_invoice(
+        owner.id,
+        invoice_number="LEGACY-1",
+        status="finalized",
+        due_date=(date.today() + timedelta(days=10)).isoformat(),
+    )
+    make_invoice(owner.id, invoice_number="DRAFT-1", status="draft")
+
+    with app.app_context():
+        assert db.session.get(Invoice, legacy.id).display_status == "sent"
+
+    for query in ("sent", "finalized"):
+        response = client.get(f"/dashboard/?status={query}")
+        assert b"LEGACY-1" in response.data
+        assert b"DRAFT-1" not in response.data
+    assert b"Finalized" not in client.get("/dashboard/").data
+
+
 @pytest.mark.parametrize(
     ("suffix", "data"),
     [

@@ -46,7 +46,7 @@
   <select name="status" class="input-field w-auto h-9 py-0" aria-label="Invoice status">
     {% for value, label in [
       ('all', 'All statuses'), ('draft', 'Draft'), ('sent', 'Sent'),
-      ('finalized', 'Finalized'), ('partial', 'Partial'), ('overdue', 'Overdue'),
+      ('partial', 'Partial'), ('overdue', 'Overdue'),
       ('paid', 'Paid'), ('void', 'Void')
     ] %}
     <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
