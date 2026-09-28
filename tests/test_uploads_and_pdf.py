@@ -141,7 +141,12 @@ def test_failed_replacement_preserves_existing_logo(
         "http://169.254.169.254/latest/meta-data",
         "https://example.test/logo.png",
         "file:///etc/passwd",
+        "FILE:///etc/passwd",
+        "ftp://example.test/logo.png",
         "data:text/html;base64,SGVsbG8=",
+        "data:image/svg+xml;base64,PHN2Zy8+",
+        "data:image/png,not-base64",
+        "/etc/passwd",
     ],
 )
 def test_pdf_fetcher_rejects_external_local_and_non_image_resources(url):
