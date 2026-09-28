@@ -1,38 +1,30 @@
 {% extends "base.html" %}
-{% from "partials/icons.html" import lock %}
+{% from "partials/icons.html" import status_pill %}
 {% block title %}Invoices — PDFBillr{% endblock %}
 
 {% block content %}
-<div class="flex items-center justify-between mb-6">
-  <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Invoices</h1>
-  <a href="{{ url_for('public.index') }}"
-     class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm">
-    New invoice
-  </a>
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+  <h1 class="font-display text-2xl font-semibold tracking-tight">Invoices</h1>
+  <div class="flex items-center gap-2">
+    <a href="{{ url_for('exports.invoices_csv', q=q) }}" class="btn-secondary">Export CSV</a>
+    <a href="{{ url_for('public.index') }}" class="btn-primary">New invoice</a>
+  </div>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for category, message in messages %}
-    <div class="mb-4 px-4 py-3 rounded-lg text-sm
-      {% if category == 'error' %}bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800
-      {% elif category == 'success' %}bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800
-      {% else %}bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% endif %}">
-      {{ message }}
-    </div>
-  {% endfor %}
-{% endwith %}
+{% include "partials/flashes.html" %}
 
-<!-- Receivables snapshot -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-  {% for key, label, detail, color in [
-    ('outstanding', 'Outstanding', 'Open balances', 'text-blue-700 dark:text-blue-300'),
-    ('overdue', 'Overdue', 'Past due', 'text-red-700 dark:text-red-300'),
-    ('due_soon', 'Due soon', 'Next 7 days', 'text-amber-700 dark:text-amber-300'),
-    ('paid_this_month', 'Paid this month', 'Payments received', 'text-green-700 dark:text-green-300')
+<!-- Receivables summary -->
+<section class="card grid grid-cols-2 lg:grid-cols-4 mb-6 overflow-hidden" aria-label="Receivables summary">
+  {% for key, label, detail in [
+    ('outstanding', 'Outstanding', 'Open balances'),
+    ('overdue', 'Overdue', 'Past due'),
+    ('due_soon', 'Due soon', 'Next 7 days'),
+    ('paid_this_month', 'Paid this month', 'Payments received'),
   ] %}
-  <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-    <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ label }}</p>
-    <div class="mt-2 {{ color }} font-bold">
+  <div class="px-5 py-4 border-rule {{ 'border-l' if loop.index0 % 2 else '' }} {{ 'border-t lg:border-t-0' if loop.index0 >= 2 else '' }} {{ 'lg:border-l' if loop.index0 == 2 else '' }}">
+    <p class="text-xs font-medium text-graphite">{{ label }}</p>
+    <div class="mt-1 font-display text-xl font-semibold tracking-tight
+                {{ 'text-overdue' if key == 'overdue' and metrics[key] and metrics[key].values() | sum > 0 else 'text-ink' }}">
       {% if metrics[key] %}
         {% for currency_code, amount in metrics[key].items() %}
           <div>{{ amount | money(currency_code) }}</div>
@@ -41,142 +33,83 @@
         <div>{{ 0 | money('USD') }}</div>
       {% endif %}
     </div>
-    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ detail }}</p>
+    <p class="mt-0.5 text-xs text-graphite">{{ detail }}</p>
   </div>
   {% endfor %}
-</div>
+</section>
 
-<!-- Pro feature shortcuts -->
-<div class="flex flex-wrap gap-3 mb-6">
-  <a href="{{ url_for('clients.index') }}"
-     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    Clients &amp; Services
-  </a>
-  <a href="{{ url_for('estimates.index') }}"
-     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    Estimates
-  </a>
-  <a href="{{ url_for('dashboard.branding') if is_pro() else url_for('billing.upgrade') }}"
-     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    {% if not is_pro() %}<span class="text-graphite">{{ lock() }}</span>{% endif %}
-    Branding
-  </a>
-  {% if is_pro() %}
-  <a href="{{ url_for('dashboard.reminder_settings') }}"
-     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    Payment reminders
-  </a>
-  <a href="{{ url_for('dashboard.recurring_list') }}"
-     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    Recurring invoices
-  </a>
-  <a href="{{ url_for('billing.portal') }}"
-     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    Subscription
-  </a>
-  {% else %}
-  <a href="{{ url_for('billing.upgrade') }}"
-     class="flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950 text-sm font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors">
-    Upgrade to Pro
-  </a>
-  {% endif %}
-</div>
-
-<!-- Search, filters and export -->
-<form method="GET" action="{{ url_for('dashboard.index') }}" class="mb-4">
-  <div class="flex flex-wrap gap-2">
-    <input type="text" name="q" value="{{ q }}" placeholder="Search by invoice # or client…"
-           class="input-field max-w-sm" />
-    <select name="status" class="input-field w-auto" aria-label="Invoice status">
-      {% for value, label in [
-        ('all', 'All statuses'), ('draft', 'Draft'), ('sent', 'Sent'),
-        ('finalized', 'Finalized'), ('partial', 'Partial'), ('overdue', 'Overdue'),
-        ('paid', 'Paid'), ('void', 'Void')
-      ] %}
-      <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
+<!-- Search and filters -->
+{% set filtered = q or filters.status != 'all' or filters.due_from or filters.due_to or filters.sort != 'newest' %}
+<form method="GET" action="{{ url_for('dashboard.index') }}" class="mb-4 flex flex-wrap items-center gap-2" role="search">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search invoice # or client"
+         aria-label="Search invoices" class="input-field flex-1 min-w-[12rem] h-9 py-0" />
+  <select name="status" class="input-field w-auto h-9 py-0" aria-label="Invoice status">
+    {% for value, label in [
+      ('all', 'All statuses'), ('draft', 'Draft'), ('sent', 'Sent'),
+      ('finalized', 'Finalized'), ('partial', 'Partial'), ('overdue', 'Overdue'),
+      ('paid', 'Paid'), ('void', 'Void')
+    ] %}
+    <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <div class="flex items-center gap-1.5 w-full sm:w-auto">
+    <span class="text-xs text-graphite">Due</span>
     <input type="date" name="due_from" value="{{ filters.due_from }}"
-           class="input-field w-auto" aria-label="Due date from" title="Due date from" />
+           class="input-field flex-1 min-w-0 sm:flex-none sm:w-auto h-9 py-0" aria-label="Due date from" />
+    <span class="text-xs text-graphite" aria-hidden="true">–</span>
     <input type="date" name="due_to" value="{{ filters.due_to }}"
-           class="input-field w-auto" aria-label="Due date to" title="Due date to" />
-    <select name="sort" class="input-field w-auto" aria-label="Sort invoices">
-      {% for value, label in [
-        ('newest', 'Newest first'), ('oldest', 'Oldest first'),
-        ('due_soonest', 'Due soonest'), ('amount_high', 'Amount: high to low'),
-        ('amount_low', 'Amount: low to high')
-      ] %}
-      <option value="{{ value }}" {% if filters.sort == value %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-    <button type="submit"
-            class="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-      Apply
-    </button>
-    {% if q or filters.status != 'all' or filters.due_from or filters.due_to or filters.sort != 'newest' %}
-    <a href="{{ url_for('dashboard.index') }}"
-       class="px-4 py-2 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-      Clear filters
-    </a>
-    {% endif %}
-    <a href="{{ url_for('exports.invoices_csv', q=q) }}"
-       class="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-      Export CSV
-    </a>
+           class="input-field flex-1 min-w-0 sm:flex-none sm:w-auto h-9 py-0" aria-label="Due date to" />
   </div>
+  <select name="sort" class="input-field w-auto h-9 py-0" aria-label="Sort invoices">
+    {% for value, label in [
+      ('newest', 'Newest first'), ('oldest', 'Oldest first'),
+      ('due_soonest', 'Due soonest'), ('amount_high', 'Amount: high to low'),
+      ('amount_low', 'Amount: low to high')
+    ] %}
+    <option value="{{ value }}" {% if filters.sort == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn-secondary">Apply</button>
+  {% if filtered %}
+  <a href="{{ url_for('dashboard.index') }}" class="btn-quiet">Clear</a>
+  {% endif %}
 </form>
 
 <!-- Invoice table -->
 {% if pagination.items %}
-<div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-x-auto">
+<div class="card overflow-x-auto">
   <table class="w-full text-sm">
-    <thead class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <tr>
-        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">Invoice</th>
-        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider hidden sm:table-cell">Client</th>
-        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider hidden md:table-cell">Issued</th>
-        <th class="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">Total</th>
-        <th class="text-center px-4 py-3 font-semibold text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider hidden sm:table-cell">Status</th>
-        <th class="px-4 py-3"></th>
+    <thead>
+      <tr class="border-b border-rule text-left text-xs font-medium text-graphite">
+        <th scope="col" class="px-4 py-3 font-medium">Invoice</th>
+        <th scope="col" class="px-4 py-3 font-medium hidden sm:table-cell">Client</th>
+        <th scope="col" class="px-4 py-3 font-medium hidden md:table-cell">Issued</th>
+        <th scope="col" class="px-4 py-3 font-medium hidden md:table-cell">Due</th>
+        <th scope="col" class="px-4 py-3 font-medium hidden sm:table-cell">Status</th>
+        <th scope="col" class="px-4 py-3 font-medium text-right">Amount</th>
+        <th scope="col" class="px-4 py-3"><span class="sr-only">Actions</span></th>
       </tr>
     </thead>
-    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+    <tbody class="divide-y divide-rule">
       {% for inv in pagination.items %}
-      <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-        <td class="px-4 py-3 font-medium text-blue-600 dark:text-blue-400">
-          <a href="{{ url_for('dashboard.invoice_detail', invoice_id=inv.id) }}" class="hover:underline truncate block max-w-[120px]">
+      <tr class="hover:bg-ink/[0.02] transition-colors">
+        <td class="px-4 py-3">
+          <a href="{{ url_for('dashboard.invoice_detail', invoice_id=inv.id) }}"
+             class="font-medium text-ink hover:text-accent truncate block max-w-[10rem]">
             {{ inv.invoice_number }}
           </a>
         </td>
-        <td class="px-4 py-3 text-gray-700 dark:text-gray-300 hidden sm:table-cell">
-          {{ inv.to_name or '—' }}
-        </td>
-        <td class="px-4 py-3 text-gray-500 dark:text-gray-400 hidden md:table-cell">
-          {{ inv.invoice_date or '—' }}
-        </td>
-        <td class="px-4 py-3 text-right font-mono font-medium text-gray-900 dark:text-gray-100">
+        <td class="px-4 py-3 text-ink hidden sm:table-cell">{{ inv.to_name or '—' }}</td>
+        <td class="px-4 py-3 text-graphite tabular-nums whitespace-nowrap hidden md:table-cell">{{ inv.invoice_date or '—' }}</td>
+        <td class="px-4 py-3 text-graphite tabular-nums whitespace-nowrap hidden md:table-cell">{{ inv.due_date or '—' }}</td>
+        <td class="px-4 py-3 hidden sm:table-cell">{{ status_pill(inv.effective_status(as_of=dashboard_today)) }}</td>
+        <td class="px-4 py-3 text-right font-medium tabular-nums whitespace-nowrap">
           {{ inv.total_amount | money(inv.currency_code) }}
         </td>
-        <td class="px-4 py-3 text-center hidden sm:table-cell">
-          {% set lifecycle_status = inv.effective_status(as_of=dashboard_today) %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-            {% if lifecycle_status == 'paid' %}bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300
-            {% elif lifecycle_status == 'overdue' %}bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300
-            {% elif lifecycle_status == 'partial' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300
-            {% elif lifecycle_status in ('sent', 'finalized') %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300
-            {% else %}bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400{% endif %}">
-            {{ lifecycle_status | capitalize }}
-          </span>
-        </td>
-        <td class="px-4 py-3 text-right w-20 whitespace-nowrap">
+        <td class="px-4 py-3 text-right">
           <a href="{{ url_for('dashboard.invoice_download', invoice_id=inv.id) }}"
-             class="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mr-3">
-            Download
-          </a>
-          <a href="{{ url_for('dashboard.invoice_detail', invoice_id=inv.id) }}"
-             class="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-            View
-          </a>
+             class="text-xs font-medium text-graphite hover:text-accent transition-colors"
+             aria-label="Download PDF for {{ inv.invoice_number }}">PDF</a>
         </td>
       </tr>
       {% endfor %}
@@ -184,42 +117,34 @@
   </table>
 </div>
 
-<!-- Pagination -->
 {% if pagination.pages > 1 %}
-<div class="flex justify-center gap-2 mt-6">
-  {% if pagination.has_prev %}
-  <a href="{{ url_for('dashboard.index', page=pagination.prev_num, q=q, status=filters.status, due_from=filters.due_from, due_to=filters.due_to, sort=filters.sort) }}"
-     class="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    Previous
-  </a>
-  {% endif %}
-  <span class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
-    Page {{ pagination.page }} of {{ pagination.pages }}
-  </span>
-  {% if pagination.has_next %}
-  <a href="{{ url_for('dashboard.index', page=pagination.next_num, q=q, status=filters.status, due_from=filters.due_from, due_to=filters.due_to, sort=filters.sort) }}"
-     class="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    Next
-  </a>
-  {% endif %}
-</div>
+{% set page_args = dict(q=q, status=filters.status, due_from=filters.due_from, due_to=filters.due_to, sort=filters.sort) %}
+<nav class="flex items-center justify-between gap-2 mt-4" aria-label="Pagination">
+  <span class="text-sm text-graphite">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+  <div class="flex gap-2">
+    {% if pagination.has_prev %}
+    <a href="{{ url_for('dashboard.index', page=pagination.prev_num, **page_args) }}" class="btn-secondary">Previous</a>
+    {% endif %}
+    {% if pagination.has_next %}
+    <a href="{{ url_for('dashboard.index', page=pagination.next_num, **page_args) }}" class="btn-secondary">Next</a>
+    {% endif %}
+  </div>
+</nav>
 {% endif %}
 
 {% else %}
-<div class="text-center py-16 text-gray-400 dark:text-gray-600">
-  <svg class="w-12 h-12 mx-auto mb-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<div class="card px-6 py-16 text-center">
+  <svg class="w-10 h-10 mx-auto mb-4 text-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
   </svg>
-  {% if q or filters.status != 'all' or filters.due_from or filters.due_to %}
-  <p class="text-sm">No invoices match these filters.</p>
+  {% if filtered %}
+  <p class="text-sm font-semibold">No invoices match these filters</p>
+  <a href="{{ url_for('dashboard.index') }}" class="btn-secondary mt-4">Clear filters</a>
   {% else %}
-  <p class="text-sm font-semibold text-ink">No invoices yet</p>
-  <p class="mt-1 text-sm">Invoices, drafts and payments you record will show up here.</p>
-  <a href="{{ url_for('public.index') }}"
-     class="inline-block mt-4 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors">
-    New invoice
-  </a>
+  <p class="text-sm font-semibold">No invoices yet</p>
+  <p class="mt-1 text-sm text-graphite">Invoices, drafts and payments you record will show up here.</p>
+  <a href="{{ url_for('public.index') }}" class="btn-primary mt-5">New invoice</a>
   {% endif %}
 </div>
 {% endif %}

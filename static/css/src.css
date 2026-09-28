@@ -48,29 +48,51 @@
 
 @layer components {
   /* Components sit below utilities, so classes like w-auto or max-w-sm win. */
+
+  /* Surfaces */
+  .card { @apply bg-surface border border-rule rounded-lg; }
+  .section-title { @apply text-sm font-semibold text-ink; }
+
+  /* Form fields */
+  .field-label { @apply block mb-1.5 text-[13px] font-medium text-ink; }
+  .field-hint { @apply mt-1.5 text-xs text-graphite; }
   .input-field {
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.5rem;
-    border: 1px solid #9ca3af;
-    background-color: #f9fafb;
-    color: #111827;
-    font-size: 0.875rem;
+    @apply w-full rounded-md border border-rule-strong bg-surface px-3 py-2 text-sm text-ink
+      transition-[border-color,box-shadow] duration-150;
     font-family: inherit;
-    transition: border-color 0.15s, box-shadow 0.15s;
     color-scheme: light;
   }
-  .input-field::placeholder { color: #6b7280; }
-  .input-field:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  .input-field::placeholder { @apply text-faint; }
+  .input-field:focus { @apply outline-none border-accent ring-[3px] ring-accent-tint; }
+  .dark .input-field { color-scheme: dark; }
+
+  /* Buttons: one height, three levels, plus danger */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md border border-transparent
+      text-sm font-semibold whitespace-nowrap transition-colors
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent
+      disabled:opacity-50 disabled:cursor-not-allowed;
   }
-  .dark .input-field {
-    border-color: #4b5563;
-    background-color: #1f2937;
-    color: #f3f4f6;
-    color-scheme: dark;
+  .btn-primary { @apply btn bg-accent text-accent-on hover:bg-accent-hover; }
+  .btn-secondary { @apply btn bg-surface text-ink border-rule-strong hover:border-graphite; }
+  .btn-quiet { @apply btn px-3 text-graphite hover:text-ink hover:bg-ink/5; }
+  .btn-danger { @apply btn bg-surface text-overdue border-rule-strong hover:bg-overdue-tint hover:border-overdue; }
+
+  /* Status pills: tint + dot, so state never relies on colour alone */
+  .pill {
+    @apply inline-flex items-center gap-1.5 h-[22px] px-2 rounded-full text-xs font-medium whitespace-nowrap;
   }
-  .dark .input-field::placeholder { color: #9ca3af; }
+  .pill::before { content: ""; @apply w-1.5 h-1.5 rounded-full bg-current; }
+  .pill-draft { @apply pill bg-ink/5 text-graphite; }
+  .pill-sent { @apply pill bg-accent-tint text-accent; }
+  .pill-due { @apply pill bg-due-tint text-due; }
+  .pill-overdue { @apply pill bg-overdue-tint text-overdue; }
+  .pill-paid { @apply pill bg-paid-tint text-paid; }
+
+  /* Flash messages */
+  .alert { @apply px-4 py-3 rounded-md text-sm border; }
+  .alert-info { @apply alert bg-accent-tint text-accent border-accent/20; }
+  .alert-success { @apply alert bg-paid-tint text-paid border-paid/20; }
+  .alert-warning { @apply alert bg-due-tint text-due border-due/20; }
+  .alert-error { @apply alert bg-overdue-tint text-overdue border-overdue/20; }
 }

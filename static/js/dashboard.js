@@ -14,6 +14,14 @@ document.addEventListener('DOMContentLoaded', function () {
   if (sendBtn && sendModal) {
     sendBtn.addEventListener('click', function () {
       sendModal.classList.remove('hidden');
+      var emailInput = sendModal.querySelector('input[type="email"]');
+      if (emailInput) emailInput.focus();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !sendModal.classList.contains('hidden')) {
+        sendModal.classList.add('hidden');
+        sendBtn.focus();
+      }
     });
   }
 

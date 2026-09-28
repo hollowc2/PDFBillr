@@ -1,0 +1,11 @@
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="mb-6 space-y-2" role="status">
+    {% for category, message in messages %}
+    <div class="{{ {'error': 'alert-error', 'success': 'alert-success', 'warning': 'alert-warning'}.get(category, 'alert-info') }}">
+      {{ message }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}

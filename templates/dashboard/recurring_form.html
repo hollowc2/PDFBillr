@@ -3,34 +3,25 @@
 
 {% block content %}
 <div class="mb-6">
-  <a href="{{ url_for('dashboard.recurring_list') }}" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+  <a href="{{ url_for('dashboard.recurring_list') }}" class="text-sm text-graphite hover:text-ink">
     ← Recurring invoices
   </a>
-  <h1 class="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+  <h1 class="font-display tracking-tight text-2xl font-semibold text-ink mt-1">
     {{ 'Edit Recurring Invoice' if tmpl else 'New Recurring Invoice' }}
   </h1>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for category, message in messages %}
-    <div class="mb-4 px-4 py-3 rounded-lg text-sm
-      {% if category == 'error' %}bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800
-      {% elif category == 'success' %}bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800
-      {% else %}bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% endif %}">
-      {{ message }}
-    </div>
-  {% endfor %}
-{% endwith %}
+{% include "partials/flashes.html" %}
 
 <form method="POST" class="space-y-6">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
   <!-- Schedule -->
-  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Schedule</h2>
+  <div class="card p-6">
+    <h2 class="text-base font-semibold text-ink mb-4">Schedule</h2>
     <div class="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
       <div>
-        <label for="field-interval" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Repeat</label>
+        <label for="field-interval" class="field-label">Repeat</label>
         <select id="field-interval" name="interval" class="input-field">
           {% for iv in ['weekly', 'biweekly', 'monthly', 'quarterly'] %}
           <option value="{{ iv }}" {{ 'selected' if tmpl and tmpl.interval == iv else ('selected' if not tmpl and iv == 'monthly' else '') }}>
@@ -40,26 +31,26 @@
         </select>
       </div>
       <div>
-        <label for="field-next-run-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">First run date</label>
+        <label for="field-next-run-date" class="field-label">First run date</label>
         <input id="field-next-run-date" type="date" name="next_run_date" required
                value="{{ tmpl.next_run_date.isoformat() if tmpl else '' }}"
                class="input-field" />
       </div>
       <div>
-        <label for="field-net-days" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment terms (days)</label>
+        <label for="field-net-days" class="field-label">Payment terms (days)</label>
         <input id="field-net-days" type="number" name="net_days" min="0" max="365"
                value="{{ tmpl.net_days if tmpl else 30 }}"
                class="input-field" />
       </div>
       <div>
-        <label for="field-invoice-number-prefix" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Invoice number prefix</label>
+        <label for="field-invoice-number-prefix" class="field-label">Invoice number prefix</label>
         <input id="field-invoice-number-prefix" type="text" name="invoice_number_prefix" maxlength="50"
                value="{{ tmpl.invoice_number_prefix if tmpl else 'INV' }}"
                placeholder="INV"
                class="input-field" />
       </div>
       <div>
-        <label for="currency-code" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Currency</label>
+        <label for="currency-code" class="field-label">Currency</label>
         <select id="currency-code" name="currency_code" class="input-field">
           {% set selected_currency = tmpl.currency_code if tmpl else 'USD' %}
           {% for currency in currency_options %}
@@ -77,37 +68,37 @@
     <div class="mt-4 flex items-center gap-3">
       <input type="checkbox" id="auto_send" name="auto_send" value="1"
              {{ 'checked' if tmpl and tmpl.auto_send else '' }}
-             class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-      <label for="auto_send" class="text-sm text-gray-700 dark:text-gray-300">
+             class="w-4 h-4 rounded border-rule-strong text-accent focus:ring-accent" />
+      <label for="auto_send" class="text-sm text-ink">
         Auto-send to client when generated
-        <span class="text-gray-400 dark:text-gray-500 font-normal">(requires client email)</span>
+        <span class="text-faint font-normal">(requires client email)</span>
       </label>
     </div>
   </div>
 
   <!-- From -->
-  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">From</h2>
+  <div class="card p-6">
+    <h2 class="text-base font-semibold text-ink mb-4">From</h2>
     <div class="grid sm:grid-cols-2 gap-4">
       <div>
-        <label for="field-from-company" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Your name or business</label>
+        <label for="field-from-company" class="field-label">Your name or business</label>
         <input id="field-from-company" type="text" name="from_company" maxlength="200"
                value="{{ tmpl.from_company or '' }}"
                class="input-field" placeholder="Your Company" />
       </div>
       <div>
-        <label for="field-from-email" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+        <label for="field-from-email" class="field-label">Email</label>
         <input id="field-from-email" type="email" name="from_email" maxlength="200"
                value="{{ tmpl.from_email or '' }}"
                class="input-field" placeholder="you@example.com" />
       </div>
       <div>
-        <label for="field-from-address" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Address</label>
+        <label for="field-from-address" class="field-label">Address</label>
         <textarea id="field-from-address" name="from_address" rows="2" maxlength="1000"
                   class="input-field">{{ tmpl.from_address or '' }}</textarea>
       </div>
       <div>
-        <label for="field-from-phone" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</label>
+        <label for="field-from-phone" class="field-label">Phone</label>
         <input id="field-from-phone" type="tel" name="from_phone" maxlength="200"
                value="{{ tmpl.from_phone or '' }}"
                class="input-field" placeholder="+1 555 000 0000" />
@@ -116,23 +107,23 @@
   </div>
 
   <!-- Bill To -->
-  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Bill to</h2>
+  <div class="card p-6">
+    <h2 class="text-base font-semibold text-ink mb-4">Bill to</h2>
     <div class="grid sm:grid-cols-2 gap-4">
       <div>
-        <label for="field-to-name" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client name</label>
+        <label for="field-to-name" class="field-label">Client name</label>
         <input id="field-to-name" type="text" name="to_name" maxlength="200"
                value="{{ tmpl.to_name or '' }}"
                class="input-field" placeholder="Client name" />
       </div>
       <div>
-        <label for="field-to-email" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client email</label>
+        <label for="field-to-email" class="field-label">Client email</label>
         <input id="field-to-email" type="email" name="to_email" maxlength="200"
                value="{{ tmpl.to_email or '' }}"
                class="input-field" placeholder="client@example.com" />
       </div>
       <div class="sm:col-span-2">
-        <label for="field-to-address" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client address</label>
+        <label for="field-to-address" class="field-label">Client address</label>
         <textarea id="field-to-address" name="to_address" rows="2" maxlength="1000"
                   class="input-field">{{ tmpl.to_address or '' }}</textarea>
       </div>
@@ -140,28 +131,28 @@
   </div>
 
   <!-- Line Items -->
-  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Line items</h2>
+  <div class="card p-6">
+    <h2 class="text-base font-semibold text-ink mb-4">Line items</h2>
     <div id="line-items-container" class="space-y-2 mb-3">
       <!-- Populated by JS -->
     </div>
     <button type="button" id="add-line-item"
-            class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+            class="text-sm text-accent hover:underline">
       Add line
     </button>
     <input type="hidden" name="line_items_json" id="line_items_json"
            value="{{ tmpl.line_items_json if tmpl else '[]' }}" />
 
     <!-- Financials -->
-    <div class="grid sm:grid-cols-2 gap-4 mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
+    <div class="grid sm:grid-cols-2 gap-4 mt-6 pt-4 border-t border-rule">
       <div>
-        <label for="field-tax-rate" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tax rate (%)</label>
+        <label for="field-tax-rate" class="field-label">Tax rate (%)</label>
         <input id="field-tax-rate" type="number" name="tax_rate" min="0" max="100" step="0.01"
                value="{{ tmpl.tax_rate if tmpl else 0 }}"
                class="input-field" />
       </div>
       <div>
-        <label for="discount-input" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Discount (<span id="discount-currency-code">{{ tmpl.currency_code if tmpl else 'USD' }}</span>)</label>
+        <label for="discount-input" class="field-label">Discount (<span id="discount-currency-code">{{ tmpl.currency_code if tmpl else 'USD' }}</span>)</label>
         <input id="discount-input" type="number" name="discount" min="0"
                step="{{ currency_input_step(tmpl.currency_code if tmpl else 'USD') }}"
                value="{{ tmpl.discount if tmpl else 0 }}"
@@ -171,35 +162,35 @@
   </div>
 
   <!-- Notes -->
-  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Notes and payment details</h2>
+  <div class="card p-6">
+    <h2 class="text-base font-semibold text-ink mb-4">Notes and payment details</h2>
     <div class="grid sm:grid-cols-2 gap-4">
       <div>
-        <label for="field-notes" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
+        <label for="field-notes" class="field-label">Notes</label>
         <textarea id="field-notes" name="notes" rows="3" maxlength="2000" class="input-field">{{ tmpl.notes or '' }}</textarea>
       </div>
       <div>
-        <label for="field-payment-info" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment details</label>
+        <label for="field-payment-info" class="field-label">Payment details</label>
         <textarea id="field-payment-info" name="payment_info" rows="3" maxlength="2000" class="input-field">{{ tmpl.payment_info or '' }}</textarea>
       </div>
     </div>
     <div class="mt-4">
-      <label for="field-payment-url" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Pay now link</label>
+      <label for="field-payment-url" class="field-label">Pay now link</label>
       <input id="field-payment-url" name="payment_url" type="url" maxlength="2048" autocomplete="url"
              placeholder="https://pay.example.com/invoice"
              value="{{ tmpl.payment_url or '' if tmpl else '' }}"
              class="input-field" />
-      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Adds a Pay now button to every generated invoice. Must start with https://.</p>
+      <p class="mt-1 text-xs text-graphite">Adds a Pay now button to every generated invoice. Must start with https://.</p>
     </div>
   </div>
 
   <div class="flex gap-3 pt-2">
     <button type="submit"
-            class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm">
+            class="btn-primary">
       {{ 'Save Changes' if tmpl else 'Create Recurring Invoice' }}
     </button>
     <a href="{{ url_for('dashboard.recurring_list') }}"
-       class="px-6 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+       class="btn-secondary">
       Cancel
     </a>
   </div>
