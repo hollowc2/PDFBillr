@@ -6,7 +6,8 @@ import re as _re
 from urllib.parse import urlsplit
 
 from flask import current_app, render_template
-from weasyprint import HTML, default_url_fetcher
+from weasyprint import HTML
+from weasyprint.urls import URLFetcher
 
 _HEX_RE = _re.compile(r'^#[0-9a-fA-F]{6}$')
 
@@ -169,23 +170,26 @@ def context_from_invoice(invoice) -> dict:
 def render_pdf(context: dict, theme: str = "default") -> bytes:
     template_name = _THEME_TEMPLATES.get(theme, "invoice.html")
     html_string = render_template(template_name, **context)
-    return HTML(string=html_string, url_fetcher=_restricted_url_fetcher).write_pdf()
+    # A fresh fetcher per render: URLFetcher keeps per-request state.
+    return HTML(string=html_string, url_fetcher=RestrictedURLFetcher()).write_pdf()
 
 
-def _restricted_url_fetcher(url: str, *args, **kwargs):
+_ALLOWED_DATA_PREFIXES = (
+    "data:image/png;base64,",
+    "data:image/jpeg;base64,",
+    "data:image/gif;base64,",
+    "data:image/webp;base64,",
+)
+
+
+class RestrictedURLFetcher(URLFetcher):
     """Permit only in-memory image data used by normalized company logos."""
-    parsed = urlsplit(url)
-    lowered = url.lower()
-    if (
-        parsed.scheme != "data"
-        or not lowered.startswith(
-            (
-                "data:image/png;base64,",
-                "data:image/jpeg;base64,",
-                "data:image/gif;base64,",
-                "data:image/webp;base64,",
-            )
-        )
-    ):
-        raise ValueError("External and local PDF resources are disabled.")
-    return default_url_fetcher(url, *args, **kwargs)
+
+    def __init__(self):
+        super().__init__(allowed_protocols=("data",), allow_redirects=False)
+
+    def fetch(self, url, headers=None):
+        parsed = urlsplit(url)
+        if parsed.scheme != "data" or not url.lower().startswith(_ALLOWED_DATA_PREFIXES):
+            raise ValueError("External and local PDF resources are disabled.")
+        return super().fetch(url, headers)

@@ -22,18 +22,8 @@ jobs:
           sudo apt-get install -y libcairo2 libpango-1.0-0 libpangoft2-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 shared-mime-info
       - name: Install dependencies
         run: python -m pip install --require-hashes -r requirements-dev.lock
-      # PYSEC-2026-3940 (WeasyPrint < 70): write_pdf(xmp_metadata=..., stylesheets=...)
-      # bypasses the document's url_fetcher. utils/pdf.py only calls write_pdf() with no
-      # arguments, so the restrictive fetcher still guards every resource. Remove this
-      # ignore when upgrading to WeasyPrint 70, which also replaces default_url_fetcher.
       - name: Audit runtime dependencies
-        run: >-
-          pip-audit
-          --progress-spinner off
-          --ignore-vuln PYSEC-2026-2034
-          --ignore-vuln PYSEC-2026-3412
-          --ignore-vuln PYSEC-2026-3940
-          -r requirements.lock
+        run: pip-audit --progress-spinner off -r requirements.lock
       - name: Compile
         run: python -m compileall -q .
       - name: Lint
