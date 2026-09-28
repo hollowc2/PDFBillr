@@ -1,25 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ status_code }} — PDFBillr</title>
+  <title>{{ status_code }} {{ error_name }} — PDFBillr</title>
+  {# Standalone on purpose: no session, database, CSRF, or url_for (untrusted-host errors have no URL adapter). #}
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Schibsted+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <script src="{{ home_path }}static/js/darkmode.js"></script>
+  <link rel="stylesheet" href="{{ home_path }}static/css/app.css" />
 </head>
-<body>
-  <main>
-    <a href="{{ home_path }}">
-      PDFBillr
-    </a>
-    <p>Error {{ status_code }}</p>
-    <h1>{{ error_name }}</h1>
-    <p>
-      The request could not be completed. Try again, or contact support if the
-      problem continues.
-    </p>
-    <p>Request ID: {{ request_id }}</p>
-    <a href="{{ home_path }}">
-      Return home
-    </a>
+<body class="font-sans antialiased bg-paper text-ink min-h-screen flex flex-col">
+  <header class="border-b border-rule bg-surface">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center">
+      <a href="{{ home_path }}" aria-label="PDFBillr home">{% include "partials/wordmark.html" %}</a>
+    </div>
+  </header>
+
+  <main class="flex-1 flex items-center">
+    <div class="max-w-lg mx-auto w-full px-4 py-16">
+      <p class="text-sm font-semibold text-graphite">Error {{ status_code }}</p>
+      <h1 class="mt-2 font-display text-3xl font-semibold tracking-tight">{{ error_name }}</h1>
+      <p class="mt-4 text-graphite leading-relaxed">
+        {% if status_code == 404 %}
+          This page doesn’t exist, or the link has expired. Check the address, or go back to the start.
+        {% elif status_code >= 500 %}
+          Something went wrong on our side. Try again in a moment. If it keeps happening, the
+          reference below lets us find exactly what failed.
+        {% else %}
+          We couldn’t complete that request. Go back and try again. If it keeps happening, the
+          reference below lets us find exactly what failed.
+        {% endif %}
+      </p>
+      <a href="{{ home_path }}"
+         class="mt-8 inline-flex items-center h-10 px-5 rounded-md bg-accent hover:bg-accent-hover text-accent-on text-sm font-semibold transition-colors">
+        Back to PDFBillr
+      </a>
+      <p class="mt-10 pt-4 border-t border-rule text-xs text-graphite">
+        Request ID: <span class="font-mono select-all">{{ request_id }}</span>
+      </p>
+    </div>
   </main>
 </body>
 </html>

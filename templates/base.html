@@ -4,110 +4,138 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="csrf-token" content="{{ csrf_token() }}" />
-  <title>{% block title %}PDFBillr — Free Invoice Generator{% endblock %}</title>
+  <title>{% block title %}PDFBillr{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Schibsted+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
   <script src="{{ url_for('static', filename='js/darkmode.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/nav.js') }}" defer></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
   {% block head %}{% endblock %}
 </head>
-<body class="font-sans bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
+<body class="font-sans antialiased bg-paper text-ink min-h-screen flex flex-col">
 
-  <!-- Sticky Nav -->
-  <nav class="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <a href="{{ url_for('public.landing') }}" class="text-2xl font-black tracking-tight text-blue-700 dark:text-blue-400 hover:opacity-80 transition-opacity">
-          PDF<span class="text-gray-900 dark:text-white">Billr</span>
-        </a>
-        <span class="hidden sm:inline text-sm text-gray-500 dark:text-gray-400 font-medium">
-          — Free PDF Invoice Generator
-        </span>
-      </div>
+  {% set endpoint = request.endpoint or '' %}
+  {% set settings_endpoints = ('dashboard.branding', 'dashboard.reminder_settings', 'clients.defaults') %}
+  {% set nav_link = 'px-3 py-2 rounded-md text-sm font-medium transition-colors' %}
+  {% set nav_idle = 'text-graphite hover:text-ink hover:bg-ink/5' %}
+  {% set nav_on = 'text-ink bg-ink/5' %}
+  {% set menu_item = 'flex items-center justify-between gap-3 px-3 py-2 rounded-md text-sm hover:bg-ink/5' %}
 
-      <div class="flex items-center gap-2">
-        {% if current_user.is_authenticated %}
-          <a href="{{ url_for('public.index') }}"
-             class="hidden sm:inline text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-            New Invoice
-          </a>
-          <a href="{{ url_for('dashboard.index') }}"
-             class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-            Dashboard
-          </a>
-          <a href="{{ url_for('clients.index') }}"
-             class="hidden md:inline text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-            Clients
-          </a>
-          <a href="{{ url_for('estimates.index') }}"
-             class="hidden md:inline text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-            Estimates
-          </a>
+  <header class="sticky top-0 z-40 bg-surface border-b border-rule">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center gap-4">
+      <a href="{{ url_for('dashboard.index') if current_user.is_authenticated else url_for('public.landing') }}"
+         class="shrink-0 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+         aria-label="PDFBillr home">
+        {% include "partials/wordmark.html" %}
+      </a>
+
+      {% if current_user.is_authenticated %}
+        {% set primary_links = [
+          ('Invoices', url_for('dashboard.index'),
+            endpoint.startswith(('dashboard.', 'exports.')) and 'recurring' not in endpoint and endpoint not in settings_endpoints),
+          ('Estimates', url_for('estimates.index'), endpoint.startswith('estimates.')),
+          ('Clients', url_for('clients.index'), endpoint.startswith('clients.') and endpoint not in settings_endpoints),
+        ] %}
+        {% if is_pro() %}
+          {% set primary_links = primary_links + [('Recurring', url_for('dashboard.recurring_list'), 'recurring' in endpoint)] %}
+        {% endif %}
+
+        <nav class="hidden md:flex items-center gap-1 ml-2" aria-label="Main">
+          {% for label, href, active in primary_links %}
+          <a href="{{ href }}" class="{{ nav_link }} {{ nav_on if active else nav_idle }}"
+             {% if active %}aria-current="page"{% endif %}>{{ label }}</a>
+          {% endfor %}
+        </nav>
+
+        <div class="ml-auto flex items-center gap-1">
           {% if not is_pro() %}
           <a href="{{ url_for('billing.upgrade') }}"
-             class="hidden sm:inline text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+             class="hidden sm:inline-flex px-3 py-2 rounded-md text-sm font-semibold text-accent hover:bg-accent-tint transition-colors">
             Upgrade
           </a>
           {% endif %}
-          <a href="{{ url_for('auth.logout') }}"
-             class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-            Sign out
+          <a href="{{ url_for('public.index') }}"
+             class="hidden sm:inline-flex items-center h-9 px-4 rounded-md bg-accent hover:bg-accent-hover text-accent-on text-sm font-semibold transition-colors">
+            New invoice
           </a>
-        {% else %}
-          <a href="{{ url_for('auth.login') }}"
-             class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-            Sign in
-          </a>
+
+          <details class="relative" data-menu>
+            <summary class="list-none [&::-webkit-details-marker]:hidden cursor-pointer {{ nav_link }} {{ nav_on if endpoint in settings_endpoints else nav_idle }} inline-flex items-center gap-1.5">
+              <span class="md:hidden">Menu</span>
+              <span class="hidden md:inline">Settings</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </summary>
+            <div class="absolute right-0 mt-2 w-64 rounded-lg border border-rule bg-surface p-1.5 shadow-lg">
+              <p class="px-3 pt-2 pb-2 text-xs text-graphite truncate" title="{{ current_user.email }}">{{ current_user.email }}</p>
+
+              <div class="md:hidden border-t border-rule pt-1.5 mt-0.5 mb-1.5">
+                <a href="{{ url_for('public.index') }}" class="{{ menu_item }} font-semibold text-accent">New invoice</a>
+                {% for label, href, active in primary_links %}
+                <a href="{{ href }}" class="{{ menu_item }} text-ink" {% if active %}aria-current="page"{% endif %}>{{ label }}</a>
+                {% endfor %}
+              </div>
+
+              <div class="border-t border-rule pt-1.5 mt-0.5">
+                <a href="{{ url_for('clients.defaults') }}" class="{{ menu_item }} text-ink">Business defaults</a>
+                {% for label, endpoint_name in [('Branding', 'dashboard.branding'), ('Payment reminders', 'dashboard.reminder_settings')] %}
+                <a href="{{ url_for(endpoint_name) if is_pro() else url_for('billing.upgrade') }}" class="{{ menu_item }} text-ink">
+                  {{ label }}
+                  {% if not is_pro() %}<span class="text-[11px] font-semibold tracking-wide text-accent">PRO</span>{% endif %}
+                </a>
+                {% endfor %}
+                {% if is_pro() %}
+                <a href="{{ url_for('billing.portal') }}" class="{{ menu_item }} text-ink">Subscription</a>
+                {% else %}
+                <a href="{{ url_for('billing.upgrade') }}" class="{{ menu_item }} text-ink sm:hidden">Upgrade to Pro</a>
+                {% endif %}
+              </div>
+
+              <div class="border-t border-rule pt-1.5 mt-1.5">
+                <a href="{{ url_for('auth.logout') }}" class="{{ menu_item }} text-graphite hover:text-ink">Sign out</a>
+              </div>
+            </div>
+          </details>
+      {% else %}
+        <div class="ml-auto flex items-center gap-1">
+          <a href="{{ url_for('auth.login') }}" class="{{ nav_link }} {{ nav_idle }}">Sign in</a>
           <a href="{{ url_for('auth.register') }}"
-             class="text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
-            Register
+             class="inline-flex items-center h-9 px-4 rounded-md bg-accent hover:bg-accent-hover text-accent-on text-sm font-semibold transition-colors">
+            Create account
           </a>
-        {% endif %}
+      {% endif %}
 
-        <button
-          id="dark-toggle"
-          aria-label="Toggle dark mode"
-          class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-        >
-          <svg id="icon-sun" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
-          </svg>
-          <svg id="icon-moon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-          </svg>
-        </button>
-      </div>
+          <button id="dark-toggle" type="button" aria-label="Toggle dark mode"
+                  class="p-2 rounded-md text-graphite hover:text-ink hover:bg-ink/5 transition-colors">
+            <svg id="icon-sun" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+            </svg>
+            <svg id="icon-moon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+            </svg>
+          </button>
+        </div>
     </div>
-  </nav>
+  </header>
 
-  <!-- Main content -->
   <main class="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
     {% block content %}{% endblock %}
   </main>
 
-  <!-- Pro upgrade teaser banner — hidden for Pro users -->
-  {% if not (current_user.is_authenticated and is_pro()) %}
-  <div class="bg-blue-900 dark:bg-blue-950 text-white">
-    <div class="max-w-5xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center gap-3 justify-between">
-      <div class="text-sm">
-        <span class="font-bold text-blue-300">PDFBillr Pro</span>
-        <span class="text-blue-200"> — $5/mo · </span>
-        <span class="text-gray-300">Custom logo · Email delivery · Reminders · Recurring invoices · PDF templates</span>
-      </div>
-      <a href="{{ url_for('billing.upgrade') }}"
-         class="shrink-0 text-xs font-semibold bg-blue-500 hover:bg-blue-400 px-4 py-2 rounded-lg transition-colors">
-        Upgrade →
-      </a>
+  <footer class="border-t border-rule">
+    <div class="max-w-5xl mx-auto px-4 py-5 flex flex-wrap items-center justify-between gap-3 text-xs text-graphite">
+      <span>&copy; 2026 PDFBillr</span>
+      <nav class="flex items-center gap-4" aria-label="Footer">
+        {% if not (current_user.is_authenticated and is_pro()) %}
+        <a href="{{ url_for('public.landing') }}#pricing" class="hover:text-ink transition-colors">Pricing</a>
+        {% endif %}
+        <a href="{{ url_for('public.health') }}" class="hover:text-ink transition-colors">Status</a>
+      </nav>
     </div>
-  </div>
-  {% endif %}
-
-  <!-- Footer -->
-  <footer class="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 text-center text-xs text-gray-500 dark:text-gray-500 py-4">
-    PDFBillr &copy; 2026 &nbsp;·&nbsp; Free forever, no account required
   </footer>
 
   {% block scripts %}{% endblock %}
