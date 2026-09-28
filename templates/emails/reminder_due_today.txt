@@ -1,17 +1,17 @@
 Hi {% if invoice.to_name %}{{ invoice.to_name }}{% else %}there{% endif %},
 
-Invoice {{ invoice.invoice_number }} from {{ sender_name }} is due today.
+Invoice {{ invoice.invoice_number }} from {{ sender_name }} is due today. The balance is {{ invoice.balance_due | money(invoice.currency_code) }}.
 
-  Invoice #: {{ invoice.invoice_number }}
-  Due Date:  {{ invoice.due_date }}
-  Balance Due: {{ invoice.balance_due | money(invoice.currency_code) }}
-
-{% if invoice.payment_info %}Payment information:
-{{ invoice.payment_info }}{% endif %}
-
-View your invoice online:
+View the invoice online:
 {{ view_url }}
 
-If you have already arranged payment, please disregard this message.
+  Invoice:     {{ invoice.invoice_number }}
+  Due:         {{ invoice.due_date }}
+  Balance due: {{ invoice.balance_due | money(invoice.currency_code) }}
+{% if invoice.payment_info %}
+Payment details:
+{{ invoice.payment_info }}
+{% endif %}
+If you've already paid, thank you, and please ignore this reminder.
 
-—{{ sender_name }}
+— {{ sender_name }}

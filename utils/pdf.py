@@ -18,6 +18,7 @@ from utils.currency import normalize_currency_code
 from utils.invoice_calculations import calculate_invoice, calculate_tax_amount
 from utils.uploads import resolve_logo_path
 from utils.validation import normalize_payment_url
+from utils.branding import DEFAULT_ACCENT_COLOR
 
 ALLOWED_THEMES = {"default", "minimal", "corporate", "creative"}
 
@@ -55,7 +56,7 @@ def _logo_data_uri(filename: str) -> str | None:
     return f"data:{mime};base64,{data}"
 
 
-def build_invoice_context(form, logo_filename=None, accent_color="#1e3a8a"):
+def build_invoice_context(form, logo_filename=None, accent_color=DEFAULT_ACCENT_COLOR):
     """Parse a Flask request.form and return the full template context dict."""
     from_company = _truncate(form.get("from_company", ""), MAX_SHORT)
     from_address = _truncate(form.get("from_address", ""), MAX_LONG)
@@ -131,11 +132,11 @@ def context_from_invoice(invoice) -> dict:
     logo_url   = _logo_data_uri(invoice.logo_filename) if invoice.logo_filename else None
 
     # Pull branding profile fields if available
-    accent_color = "#1e3a8a"
+    accent_color = DEFAULT_ACCENT_COLOR
     remove_footer = False
     if invoice.user and invoice.user.branding:
-        raw_accent = invoice.user.branding.accent_color or "#1e3a8a"
-        accent_color = raw_accent if _HEX_RE.match(raw_accent) else "#1e3a8a"
+        raw_accent = invoice.user.branding.accent_color or DEFAULT_ACCENT_COLOR
+        accent_color = raw_accent if _HEX_RE.match(raw_accent) else DEFAULT_ACCENT_COLOR
         remove_footer = bool(invoice.user.branding.remove_footer)
 
     return {

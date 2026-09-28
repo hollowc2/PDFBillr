@@ -54,5 +54,5 @@ css: $(TAILWIND) ## Rebuild static/css/app.css from templates and static/js.
 css-check: css ## Fail if the committed app.css is out of date.
 	@git diff --exit-code --stat -- $(CSS_OUT) || (echo "static/css/app.css is stale: run make css and commit it."; exit 1)
 
-sample-invoice: ## Re-render static/img/sample-invoice.png from the real PDF template (needs pdftoppm).
+sample-invoice: ## Re-render the sample invoice images (landing page, README) from the real PDF template (needs pdftoppm).
 	$(PYTHON) scripts/render_sample_invoice.py

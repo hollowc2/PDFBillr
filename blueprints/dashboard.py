@@ -42,6 +42,7 @@ from utils.gating import is_pro, pro_required
 from utils.helpers import _safe_filename
 from utils.invoice_calculations import InvoiceCalculationError, calculate_invoice
 from utils.invoice_numbers import invoice_number_exists, next_available_invoice_number
+from utils.branding import DEFAULT_ACCENT_COLOR
 from utils.pdf import (
     ALLOWED_THEMES,
     build_invoice_context,
@@ -348,16 +349,16 @@ def invoice_edit(invoice_id: int):
         return _render_invoice_edit(inv, _invoice_form_data(inv))
 
     logo_filename = None
-    accent_color = "#1e3a8a"
+    accent_color = DEFAULT_ACCENT_COLOR
     remove_footer = False
     branding = current_user.branding
     if branding and is_pro():
         logo_filename = branding.logo_filename
-        raw_accent = branding.accent_color or "#1e3a8a"
+        raw_accent = branding.accent_color or DEFAULT_ACCENT_COLOR
         accent_color = (
             raw_accent
             if re.fullmatch(r"#[0-9a-fA-F]{6}", raw_accent)
-            else "#1e3a8a"
+            else DEFAULT_ACCENT_COLOR
         )
         remove_footer = bool(branding.remove_footer)
 
@@ -715,9 +716,9 @@ def branding():
             db.session.add(profile)
 
         # Accent color — validate strict hex to prevent CSS injection
-        accent = request.form.get("accent_color", "#1e3a8a").strip()
+        accent = request.form.get("accent_color", DEFAULT_ACCENT_COLOR).strip()
         if not re.match(r'^#[0-9a-fA-F]{6}$', accent):
-            flash("Invalid accent color. Use a 6-digit hex color (e.g. #1e3a8a).", "error")
+            flash(f"Enter the accent color as a 6-digit hex code, for example {DEFAULT_ACCENT_COLOR}.", "error")
             return render_template("dashboard/branding.html", profile=profile)
         profile.accent_color = accent
 
@@ -850,14 +851,14 @@ def save_draft():
     from utils.pdf import build_invoice_context
 
     logo_filename = None
-    accent_color  = "#1e3a8a"
+    accent_color  = DEFAULT_ACCENT_COLOR
     remove_footer = False
 
     branding = current_user.branding
     if branding and is_pro():
         logo_filename = branding.logo_filename
-        raw_accent    = branding.accent_color or "#1e3a8a"
-        accent_color  = raw_accent if _HEX_RE.match(raw_accent) else "#1e3a8a"
+        raw_accent    = branding.accent_color or DEFAULT_ACCENT_COLOR
+        accent_color  = raw_accent if _HEX_RE.match(raw_accent) else DEFAULT_ACCENT_COLOR
         remove_footer = branding.remove_footer
 
     theme = request.form.get("theme", "default")

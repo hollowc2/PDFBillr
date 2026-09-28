@@ -27,23 +27,18 @@ body {
   line-height: 1.5;
 }
 
+/* Fixed boxes are placed relative to the page content area: bleed out through the margins. */
 .side-accent {
   position: fixed;
-  left: 0; top: 0; bottom: 0;
+  left: -16mm; top: -14mm; bottom: -20mm;
   width: 5mm;
-  background: var(--accent);
+  background-color: var(--accent);
 }
 
 .header-table { width: 100%; border-collapse: collapse; margin-bottom: 10mm; }
 .header-table td { vertical-align: middle; }
 
 .logo-img { max-width: 100pt; max-height: 56pt; display: block; }
-.logo-placeholder {
-  width: 52pt; height: 52pt;
-  background: #ede9fe;
-  border-radius: 50%;
-  display: inline-block;
-}
 .invoice-label { font-size: 8pt; font-weight: 700; letter-spacing: 2pt; text-transform: uppercase; color: var(--accent); margin-bottom: 2pt; }
 .invoice-num   { font-size: 22pt; font-weight: 700; color: #111827; line-height: 1.1; }
 .invoice-meta  { font-size: 8pt; color: #6b7280; margin-top: 3pt; }
@@ -52,7 +47,7 @@ body {
 .parties td { width: 50%; vertical-align: top; padding: 0; }
 .parties td + td { padding-left: 8mm; }
 .party-box {
-  border-left: 2.5pt solid var(--accent);
+  border-left: 2.5pt solid; border-left-color: var(--accent);
   padding-left: 5pt;
 }
 .party-label { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6pt; color: var(--accent); margin-bottom: 3pt; }
@@ -65,12 +60,12 @@ body {
   text-align: left;
   font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3pt;
   color: var(--accent);
-  border-bottom: 1.5pt solid var(--accent);
+  border-bottom: 1.5pt solid; border-bottom-color: var(--accent);
 }
 .items-table thead th.right { text-align: right; }
 .items-table tbody tr:nth-child(even) { background: #faf5ff; }
 .items-table tbody td { padding: 5pt 8pt; color: #374151; border-bottom: 0.5pt solid #f3f4f6; }
-.items-table tbody td.right  { text-align: right; font-family: "Courier New", monospace; }
+.items-table tbody td.right  { text-align: right; font-variant-numeric: tabular-nums; }
 .items-table tbody td.center { text-align: center; }
 .col-desc { width: 52%; }
 .col-qty  { width: 12%; }
@@ -83,9 +78,9 @@ body {
 .totals-inner { width: 100%; border-collapse: collapse; }
 .totals-inner td { padding: 3.5pt 8pt; font-size: 9pt; }
 .t-label { color: #6b7280; }
-.t-value { text-align: right; font-family: "Courier New", monospace; color: #374151; }
+.t-value { text-align: right; font-variant-numeric: tabular-nums; color: #374151; }
 .total-row td {
-  background: var(--accent);
+  background-color: var(--accent);
   color: #ffffff;
   font-weight: 700;
   font-size: 11pt;
@@ -118,8 +113,6 @@ body {
     <td style="width:45%; text-align:right;">
       {% if logo_url %}
       <img src="{{ logo_url }}" alt="Company logo" class="logo-img" style="margin-left:auto;" />
-      {% else %}
-      <div class="logo-placeholder" style="float:right;"></div>
       {% endif %}
       {% if from_company %}
       <div style="font-size:12pt; font-weight:700; color:var(--accent); margin-top:4pt; clear:both;">{{ from_company | e }}</div>
@@ -189,7 +182,7 @@ body {
 <table class="bottom-section">
   <tr>
     {% if notes %}<td><div class="section-label">Notes</div><div class="section-content">{{ notes | e }}</div></td>{% endif %}
-    {% if payment_info %}<td><div class="section-label">Payment</div><div class="section-content">{{ payment_info | e }}</div></td>{% endif %}
+    {% if payment_info %}<td><div class="section-label">Payment details</div><div class="section-content">{{ payment_info | e }}</div></td>{% endif %}
   </tr>
 </table>
 {% endif %}

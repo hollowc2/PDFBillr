@@ -47,7 +47,10 @@ SAMPLE = MultiDict(
     ]
 )
 
-OUTPUTS = [ROOT / "static" / "img" / "sample-invoice.png"]
+OUTPUTS = [
+    ROOT / "static" / "img" / "sample-invoice.png",
+    ROOT / "docs" / "images" / "invoice.png",
+]
 DPI = 144
 # Crop to the part of the A4 page that has content (pixels at DPI).
 CROP_HEIGHT = 1250

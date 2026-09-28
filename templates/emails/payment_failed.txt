@@ -1,15 +1,12 @@
-Hi {{ user.email }},
+Hi,
 
-We were unable to process your PDFBillr Pro payment. Your subscription
-has been placed on hold.
+We couldn't process the payment for your PDFBillr Pro subscription, so it's on hold.
 
-To keep your Pro access, please update your payment method:
+To keep Pro, update your payment method:
 {{ portal_url }}
 
-If payment is not updated, your subscription will be canceled and Pro
-features will no longer be available.
+If the payment method isn't updated, the subscription will be canceled and your account will move to the free plan. Your invoices and data stay safe either way.
 
-If you believe this is an error, please contact your card issuer or
-reply to this email.
+If you think this is a mistake, check with your card issuer or reply to this email.
 
-—The PDFBillr Team
+— PDFBillr

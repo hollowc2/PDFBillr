@@ -187,7 +187,7 @@ def test_partial_invoice_reminder_uses_outstanding_balance(
     send_payment_reminders(app)
 
     assert len(calls) == 1
-    assert "Balance Due: $60.00" in calls[0].body
+    assert "Balance due: $60.00" in calls[0].body
 
 
 def test_partially_paid_draft_does_not_send_reminders(

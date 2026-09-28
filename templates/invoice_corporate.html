@@ -42,19 +42,13 @@ body {
 .header-table td { vertical-align: top; }
 
 .logo-img { max-width: 110pt; max-height: 56pt; display: block; }
-.logo-placeholder {
-  width: 56pt; height: 56pt;
-  background: #e0e7ff;
-  border-radius: 4pt;
-  display: inline-block;
-}
 .company-block { text-align: right; }
 .company-name { font-size: 14pt; font-weight: 700; color: var(--accent); }
 .company-sub  { font-size: 8.5pt; color: #6b7280; margin-top: 2pt; }
 
 .invoice-badge {
   display: inline-block;
-  background: var(--accent);
+  background-color: var(--accent);
   color: #ffffff;
   font-size: 18pt;
   font-weight: 700;
@@ -76,7 +70,7 @@ body {
 .party-info  { font-size: 8.5pt; color: #6b7280; white-space: pre-wrap; }
 
 .items-table { width: 100%; border-collapse: collapse; margin-bottom: 6mm; font-size: 9pt; }
-.items-table thead tr { background: var(--accent); }
+.items-table thead tr { background-color: var(--accent); }
 .items-table thead th {
   padding: 5pt 8pt; text-align: left;
   font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3pt;
@@ -86,7 +80,7 @@ body {
 .items-table tbody tr:nth-child(even) { background: #f8fafc; }
 .items-table tbody tr:nth-child(odd)  { background: #ffffff; }
 .items-table tbody td { padding: 5pt 8pt; color: #374151; border-bottom: 0.5pt solid #e5e7eb; }
-.items-table tbody td.right  { text-align: right; font-family: "Courier New", monospace; }
+.items-table tbody td.right  { text-align: right; font-variant-numeric: tabular-nums; }
 .items-table tbody td.center { text-align: center; }
 .col-desc { width: 52%; }
 .col-qty  { width: 12%; }
@@ -99,8 +93,8 @@ body {
 .totals-inner { width: 100%; border-collapse: collapse; }
 .totals-inner td { padding: 3.5pt 8pt; font-size: 9pt; }
 .t-label { color: #6b7280; }
-.t-value { text-align: right; font-family: "Courier New", monospace; color: #374151; }
-.total-row { background: var(--accent); }
+.t-value { text-align: right; font-variant-numeric: tabular-nums; color: #374151; }
+.total-row { background-color: var(--accent); }
 .total-row td { color: #ffffff; font-weight: 700; font-size: 10.5pt; padding: 5pt 8pt; }
 .total-row .t-value { color: #ffffff; }
 
@@ -123,8 +117,6 @@ body {
     <td>
       {% if logo_url %}
       <img src="{{ logo_url }}" alt="Company logo" class="logo-img" />
-      {% else %}
-      <div class="logo-placeholder"></div>
       {% endif %}
     </td>
     <td class="company-block">
@@ -200,7 +192,7 @@ body {
 <table class="bottom-section">
   <tr>
     {% if notes %}<td><div class="section-label">Notes</div><div class="section-content">{{ notes | e }}</div></td>{% endif %}
-    {% if payment_info %}<td><div class="section-label">Payment Information</div><div class="section-content">{{ payment_info | e }}</div></td>{% endif %}
+    {% if payment_info %}<td><div class="section-label">Payment details</div><div class="section-content">{{ payment_info | e }}</div></td>{% endif %}
   </tr>
 </table>
 {% endif %}

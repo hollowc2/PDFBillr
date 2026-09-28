@@ -1,23 +1,24 @@
 Hi {% if invoice.to_name %}{{ invoice.to_name }}{% else %}there{% endif %},
 
-Please find attached invoice {{ invoice.invoice_number }} from {{ sender_name }}.
+Here's invoice {{ invoice.invoice_number }} from {{ sender_name }} for {{ invoice.total | money(invoice.currency_code) }}{% if invoice.due_date %}, due {{ invoice.due_date }}{% endif %}. The PDF is attached.
 
-  Invoice #: {{ invoice.invoice_number }}
-  Date:      {{ invoice.invoice_date or 'N/A' }}
-  {% if invoice.due_date %}Due Date:  {{ invoice.due_date }}{% endif %}
-  Total Due: {{ invoice.total | money(invoice.currency_code) }}
-
-{% if invoice.payment_info %}Payment information:
-{{ invoice.payment_info }}{% endif %}
-{% if invoice.notes %}Notes:
-{{ invoice.notes }}{% endif %}
-
-View this invoice online:
+{% if invoice.payment_url %}View and pay online:{% else %}View it online:{% endif %}
 {{ view_url }}
 
+  Invoice:  {{ invoice.invoice_number }}
+  Issued:   {{ invoice.invoice_date or '—' }}
+{% if invoice.due_date %}  Due:      {{ invoice.due_date }}
+{% endif %}  Amount:   {{ invoice.total | money(invoice.currency_code) }}
+{% if invoice.payment_info %}
+Payment details:
+{{ invoice.payment_info }}
+{% endif %}{% if invoice.notes %}
+Notes:
+{{ invoice.notes }}
+{% endif %}
 Thank you for your business.
 
-—{{ sender_name }}
+— {{ sender_name }}
 
 ---
-Invoice generated with PDFBillr (https://pdfbillr.com)
+Sent with PDFBillr (https://pdfbillr.com)

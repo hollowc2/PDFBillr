@@ -5,7 +5,7 @@
 <title>Invoice {{ invoice_number }}</title>
 <style>
 /* ── Dynamic accent color ────────────────────────────────────────── */
-:root { --accent: {{ accent_color | default('#1e3a8a') | e }}; }
+:root { --accent: {{ accent_color | default('#2743A6') | e }}; }
 
 /* ── Page setup ─────────────────────────────────────────────────── */
 @page {
@@ -78,15 +78,6 @@ body {
   margin-bottom: 6pt;
   display: inline-block;
 }
-.logo-placeholder {
-  display: inline-block;
-  width: 64pt;
-  height: 64pt;
-  background: #dbeafe;
-  border: 1.5pt solid #bfdbfe;
-  border-radius: 8pt;
-  margin-bottom: 6pt;
-}
 .company-name {
   font-size: 13pt;
   font-weight: 700;
@@ -96,7 +87,7 @@ body {
 /* ── Divider ─────────────────────────────────────────────────────── */
 .divider {
   border: none;
-  border-top: 1.5pt solid var(--accent);
+  border-top: 1.5pt solid; border-top-color: var(--accent);
   margin: 0 0 6mm 0;
 }
 .divider-light {
@@ -177,7 +168,7 @@ body {
 }
 .items-table tbody td.right {
   text-align: right;
-  font-family: "Courier New", "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
   font-size: 9pt;
 }
 .items-table tbody td.center { text-align: center; }
@@ -210,7 +201,7 @@ body {
 }
 .totals-inner .t-value {
   text-align: right;
-  font-family: "Courier New", "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
   color: #374151;
 }
 .totals-inner tr.total-row {
@@ -289,8 +280,6 @@ body {
     <td class="header-right">
       {% if logo_url %}
       <img src="{{ logo_url }}" alt="Company logo" class="logo-img" />
-      {% else %}
-      <div class="logo-placeholder"></div>
       {% endif %}
       {% if from_company %}
       <div class="company-name">{{ from_company | e }}</div>

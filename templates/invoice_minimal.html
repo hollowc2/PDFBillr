@@ -27,23 +27,10 @@ body {
   line-height: 1.5;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12mm;
-  border-bottom: 0.5pt solid #e5e7eb;
-  padding-bottom: 6mm;
-}
+/* .header is a <table>; flexbox on it makes WeasyPrint drop the row, so spacing lives inline. */
+.header td { padding-bottom: 6mm; }
 
 .logo-img { max-width: 100pt; max-height: 50pt; display: block; margin-bottom: 4pt; }
-.logo-placeholder {
-  width: 50pt; height: 50pt;
-  background: #f3f4f6;
-  border-radius: 6pt;
-  display: inline-block;
-  margin-bottom: 4pt;
-}
 
 .invoice-title {
   font-size: 9pt;
@@ -84,7 +71,7 @@ body {
   color: #374151;
   border-bottom: 0.5pt solid #f3f4f6;
 }
-.items-table tbody td.right { text-align: right; font-family: "Courier New", monospace; }
+.items-table tbody td.right { text-align: right; font-variant-numeric: tabular-nums; }
 .items-table tbody td.center { text-align: center; }
 .col-desc { width: 52%; }
 .col-qty  { width: 12%; text-align: center; }
@@ -97,9 +84,9 @@ body {
 .totals-inner { width: 100%; border-collapse: collapse; }
 .totals-inner td { padding: 3pt 8pt; font-size: 9pt; }
 .t-label { color: #6b7280; }
-.t-value { text-align: right; font-family: "Courier New", monospace; }
+.t-value { text-align: right; font-variant-numeric: tabular-nums; }
 .total-row td {
-  border-top: 1.5pt solid var(--accent);
+  border-top: 1.5pt solid; border-top-color: var(--accent);
   font-weight: 700;
   font-size: 11pt;
   color: var(--accent);
@@ -121,8 +108,6 @@ body {
     <td style="vertical-align:top;">
       {% if logo_url %}
       <img src="{{ logo_url }}" alt="Company logo" class="logo-img" />
-      {% else %}
-      <div class="logo-placeholder"></div>
       {% endif %}
       {% if from_company %}<div style="font-size:11pt; font-weight:700; color:#111827;">{{ from_company | e }}</div>{% endif %}
     </td>
@@ -191,7 +176,7 @@ body {
 <table class="bottom-section">
   <tr>
     {% if notes %}<td><div class="section-label">Notes</div><div class="section-content">{{ notes | e }}</div></td>{% endif %}
-    {% if payment_info %}<td><div class="section-label">Payment</div><div class="section-content">{{ payment_info | e }}</div></td>{% endif %}
+    {% if payment_info %}<td><div class="section-label">Payment details</div><div class="section-content">{{ payment_info | e }}</div></td>{% endif %}
   </tr>
 </table>
 {% endif %}
