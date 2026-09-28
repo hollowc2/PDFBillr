@@ -16,3 +16,4 @@ htmlcov/
 *.log
 static/logos/*
 !static/logos/.gitkeep
+bin/

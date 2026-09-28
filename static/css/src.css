@@ -1,0 +1,76 @@
+/* Tailwind source. Edit this file, then run `make css` to regenerate app.css. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* "Ledger" palette as RGB channels, consumed by tailwind.config.js. */
+  :root {
+    --color-paper: 246 247 249;
+    --color-surface: 255 255 255;
+    --color-rule: 226 229 235;
+    --color-rule-strong: 201 206 216;
+    --color-ink: 20 26 38;
+    --color-graphite: 82 92 110;
+    --color-faint: 122 131 149;
+    --color-accent: 39 67 166;
+    --color-accent-hover: 30 53 133;
+    --color-accent-tint: 237 240 250;
+    --color-on-accent: 255 255 255;
+    --color-paid: 28 114 73;
+    --color-paid-tint: 232 244 238;
+    --color-due: 154 91 0;
+    --color-due-tint: 251 241 225;
+    --color-overdue: 179 38 30;
+    --color-overdue-tint: 251 234 233;
+  }
+
+  .dark {
+    --color-paper: 13 17 26;
+    --color-surface: 21 26 37;
+    --color-rule: 37 44 58;
+    --color-rule-strong: 53 62 80;
+    --color-ink: 231 234 240;
+    --color-graphite: 160 168 184;
+    --color-faint: 115 124 142;
+    --color-accent: 142 162 242;
+    --color-accent-hover: 169 184 246;
+    --color-accent-tint: 27 34 64;
+    --color-on-accent: 13 17 26;
+    --color-paid: 111 207 156;
+    --color-paid-tint: 19 40 30;
+    --color-due: 232 180 90;
+    --color-due-tint: 42 33 18;
+    --color-overdue: 240 138 130;
+    --color-overdue-tint: 46 23 22;
+  }
+}
+
+@layer components {
+  /* Components sit below utilities, so classes like w-auto or max-w-sm win. */
+  .input-field {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid #9ca3af;
+    background-color: #f9fafb;
+    color: #111827;
+    font-size: 0.875rem;
+    font-family: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    color-scheme: light;
+  }
+  .input-field::placeholder { color: #6b7280; }
+  .input-field:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  }
+  .dark .input-field {
+    border-color: #4b5563;
+    background-color: #1f2937;
+    color: #f3f4f6;
+    color-scheme: dark;
+  }
+  .dark .input-field::placeholder { color: #9ca3af; }
+}
