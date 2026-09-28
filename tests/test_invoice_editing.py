@@ -65,12 +65,12 @@ def test_owner_can_open_prefilled_edit_form(
     response = client.get(f"/dashboard/invoice/{invoice.id}/edit")
 
     assert response.status_code == 200
-    assert b"Edit Invoice ORIGINAL-7" in response.data
+    assert b"Edit invoice ORIGINAL-7" in response.data
     assert b'value="Original Studio"' in response.data
     assert b'value="Original Client"' in response.data
     assert b"Consulting" in response.data
     assert b'value="creative"' in response.data
-    assert b"Save Changes" in response.data
+    assert b"Save changes" in response.data
 
 
 def test_edit_recalculates_authoritative_totals_and_shadow_values(

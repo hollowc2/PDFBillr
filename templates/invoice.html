@@ -5,7 +5,7 @@
 <title>Invoice {{ invoice_number }}</title>
 <style>
 /* ── Dynamic accent color ────────────────────────────────────────── */
-:root { --accent: {{ accent_color | default('#1e3a8a') | e }}; }
+:root { --accent: {{ accent_color | default('#2743A6') | e }}; }
 
 /* ── Page setup ─────────────────────────────────────────────────── */
 @page {
@@ -78,15 +78,6 @@ body {
   margin-bottom: 6pt;
   display: inline-block;
 }
-.logo-placeholder {
-  display: inline-block;
-  width: 64pt;
-  height: 64pt;
-  background: #dbeafe;
-  border: 1.5pt solid #bfdbfe;
-  border-radius: 8pt;
-  margin-bottom: 6pt;
-}
 .company-name {
   font-size: 13pt;
   font-weight: 700;
@@ -96,7 +87,7 @@ body {
 /* ── Divider ─────────────────────────────────────────────────────── */
 .divider {
   border: none;
-  border-top: 1.5pt solid var(--accent);
+  border-top: 1.5pt solid; border-top-color: var(--accent);
   margin: 0 0 6mm 0;
 }
 .divider-light {
@@ -177,7 +168,7 @@ body {
 }
 .items-table tbody td.right {
   text-align: right;
-  font-family: "Courier New", "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
   font-size: 9pt;
 }
 .items-table tbody td.center { text-align: center; }
@@ -210,7 +201,7 @@ body {
 }
 .totals-inner .t-value {
   text-align: right;
-  font-family: "Courier New", "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
   color: #374151;
 }
 .totals-inner tr.total-row {
@@ -280,7 +271,7 @@ body {
         </tr>
         {% if due_date %}
         <tr>
-          <td class="meta-label">Due Date</td>
+          <td class="meta-label">Due date</td>
           <td class="meta-value">{{ due_date | e }}</td>
         </tr>
         {% endif %}
@@ -289,8 +280,6 @@ body {
     <td class="header-right">
       {% if logo_url %}
       <img src="{{ logo_url }}" alt="Company logo" class="logo-img" />
-      {% else %}
-      <div class="logo-placeholder"></div>
       {% endif %}
       {% if from_company %}
       <div class="company-name">{{ from_company | e }}</div>
@@ -312,7 +301,7 @@ body {
       {% if from_phone %}<div class="party-contact">{{ from_phone | e }}</div>{% endif %}
     </td>
     <td>
-      <div class="party-label">Bill To</div>
+      <div class="party-label">Bill to</div>
       {% if to_name %}<div class="party-name">{{ to_name | e }}</div>{% endif %}
       {% if to_address %}<div class="party-address">{{ to_address | e }}</div>{% endif %}
       {% if to_email %}<div class="party-contact">{{ to_email | e }}</div>{% endif %}
@@ -369,7 +358,7 @@ body {
         </tr>
         {% endif %}
         <tr class="total-row">
-          <td class="t-label">Total Due</td>
+          <td class="t-label">Total due</td>
           <td class="t-value">{{ total | money(currency_code) }}</td>
         </tr>
       </table>
@@ -389,7 +378,7 @@ body {
     {% endif %}
     {% if payment_info %}
     <td>
-      <div class="section-label">Payment Information</div>
+      <div class="section-label">Payment details</div>
       <div class="section-content">{{ payment_info | e }}</div>
     </td>
     {% endif %}

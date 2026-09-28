@@ -1,0 +1,98 @@
+/* Tailwind source. Edit this file, then run `make css` to regenerate app.css. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* "Ledger" palette as RGB channels, consumed by tailwind.config.js. */
+  :root {
+    --color-paper: 246 247 249;
+    --color-surface: 255 255 255;
+    --color-rule: 226 229 235;
+    --color-rule-strong: 201 206 216;
+    --color-ink: 20 26 38;
+    --color-graphite: 82 92 110;
+    --color-faint: 122 131 149;
+    --color-accent: 39 67 166;
+    --color-accent-hover: 30 53 133;
+    --color-accent-tint: 237 240 250;
+    --color-on-accent: 255 255 255;
+    --color-paid: 28 114 73;
+    --color-paid-tint: 232 244 238;
+    --color-due: 154 91 0;
+    --color-due-tint: 251 241 225;
+    --color-overdue: 179 38 30;
+    --color-overdue-tint: 251 234 233;
+  }
+
+  .dark {
+    --color-paper: 13 17 26;
+    --color-surface: 21 26 37;
+    --color-rule: 37 44 58;
+    --color-rule-strong: 53 62 80;
+    --color-ink: 231 234 240;
+    --color-graphite: 160 168 184;
+    --color-faint: 115 124 142;
+    --color-accent: 142 162 242;
+    --color-accent-hover: 169 184 246;
+    --color-accent-tint: 27 34 64;
+    --color-on-accent: 13 17 26;
+    --color-paid: 111 207 156;
+    --color-paid-tint: 19 40 30;
+    --color-due: 232 180 90;
+    --color-due-tint: 42 33 18;
+    --color-overdue: 240 138 130;
+    --color-overdue-tint: 46 23 22;
+  }
+}
+
+@layer components {
+  /* Components sit below utilities, so classes like w-auto or max-w-sm win. */
+
+  /* Surfaces */
+  .card { @apply bg-surface border border-rule rounded-lg; }
+  .section-title { @apply text-sm font-semibold text-ink; }
+
+  /* Form fields */
+  .field-label { @apply block mb-1.5 text-[13px] font-medium text-ink; }
+  .field-hint { @apply mt-1.5 text-xs text-graphite; }
+  .input-field {
+    @apply w-full rounded-md border border-rule-strong bg-surface px-3 py-2 text-sm text-ink
+      transition-[border-color,box-shadow] duration-150;
+    font-family: inherit;
+    color-scheme: light;
+  }
+  .input-field::placeholder { @apply text-faint; }
+  .input-field:focus { @apply outline-none border-accent ring-[3px] ring-accent-tint; }
+  .dark .input-field { color-scheme: dark; }
+
+  /* Buttons: one height, three levels, plus danger */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md border border-transparent
+      text-sm font-semibold whitespace-nowrap transition-colors
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent
+      disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary { @apply btn bg-accent text-accent-on hover:bg-accent-hover; }
+  .btn-secondary { @apply btn bg-surface text-ink border-rule-strong hover:border-graphite; }
+  .btn-quiet { @apply btn px-3 text-graphite hover:text-ink hover:bg-ink/5; }
+  .btn-danger { @apply btn bg-surface text-overdue border-rule-strong hover:bg-overdue-tint hover:border-overdue; }
+
+  /* Status pills: tint + dot, so state never relies on colour alone */
+  .pill {
+    @apply inline-flex items-center gap-1.5 h-[22px] px-2 rounded-full text-xs font-medium whitespace-nowrap;
+  }
+  .pill::before { content: ""; @apply w-1.5 h-1.5 rounded-full bg-current; }
+  .pill-draft { @apply pill bg-ink/5 text-graphite; }
+  .pill-sent { @apply pill bg-accent-tint text-accent; }
+  .pill-due { @apply pill bg-due-tint text-due; }
+  .pill-overdue { @apply pill bg-overdue-tint text-overdue; }
+  .pill-paid { @apply pill bg-paid-tint text-paid; }
+
+  /* Flash messages */
+  .alert { @apply px-4 py-3 rounded-md text-sm border; }
+  .alert-info { @apply alert bg-accent-tint text-accent border-accent/20; }
+  .alert-success { @apply alert bg-paid-tint text-paid border-paid/20; }
+  .alert-warning { @apply alert bg-due-tint text-due border-due/20; }
+  .alert-error { @apply alert bg-overdue-tint text-overdue border-overdue/20; }
+}

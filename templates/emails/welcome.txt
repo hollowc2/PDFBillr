@@ -1,14 +1,14 @@
-Hi {{ user.email }},
+Hi,
 
-Welcome to PDFBillr! Your account is ready.
+Your PDFBillr account is ready.
 
-Get started by creating your first invoice:
+Create your first invoice:
 {{ app_url }}
 
-With a free account you can generate and download invoices anytime.
-Upgrade to Pro to unlock custom branding, premium themes, and sending
-invoices directly to clients by email.
+With a free account you can save invoices and clients, send estimates your clients can accept online, record payments, and export everything to CSV.
 
-If you have any questions, just reply to this email.
+Pro adds email sending, automatic payment reminders, recurring invoices and your own branding, for $5 a month.
 
-—The PDFBillr Team
+Questions? Just reply to this email.
+
+— PDFBillr

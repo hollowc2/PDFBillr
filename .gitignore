@@ -39,3 +39,6 @@ Thumbs.db
 # Uploaded logos (user data, not source)
 static/logos/*
 !static/logos/.gitkeep
+
+# Tailwind standalone CLI (downloaded by `make tailwind`)
+bin/

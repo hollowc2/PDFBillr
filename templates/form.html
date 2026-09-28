@@ -1,25 +1,17 @@
 {% extends "base.html" %}
+{% from "partials/icons.html" import lock %}
 
-{% block title %}PDFBillr — {{ form_title or 'Create Invoice' }}{% endblock %}
+{% block title %}{{ form_title or 'New invoice' }} — PDFBillr{% endblock %}
 
 {% block content %}
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for category, message in messages %}
-    <div class="mb-4 px-4 py-3 rounded-lg text-sm
-      {% if category == 'error' %}bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800
-      {% elif category == 'success' %}bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800
-      {% else %}bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% endif %}">
-      {{ message }}
-    </div>
-  {% endfor %}
-{% endwith %}
+{% include "partials/flashes.html" %}
 
 <form id="invoice-form" action="{{ form_action or url_for('public.generate') }}" method="POST" novalidate>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-  <h1 class="text-3xl font-bold mb-6 text-gray-900 dark:text-white">{{ form_title or 'Create Invoice' }}</h1>
+  <h1 class="font-display text-2xl font-semibold tracking-tight mb-6">{{ form_title or 'New invoice' }}</h1>
   {% if edit_mode and invoice.status in ('sent', 'partial') %}
-  <div class="mb-6 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
+  <div class="alert-info mb-6">
     This invoice has already been sent. Saving a revision keeps it marked as sent and updates its existing public link.
   </div>
   {% endif %}
@@ -28,42 +20,42 @@
   <div class="grid md:grid-cols-2 gap-6 mb-6">
 
     <!-- From -->
-    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
-      <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">From</h2>
+    <div class="card p-6 space-y-4">
+      <h2 class="section-title">From</h2>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Company / Your Name</label>
-        <input type="text" name="from_company" placeholder="Acme Corp" class="input-field"
+        <label for="field-from-company" class="field-label">Your name or business</label>
+        <input id="field-from-company" type="text" name="from_company" placeholder="Acme Corp" class="input-field"
                value="{{ form_data.get('from_company', '') if form_data else '' }}" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Address</label>
-        <textarea name="from_address" rows="3" placeholder="123 Main St&#10;City, State 00000" class="input-field resize-none">{{ form_data.get('from_address', '') if form_data else '' }}</textarea>
+        <label for="field-from-address" class="field-label">Address</label>
+        <textarea id="field-from-address" name="from_address" rows="3" placeholder="123 Main St&#10;City, State 00000" class="input-field resize-none">{{ form_data.get('from_address', '') if form_data else '' }}</textarea>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
-          <input type="email" name="from_email" placeholder="you@example.com" class="input-field"
+          <label for="field-from-email" class="field-label">Email</label>
+          <input id="field-from-email" type="email" name="from_email" placeholder="you@example.com" class="input-field"
                  value="{{ form_data.get('from_email', '') if form_data else '' }}" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</label>
-          <input type="tel" name="from_phone" placeholder="+1 555 000 0000" class="input-field"
+          <label for="field-from-phone" class="field-label">Phone</label>
+          <input id="field-from-phone" type="tel" name="from_phone" placeholder="+1 555 000 0000" class="input-field"
                  value="{{ form_data.get('from_phone', '') if form_data else '' }}" />
         </div>
       </div>
     </div>
 
     <!-- To -->
-    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+    <div class="card p-6 space-y-4">
       <div class="flex items-center justify-between gap-3">
-        <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Bill To</h2>
+        <h2 class="section-title">Bill to</h2>
         {% if current_user.is_authenticated %}
-        <a href="{{ url_for('clients.index') }}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">Manage</a>
+        <a href="{{ url_for('clients.index') }}" class="text-xs font-semibold text-accent hover:underline">Manage clients</a>
         {% endif %}
       </div>
       {% if current_user.is_authenticated %}
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1" for="client-select">Saved client</label>
+        <label class="field-label" for="client-select">Saved client</label>
         {% set selected_client_value = form_data.get('client_id', '') if form_data else '' %}
         <select id="client-select" name="client_id" class="input-field">
           <option value="">Enter client details manually</option>
@@ -74,25 +66,25 @@
           {% endfor %}
         </select>
         {% if not clients %}
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          <a href="{{ url_for('clients.create') }}" class="text-blue-600 dark:text-blue-400 hover:underline">Save your first client</a>
+        <p class="field-hint">
+          <a href="{{ url_for('clients.create') }}" class="text-accent hover:underline">Save your first client</a>
           to prefill this section.
         </p>
         {% endif %}
       </div>
       {% endif %}
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client Name</label>
-        <input type="text" name="to_name" placeholder="Client LLC" class="input-field"
+        <label for="field-to-name" class="field-label">Client name</label>
+        <input id="field-to-name" type="text" name="to_name" placeholder="Client LLC" class="input-field"
                value="{{ form_data.get('to_name', '') if form_data else '' }}" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Address</label>
-        <textarea name="to_address" rows="3" placeholder="456 Client Ave&#10;City, State 00000" class="input-field resize-none">{{ form_data.get('to_address', '') if form_data else '' }}</textarea>
+        <label for="field-to-address" class="field-label">Address</label>
+        <textarea id="field-to-address" name="to_address" rows="3" placeholder="456 Client Ave&#10;City, State 00000" class="input-field resize-none">{{ form_data.get('to_address', '') if form_data else '' }}</textarea>
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
-        <input type="email" name="to_email" placeholder="client@example.com" class="input-field"
+        <label for="field-to-email" class="field-label">Email</label>
+        <input id="field-to-email" type="email" name="to_email" placeholder="client@example.com" class="input-field"
                value="{{ form_data.get('to_email', '') if form_data else '' }}" />
       </div>
     </div>
@@ -100,26 +92,26 @@
   </div>
 
   <!-- ── Invoice Details ────────────────────────────────────────── -->
-  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
-    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Invoice Details</h2>
+  <div class="card p-6 mb-6">
+    <h2 class="section-title mb-4">Details</h2>
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Invoice Number</label>
-        <input type="text" name="invoice_number" class="input-field" required
+        <label for="field-invoice-number" class="field-label">Invoice number</label>
+        <input id="field-invoice-number" type="text" name="invoice_number" class="input-field" required
                value="{{ form_data.get('invoice_number', 'INV-001') if form_data else 'INV-001' }}" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Invoice Date</label>
-        <input type="date" name="invoice_date" class="input-field"
+        <label for="field-invoice-date" class="field-label">Invoice date</label>
+        <input id="field-invoice-date" type="date" name="invoice_date" class="input-field"
                value="{{ form_data.get('invoice_date', today) if form_data else today }}" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Due Date</label>
-        <input type="date" name="due_date" class="input-field"
+        <label for="field-due-date" class="field-label">Due date</label>
+        <input id="field-due-date" type="date" name="due_date" class="input-field"
                value="{{ form_data.get('due_date', '') if form_data else '' }}" />
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Currency</label>
+        <label for="currency-code" class="field-label">Currency</label>
         {% set selected_currency = form_data.get('currency_code', 'USD') if form_data else 'USD' %}
         <select id="currency-code" name="currency_code" class="input-field">
           {% for currency in currency_options %}
@@ -137,15 +129,15 @@
   </div>
 
   <!-- ── Line Items ─────────────────────────────────────────────── -->
-  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
-    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Line Items</h2>
+  <div class="card p-6 mb-6">
+    <h2 class="section-title mb-4">Line items</h2>
 
     <!-- Header row (hidden on mobile) -->
-    <div class="hidden md:grid grid-cols-12 gap-2 mb-2 px-1">
-      <div class="col-span-6 text-xs font-medium text-gray-500 dark:text-gray-400">Description</div>
-      <div class="col-span-2 text-xs font-medium text-gray-500 dark:text-gray-400">Qty</div>
-      <div class="col-span-2 text-xs font-medium text-gray-500 dark:text-gray-400">Rate</div>
-      <div class="col-span-1 text-xs font-medium text-gray-500 dark:text-gray-400 text-right">Amount</div>
+    <div class="hidden md:grid grid-cols-12 gap-2 mb-2 px-1 text-xs font-medium text-graphite" aria-hidden="true">
+      <div class="col-span-6">Description</div>
+      <div class="col-span-2">Qty</div>
+      <div class="col-span-2">Rate</div>
+      <div class="col-span-1 text-right">Amount</div>
       <div class="col-span-1"></div>
     </div>
 
@@ -153,101 +145,85 @@
     <div id="line-items" class="space-y-2"></div>
 
     <div class="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
-      <button
-        type="button"
-        id="add-row-btn"
-        class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 transition-colors"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <button type="button" id="add-row-btn" class="btn-quiet -ml-3 text-accent hover:text-accent-hover">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>
-        Add Row
+        Add line
       </button>
       {% if current_user.is_authenticated %}
       <div class="flex items-center gap-2 sm:ml-auto">
         <label for="service-item-select" class="sr-only">Saved service</label>
-        <select id="service-item-select" class="input-field min-w-48">
+        <select id="service-item-select" class="input-field h-9 py-0 min-w-48">
           <option value="">Choose a saved service</option>
           {% for service in service_items %}
           <option value="{{ service.id }}">{{ service.name }}</option>
           {% endfor %}
         </select>
-        <button type="button" id="add-service-item-btn"
-                class="whitespace-nowrap px-3 py-2 rounded-lg border border-blue-600 text-blue-700 dark:text-blue-400 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-950">
-          Add service
-        </button>
+        <button type="button" id="add-service-item-btn" class="btn-secondary">Add service</button>
       </div>
       {% endif %}
     </div>
 
     <!-- Totals panel -->
-    <div class="flex justify-end mt-6">
-      <div class="w-full sm:w-80 space-y-2 text-sm">
-        <div class="flex justify-between items-center text-gray-600 dark:text-gray-400">
-          <span>Subtotal</span>
-          <span id="display-subtotal" class="font-mono">{{ 0 | money(selected_currency) }}</span>
+    <div class="flex justify-end mt-6 pt-6 border-t border-rule">
+      <dl class="w-full sm:w-80 space-y-2 text-sm tabular-nums">
+        <div class="flex justify-between items-center">
+          <dt class="text-graphite">Subtotal</dt>
+          <dd id="display-subtotal">{{ 0 | money(selected_currency) }}</dd>
         </div>
-        <div class="flex justify-between items-center text-gray-600 dark:text-gray-400">
-          <span class="flex items-center gap-2">
-            Tax
-            <input
-              type="number"
-              id="tax-input"
-              name="tax_rate"
-              value="{{ form_data.get('tax_rate', '0') if form_data else '0' }}"
-              min="0"
-              max="100"
-              step="0.01"
-              class="w-14 px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-center text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
-            />
+        <div class="flex justify-between items-center">
+          <dt class="flex items-center gap-2 text-graphite">
+            <label for="tax-input">Tax</label>
+            <input type="number" id="tax-input" name="tax_rate"
+                   value="{{ form_data.get('tax_rate', '0') if form_data else '0' }}"
+                   min="0" max="100" step="0.01"
+                   class="input-field w-16 h-8 py-0 px-2 text-right" />
             <span class="text-xs">%</span>
-          </span>
-          <span id="display-tax" class="font-mono">{{ 0 | money(selected_currency) }}</span>
+          </dt>
+          <dd id="display-tax">{{ 0 | money(selected_currency) }}</dd>
         </div>
-        <div class="flex justify-between items-center text-gray-600 dark:text-gray-400">
-          <span class="flex items-center gap-2">
-            Discount
+        <div class="flex justify-between items-center">
+          <dt class="flex items-center gap-2 text-graphite">
+            <label for="discount-input">Discount</label>
             <span id="discount-currency-symbol" class="text-xs">{{ currency_symbol(selected_currency) }}</span>
-            <input
-              type="number"
-              id="discount-input"
-              name="discount"
-              value="{{ form_data.get('discount', '0') if form_data else '0' }}"
-              min="0"
-              step="0.01"
-              class="w-20 px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-center text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
-            />
-          </span>
-          <span id="display-discount" class="font-mono">{{ 0 | money(selected_currency) }}</span>
+            <input type="number" id="discount-input" name="discount"
+                   value="{{ form_data.get('discount', '0') if form_data else '0' }}"
+                   min="0" step="0.01"
+                   class="input-field w-24 h-8 py-0 px-2 text-right" />
+          </dt>
+          <dd id="display-discount">{{ 0 | money(selected_currency) }}</dd>
         </div>
-        <div class="flex justify-between items-center border-t border-gray-200 dark:border-gray-700 pt-2 text-lg font-bold text-blue-700 dark:text-blue-400">
-          <span>Total</span>
-          <span id="display-total" class="font-mono">{{ 0 | money(selected_currency) }}</span>
+        <div class="flex justify-between items-baseline border-t border-rule pt-3 mt-3">
+          <dt class="font-semibold">Total</dt>
+          <dd id="display-total" class="normal-nums font-display text-xl font-semibold tracking-tight">{{ 0 | money(selected_currency) }}</dd>
         </div>
-      </div>
+      </dl>
     </div>
   </div>
 
   <!-- ── Notes + Payment ────────────────────────────────────────── -->
   <div class="grid md:grid-cols-2 gap-6 mb-6">
-    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-      <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Notes</h2>
+    <div class="card p-6">
+      <h2 class="section-title mb-3">Notes</h2>
       <textarea
         name="notes"
+        aria-label="Notes"
         rows="4"
-        placeholder="Thank you for your business! Payment within 30 days."
+        placeholder="Thank you for your business. Payment is due within 30 days."
         class="input-field resize-none"
       >{{ form_data.get('notes', '') if form_data else '' }}</textarea>
     </div>
-    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-      <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Payment Info</h2>
+    <div class="card p-6">
+      <h2 class="section-title mb-3">Payment details</h2>
       <textarea
         name="payment_info"
+        aria-label="Payment details"
         rows="4"
         placeholder="Bank: Example Bank&#10;Account: 0000 0000&#10;Routing: 000000000"
         class="input-field resize-none"
       >{{ form_data.get('payment_info', '') if form_data else '' }}</textarea>
-      <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mt-4 mb-1" for="payment-url">Pay now link</label>
+      <label class="field-label mt-4" for="payment-url">Pay now link</label>
       <input
         id="payment-url"
         name="payment_url"
@@ -258,162 +234,64 @@
         value="{{ form_data.get('payment_url', '') if form_data else '' }}"
         class="input-field"
       />
-      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional HTTPS payment page shown on the public invoice.</p>
+      <p class="field-hint">Adds a Pay now button to the online invoice. Must start with https://.</p>
     </div>
   </div>
 
-  <!-- ── PDF Theme ──────────────────────────────────────────────── -->
-  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+  <!-- ── PDF template ──────────────────────────────────────────── -->
+  <div class="card p-6 mb-6">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">PDF Template</h2>
+      <h2 class="section-title">PDF template</h2>
       {% if not is_pro() %}
-      <a href="{{ url_for('billing.upgrade') }}"
-         class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-        Unlock all themes with Pro →
-      </a>
+      <a href="{{ url_for('billing.upgrade') }}" class="text-xs font-semibold text-accent hover:underline">More templates with Pro</a>
       {% endif %}
     </div>
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" role="radiogroup" aria-label="Invoice theme">
-
-      {# Default — always unlocked #}
-      <label class="theme-card relative cursor-pointer">
-        <input type="radio" name="theme" value="default" class="sr-only"
-               {% if not form_data or not is_pro() or form_data.get('theme', 'default') not in ('minimal', 'corporate', 'creative') %}checked{% endif %} />
-        <div class="theme-card-inner rounded-xl border-2 border-transparent p-4 flex flex-col gap-1
-                    bg-gray-50 dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500
-                    transition-colors">
-          <div class="w-full h-10 rounded bg-blue-800 mb-2"></div>
-          <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">Default</span>
-          <span class="text-xs text-gray-500 dark:text-gray-400">Classic blue header</span>
-        </div>
-      </label>
-
-      {# Minimal #}
-      {% if is_pro() %}
-      <label class="theme-card relative cursor-pointer">
-        <input type="radio" name="theme" value="minimal" class="sr-only"
-               {% if form_data and form_data.get('theme') == 'minimal' %}checked{% endif %} />
-        <div class="theme-card-inner rounded-xl border-2 border-transparent p-4 flex flex-col gap-1
-                    bg-gray-50 dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500
-                    transition-colors">
-          <div class="w-full h-10 rounded bg-gray-900 mb-2"></div>
-          <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">Minimal</span>
-          <span class="text-xs text-gray-500 dark:text-gray-400">Clean black &amp; white</span>
-        </div>
-      </label>
-      {% else %}
-      <a href="{{ url_for('billing.upgrade') }}" class="block">
-        <div class="rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-4 flex flex-col gap-1
-                    bg-gray-50/50 dark:bg-gray-800/50 opacity-60">
-          <div class="w-full h-10 rounded bg-gray-300 dark:bg-gray-600 mb-2 flex items-center justify-center">
-            <span class="text-gray-500 dark:text-gray-400 text-lg">🔒</span>
-          </div>
-          <span class="text-xs font-semibold text-gray-500 dark:text-gray-500">Minimal</span>
-          <span class="text-xs text-gray-400 dark:text-gray-600">Pro only</span>
-        </div>
+    {% set selected_theme = form_data.get('theme', 'default') if form_data and is_pro() else 'default' %}
+    {% set templates_list = [
+      ('default', 'Default', 'Clean, in your accent color', 'bg-accent', 'bg-accent/15', False),
+      ('minimal', 'Minimal', 'Black and white', 'bg-ink', 'bg-ink/10', True),
+      ('corporate', 'Corporate', 'Bold sidebar accent', 'bg-slate-800', 'bg-slate-500/20', True),
+      ('creative', 'Creative', 'Vibrant purple', 'bg-violet-600', 'bg-violet-500/20', True),
+    ] %}
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" role="radiogroup" aria-label="PDF template">
+      {% for value, name, blurb, swatch, locked_swatch, pro_only in templates_list %}
+      {% if pro_only and not is_pro() %}
+      <a href="{{ url_for('billing.upgrade') }}" title="Upgrade to Pro to use this template"
+         class="block rounded-md border border-dashed border-rule-strong p-3 hover:border-graphite transition-colors">
+        <div class="h-10 rounded {{ locked_swatch }} mb-3 flex items-center justify-center text-graphite">{{ lock("w-4 h-4") }}</div>
+        <span class="block text-xs font-semibold text-graphite">{{ name }}</span>
+        <span class="block mt-0.5 text-[11px] font-semibold tracking-wide text-accent">PRO</span>
       </a>
-      {% endif %}
-
-      {# Corporate #}
-      {% if is_pro() %}
+      {% else %}
       <label class="theme-card relative cursor-pointer">
-        <input type="radio" name="theme" value="corporate" class="sr-only"
-               {% if form_data and form_data.get('theme') == 'corporate' %}checked{% endif %} />
-        <div class="theme-card-inner rounded-xl border-2 border-transparent p-4 flex flex-col gap-1
-                    bg-gray-50 dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500
-                    transition-colors">
-          <div class="w-full h-10 rounded bg-slate-900 mb-2"></div>
-          <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">Corporate</span>
-          <span class="text-xs text-gray-500 dark:text-gray-400">Bold sidebar accent</span>
+        <input type="radio" name="theme" value="{{ value }}" class="sr-only peer"
+               {% if selected_theme == value or (value == 'default' and selected_theme not in ('minimal', 'corporate', 'creative')) %}checked{% endif %} />
+        <div class="theme-card-inner rounded-md border border-rule-strong p-3 transition-colors
+                    hover:border-graphite peer-checked:border-accent peer-checked:ring-2 peer-checked:ring-accent-tint
+                    peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-accent">
+          <div class="h-10 rounded {{ swatch }} mb-3"></div>
+          <span class="block text-xs font-semibold">{{ name }}</span>
+          <span class="block mt-0.5 text-xs text-graphite">{{ blurb }}</span>
         </div>
       </label>
-      {% else %}
-      <a href="{{ url_for('billing.upgrade') }}" class="block">
-        <div class="rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-4 flex flex-col gap-1
-                    bg-gray-50/50 dark:bg-gray-800/50 opacity-60">
-          <div class="w-full h-10 rounded bg-slate-300 dark:bg-slate-700 mb-2 flex items-center justify-center">
-            <span class="text-gray-500 dark:text-gray-400 text-lg">🔒</span>
-          </div>
-          <span class="text-xs font-semibold text-gray-500 dark:text-gray-500">Corporate</span>
-          <span class="text-xs text-gray-400 dark:text-gray-600">Pro only</span>
-        </div>
-      </a>
       {% endif %}
-
-      {# Creative #}
-      {% if is_pro() %}
-      <label class="theme-card relative cursor-pointer">
-        <input type="radio" name="theme" value="creative" class="sr-only"
-               {% if form_data and form_data.get('theme') == 'creative' %}checked{% endif %} />
-        <div class="theme-card-inner rounded-xl border-2 border-transparent p-4 flex flex-col gap-1
-                    bg-gray-50 dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500
-                    transition-colors">
-          <div class="w-full h-10 rounded bg-violet-600 mb-2"></div>
-          <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">Creative</span>
-          <span class="text-xs text-gray-500 dark:text-gray-400">Vibrant purple</span>
-        </div>
-      </label>
-      {% else %}
-      <a href="{{ url_for('billing.upgrade') }}" class="block">
-        <div class="rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-4 flex flex-col gap-1
-                    bg-gray-50/50 dark:bg-gray-800/50 opacity-60">
-          <div class="w-full h-10 rounded bg-violet-200 dark:bg-violet-900 mb-2 flex items-center justify-center">
-            <span class="text-gray-500 dark:text-gray-400 text-lg">🔒</span>
-          </div>
-          <span class="text-xs font-semibold text-gray-500 dark:text-gray-500">Creative</span>
-          <span class="text-xs text-gray-400 dark:text-gray-600">Pro only</span>
-        </div>
-      </a>
-      {% endif %}
-
+      {% endfor %}
     </div>
   </div>
 
-  <!-- ── Action Buttons ─────────────────────────────────────────── -->
-  <div class="flex flex-col sm:flex-row gap-3 justify-end">
+  <!-- ── Actions ───────────────────────────────────────────────── -->
+  <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
     {% if edit_mode %}
-    <a
-      href="{{ url_for('dashboard.invoice_detail', invoice_id=invoice.id) }}"
-      class="px-6 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 text-center text-gray-600 dark:text-gray-400 font-semibold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-    >
-      Cancel
-    </a>
-    <button
-      type="submit"
-      id="btn-save-changes"
-      class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm"
-    >
-      Save Changes
-    </button>
+    <a href="{{ url_for('dashboard.invoice_detail', invoice_id=invoice.id) }}" class="btn-quiet">Cancel</a>
+    <button type="submit" id="btn-save-changes" class="btn-primary">Save changes</button>
     {% else %}
     {% if current_user.is_authenticated %}
-    <button
-      type="submit"
-      id="btn-save-draft"
-      formaction="{{ url_for('dashboard.save_draft') }}"
-      class="px-6 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 font-semibold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-    >
-      Save Draft
+    <button type="submit" id="btn-save-draft" formaction="{{ url_for('dashboard.save_draft') }}" class="btn-quiet">
+      Save draft
     </button>
     {% endif %}
-    <button
-      type="submit"
-      name="action"
-      value="preview"
-      id="btn-preview"
-      class="px-6 py-3 rounded-xl border-2 border-blue-600 text-blue-700 dark:text-blue-400 dark:border-blue-500 font-semibold text-sm hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
-    >
-      Preview PDF
-    </button>
-    <button
-      type="submit"
-      name="action"
-      value="download"
-      id="btn-download"
-      class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm"
-    >
-      Download PDF
-    </button>
+    <button type="submit" name="action" value="preview" id="btn-preview" class="btn-secondary">Preview</button>
+    <button type="submit" name="action" value="download" id="btn-download" class="btn-primary">Download PDF</button>
     {% endif %}
   </div>
 

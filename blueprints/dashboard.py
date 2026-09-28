@@ -42,6 +42,7 @@ from utils.gating import is_pro, pro_required
 from utils.helpers import _safe_filename
 from utils.invoice_calculations import InvoiceCalculationError, calculate_invoice
 from utils.invoice_numbers import invoice_number_exists, next_available_invoice_number
+from utils.branding import DEFAULT_ACCENT_COLOR
 from utils.pdf import (
     ALLOWED_THEMES,
     build_invoice_context,
@@ -348,16 +349,16 @@ def invoice_edit(invoice_id: int):
         return _render_invoice_edit(inv, _invoice_form_data(inv))
 
     logo_filename = None
-    accent_color = "#1e3a8a"
+    accent_color = DEFAULT_ACCENT_COLOR
     remove_footer = False
     branding = current_user.branding
     if branding and is_pro():
         logo_filename = branding.logo_filename
-        raw_accent = branding.accent_color or "#1e3a8a"
+        raw_accent = branding.accent_color or DEFAULT_ACCENT_COLOR
         accent_color = (
             raw_accent
             if re.fullmatch(r"#[0-9a-fA-F]{6}", raw_accent)
-            else "#1e3a8a"
+            else DEFAULT_ACCENT_COLOR
         )
         remove_footer = bool(branding.remove_footer)
 
@@ -687,7 +688,7 @@ def invoice_send(invoice_id: int):
             inv.id,
             type(exc).__name__,
         )
-        flash("Failed to send email. Please check your mail configuration.", "error")
+        flash("The email couldn’t be sent. Try again in a few minutes.", "error")
         return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
 
     inv.sent_at = datetime.now(timezone.utc)
@@ -715,9 +716,9 @@ def branding():
             db.session.add(profile)
 
         # Accent color — validate strict hex to prevent CSS injection
-        accent = request.form.get("accent_color", "#1e3a8a").strip()
+        accent = request.form.get("accent_color", DEFAULT_ACCENT_COLOR).strip()
         if not re.match(r'^#[0-9a-fA-F]{6}$', accent):
-            flash("Invalid accent color. Use a 6-digit hex color (e.g. #1e3a8a).", "error")
+            flash(f"Enter the accent color as a 6-digit hex code, for example {DEFAULT_ACCENT_COLOR}.", "error")
             return render_template("dashboard/branding.html", profile=profile)
         profile.accent_color = accent
 
@@ -850,14 +851,14 @@ def save_draft():
     from utils.pdf import build_invoice_context
 
     logo_filename = None
-    accent_color  = "#1e3a8a"
+    accent_color  = DEFAULT_ACCENT_COLOR
     remove_footer = False
 
     branding = current_user.branding
     if branding and is_pro():
         logo_filename = branding.logo_filename
-        raw_accent    = branding.accent_color or "#1e3a8a"
-        accent_color  = raw_accent if _HEX_RE.match(raw_accent) else "#1e3a8a"
+        raw_accent    = branding.accent_color or DEFAULT_ACCENT_COLOR
+        accent_color  = raw_accent if _HEX_RE.match(raw_accent) else DEFAULT_ACCENT_COLOR
         remove_footer = branding.remove_footer
 
     theme = request.form.get("theme", "default")
@@ -1240,7 +1241,7 @@ def _render_invoice_edit(inv: Invoice, form_data):
                 "dashboard.invoice_edit",
                 invoice_id=inv.id,
             ),
-            "form_title": f"Edit Invoice {inv.invoice_number}",
+            "form_title": f"Edit invoice {inv.invoice_number}",
             "edit_mode": True,
             "invoice": inv,
         }
@@ -1302,14 +1303,14 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
     """
     interval = request.form.get("interval", "monthly").strip()
     if interval not in _VALID_INTERVALS:
-        flash("Invalid interval.", "error")
+        flash("Choose how often this invoice repeats.", "error")
         return None
 
     try:
         next_run_str = request.form.get("next_run_date", "").strip()
         next_run = datetime.strptime(next_run_str, "%Y-%m-%d").date()
     except ValueError:
-        flash("Invalid start date.", "error")
+        flash("Enter a valid first run date.", "error")
         return None
 
     try:
@@ -1317,7 +1318,7 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
         if not 0 <= net_days <= 365:
             raise ValueError
     except ValueError:
-        flash("Net days must be an integer from 0 to 365.", "error")
+        flash("Payment terms must be a whole number of days from 0 to 365.", "error")
         return None
 
     # Validate and parse line items from JSON submitted by the form
@@ -1327,7 +1328,7 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
         if not isinstance(line_items, list):
             raise ValueError
     except (ValueError, TypeError):
-        flash("Invalid line items.", "error")
+        flash("The line items couldn’t be read. Reload the page and try again.", "error")
         return None
 
     if not line_items:

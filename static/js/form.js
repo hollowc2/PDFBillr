@@ -69,10 +69,12 @@
 
     var descCell = makeCell('col-span-12 md:col-span-6');
     var descInput = makeInput('text', 'description[]', 'Service or product description', null);
+    descInput.setAttribute('aria-label', 'Description');
     descCell.appendChild(descInput);
 
     var qtyCell = makeCell('col-span-4 md:col-span-2');
     var qtyInput = makeInput('number', 'qty[]', '1', null);
+    qtyInput.setAttribute('aria-label', 'Quantity');
     qtyInput.min = '0';
     qtyInput.step = 'any';
     qtyCell.appendChild(qtyInput);
@@ -81,10 +83,11 @@
     var rateWrap = document.createElement('div');
     rateWrap.className = 'relative';
     var ratePfx = document.createElement('span');
-    ratePfx.className = 'absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm select-none pointer-events-none';
+    ratePfx.className = 'absolute left-2.5 top-1/2 -translate-y-1/2 text-faint text-sm select-none pointer-events-none';
     ratePfx.classList.add('currency-prefix');
     ratePfx.textContent = currencySettings().symbol;
     var rateInput = makeInput('number', 'rate[]', '0.00', 'pl-6');
+    rateInput.setAttribute('aria-label', 'Rate');
     rateInput.min = '0';
     rateInput.step = currencySettings().step;
     rateWrap.appendChild(ratePfx);
@@ -93,15 +96,15 @@
 
     var amtCell = makeCell('col-span-2 md:col-span-1 text-right');
     var amtSpan = document.createElement('span');
-    amtSpan.className = 'amount-display text-sm font-mono text-gray-700 dark:text-gray-300';
+    amtSpan.className = 'amount-display text-sm tabular-nums text-ink';
     amtSpan.textContent = fmt(0);
     amtCell.appendChild(amtSpan);
 
     var rmCell = makeCell('col-span-2 md:col-span-1 flex justify-end');
     var rmBtn = document.createElement('button');
     rmBtn.type = 'button';
-    rmBtn.className = 'remove-btn p-1.5 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded';
-    rmBtn.setAttribute('aria-label', 'Remove row');
+    rmBtn.className = 'remove-btn p-1.5 text-faint hover:text-overdue transition-colors rounded';
+    rmBtn.setAttribute('aria-label', 'Remove line');
 
     var svgNS = 'http://www.w3.org/2000/svg';
     var svg = document.createElementNS(svgNS, 'svg');
@@ -404,39 +407,5 @@
         e.preventDefault();
       }
     });
-
-    // U5: upgrade tooltip on locked theme links
-    document.querySelectorAll('a[href*="upgrade"]').forEach(function (link) {
-      if (link.closest('.rounded-xl') || link.closest('[class*="rounded"]')) {
-        link.setAttribute('title', 'Upgrade to Pro to unlock this template');
-      }
-    });
-  });
-})();
-
-// Theme card highlight
-(function () {
-  document.addEventListener('DOMContentLoaded', function () {
-    var cards = document.querySelectorAll('.theme-card');
-    function updateHighlight() {
-      cards.forEach(function (label) {
-        var radio = label.querySelector('input[type="radio"]');
-        var inner = label.querySelector('.theme-card-inner');
-        if (radio && inner) {
-          if (radio.checked) {
-            inner.classList.add('border-blue-600', 'dark:border-blue-400');
-            inner.classList.remove('border-transparent');
-          } else {
-            inner.classList.remove('border-blue-600', 'dark:border-blue-400');
-            inner.classList.add('border-transparent');
-          }
-        }
-      });
-    }
-    cards.forEach(function (label) {
-      var radio = label.querySelector('input[type="radio"]');
-      if (radio) radio.addEventListener('change', updateHighlight);
-    });
-    updateHighlight();
   });
 })();

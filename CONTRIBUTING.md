@@ -17,6 +17,20 @@ make format-check
 `make up` starts the Docker stack after `SECRET_KEY` is set. `make db-bootstrap`
 applies pending migrations using the currently loaded environment.
 
+## Styles
+
+Templates use Tailwind CSS v3. The compiled `static/css/app.css` is committed,
+so the app needs no Node or build step at runtime. After changing classes in
+`templates/` or `static/js/`, or editing `static/css/src.css` or
+`tailwind.config.js`, run:
+
+```bash
+make css
+```
+
+The first run downloads the pinned, checksum-verified Tailwind standalone CLI
+into `bin/`. CI runs `make css-check` and fails if `app.css` is stale.
+
 ## Before opening a pull request
 
 - Keep the change narrow and explain its user or operational value.

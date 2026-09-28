@@ -26,8 +26,9 @@
 
       var remove = document.createElement('button');
       remove.type = 'button';
-      remove.className = 'mt-1 text-red-400 hover:text-red-600 dark:hover:text-red-300 px-1 text-lg leading-none';
+      remove.className = 'mt-1 text-faint hover:text-overdue px-1 text-lg leading-none';
       remove.dataset.remove = i;
+      remove.setAttribute('aria-label', 'Remove line');
       remove.textContent = '\u00d7';
       row.appendChild(remove);
       container.appendChild(row);

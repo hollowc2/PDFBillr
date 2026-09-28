@@ -1,14 +1,12 @@
-Hi {{ user.email }},
+Hi,
 
-Your PDFBillr Pro subscription has ended. Your account has been
-downgraded to the free plan.
+Your PDFBillr Pro subscription has ended, and your account is now on the free plan.
 
-Your invoices and account data remain intact. You can continue to
-create and download invoices on the free plan.
+Your invoices, clients and estimates are all still there, and you can keep creating and downloading invoices for free. Email sending, reminders, recurring invoices and custom branding are paused.
 
-If you'd like to reactivate Pro at any time:
+You can turn Pro back on at any time:
 {{ upgrade_url }}
 
-Thank you for being a PDFBillr Pro subscriber.
+Thanks for being a Pro subscriber.
 
-—The PDFBillr Team
+— PDFBillr

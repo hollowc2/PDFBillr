@@ -5,6 +5,7 @@ from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from extensions import db
+from utils.branding import DEFAULT_ACCENT_COLOR
 
 
 def _now():
@@ -806,7 +807,7 @@ class BrandingProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), unique=True, nullable=False)
     logo_filename = db.Column(db.String(255), nullable=True)
-    accent_color = db.Column(db.String(20), default="#1e3a8a")
+    accent_color = db.Column(db.String(20), default=DEFAULT_ACCENT_COLOR)
     font_choice = db.Column(db.String(50), default="default")
     remove_footer = db.Column(db.Boolean, default=False)
 

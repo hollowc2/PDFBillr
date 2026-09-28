@@ -26,6 +26,7 @@ from utils.helpers import _safe_filename
 from utils.invoice_calculations import InvoiceCalculationError
 from utils.invoice_numbers import invoice_number_exists
 from utils.pdf import ALLOWED_THEMES, build_invoice_context, context_from_invoice, render_pdf
+from utils.branding import DEFAULT_ACCENT_COLOR
 from utils.validation import PaymentURLValidationError
 
 bp = Blueprint("public", __name__)
@@ -51,15 +52,15 @@ def index():
 def generate():
     # Determine logo and branding for authenticated Pro users
     logo_filename = None
-    accent_color  = "#1e3a8a"
+    accent_color  = DEFAULT_ACCENT_COLOR
     remove_footer = False
 
     if current_user.is_authenticated:
         branding: BrandingProfile | None = current_user.branding
         if branding and is_pro():
             logo_filename = branding.logo_filename
-            raw_accent    = branding.accent_color or "#1e3a8a"
-            accent_color  = raw_accent if _HEX_RE.match(raw_accent) else "#1e3a8a"
+            raw_accent    = branding.accent_color or DEFAULT_ACCENT_COLOR
+            accent_color  = raw_accent if _HEX_RE.match(raw_accent) else DEFAULT_ACCENT_COLOR
             remove_footer = branding.remove_footer
 
     # Determine theme (Pro only for non-default)

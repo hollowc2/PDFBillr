@@ -4,40 +4,40 @@
 {% block content %}
 <div class="max-w-2xl mx-auto">
   <!-- Header -->
-  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 mb-4">
+  <div class="card p-6 mb-4">
     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">Invoice</p>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ invoice.invoice_number }}</h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <p class="text-xs font-semibold uppercase tracking-wider text-faint mb-1">Invoice</p>
+        <h1 class="font-display tracking-tight text-2xl font-semibold text-ink">{{ invoice.invoice_number }}</h1>
+        <p class="text-sm text-graphite mt-1">
           {% if invoice.invoice_date %}Issued {{ invoice.invoice_date }}{% endif %}
           {% if invoice.due_date %} · Due {{ invoice.due_date }}{% endif %}
         </p>
       </div>
       <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-        {% if lifecycle_status == 'paid' %}bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300
-        {% elif lifecycle_status == 'overdue' %}bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300
-        {% elif lifecycle_status == 'partial' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300
-        {% elif lifecycle_status in ('sent', 'finalized') %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300
-        {% else %}bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400{% endif %}">
+ {% if lifecycle_status == 'paid' %}bg-paid-tint text-paid 
+ {% elif lifecycle_status == 'overdue' %}bg-overdue-tint text-overdue 
+ {% elif lifecycle_status == 'partial' %}bg-due-tint text-due 
+ {% elif lifecycle_status in ('sent', 'finalized') %}bg-accent-tint text-accent 
+ {% else %}bg-ink/5 text-graphite {% endif %}">
         {{ "Payment Due" if lifecycle_status == "sent" else lifecycle_status | capitalize }}
       </span>
     </div>
 
     <!-- From / To -->
-    <div class="grid sm:grid-cols-2 gap-6 pb-6 border-b border-gray-100 dark:border-gray-800">
+    <div class="grid sm:grid-cols-2 gap-6 pb-6 border-b border-rule">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">From</p>
-        <p class="font-semibold text-gray-900 dark:text-white">{{ invoice.from_company or '—' }}</p>
-        {% if invoice.from_address %}<p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{{ invoice.from_address }}</p>{% endif %}
-        {% if invoice.from_email %}<p class="text-sm text-gray-500 dark:text-gray-400">{{ invoice.from_email }}</p>{% endif %}
-        {% if invoice.from_phone %}<p class="text-sm text-gray-500 dark:text-gray-400">{{ invoice.from_phone }}</p>{% endif %}
+        <p class="text-xs font-semibold uppercase tracking-wider text-faint mb-2">From</p>
+        <p class="font-semibold text-ink">{{ invoice.from_company or '—' }}</p>
+        {% if invoice.from_address %}<p class="text-sm text-graphite whitespace-pre-wrap">{{ invoice.from_address }}</p>{% endif %}
+        {% if invoice.from_email %}<p class="text-sm text-graphite">{{ invoice.from_email }}</p>{% endif %}
+        {% if invoice.from_phone %}<p class="text-sm text-graphite">{{ invoice.from_phone }}</p>{% endif %}
       </div>
       <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">Bill To</p>
-        <p class="font-semibold text-gray-900 dark:text-white">{{ invoice.to_name or '—' }}</p>
-        {% if invoice.to_address %}<p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{{ invoice.to_address }}</p>{% endif %}
-        {% if invoice.to_email %}<p class="text-sm text-gray-500 dark:text-gray-400">{{ invoice.to_email }}</p>{% endif %}
+        <p class="text-xs font-semibold uppercase tracking-wider text-faint mb-2">Bill to</p>
+        <p class="font-semibold text-ink">{{ invoice.to_name or '—' }}</p>
+        {% if invoice.to_address %}<p class="text-sm text-graphite whitespace-pre-wrap">{{ invoice.to_address }}</p>{% endif %}
+        {% if invoice.to_email %}<p class="text-sm text-graphite">{{ invoice.to_email }}</p>{% endif %}
       </div>
     </div>
 
@@ -46,20 +46,20 @@
     <div class="mt-6 mb-4">
       <table class="w-full text-sm">
         <thead>
-          <tr class="border-b border-gray-100 dark:border-gray-800">
-            <th class="text-left py-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Description</th>
-            <th class="text-right py-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 w-16">Qty</th>
-            <th class="text-right py-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 w-24">Rate</th>
-            <th class="text-right py-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 w-24">Amount</th>
+          <tr class="border-b border-rule">
+            <th class="text-left py-2 text-xs font-semibold uppercase tracking-wider text-faint">Description</th>
+            <th class="text-right py-2 text-xs font-semibold uppercase tracking-wider text-faint w-16">Qty</th>
+            <th class="text-right py-2 text-xs font-semibold uppercase tracking-wider text-faint w-24">Rate</th>
+            <th class="text-right py-2 text-xs font-semibold uppercase tracking-wider text-faint w-24">Amount</th>
           </tr>
         </thead>
         <tbody>
           {% for item in line_items %}
-          <tr class="border-b border-gray-50 dark:border-gray-800/50">
-            <td class="py-2 text-gray-700 dark:text-gray-300">{{ item.description }}</td>
-            <td class="py-2 text-right text-gray-500 dark:text-gray-400 font-mono">{{ item.qty }}</td>
-            <td class="py-2 text-right text-gray-500 dark:text-gray-400 font-mono">{{ item.rate | money(invoice.currency_code) }}</td>
-            <td class="py-2 text-right text-gray-700 dark:text-gray-300 font-mono">{{ item.amount | money(invoice.currency_code) }}</td>
+          <tr class="border-b border-rule">
+            <td class="py-2 text-ink">{{ item.description }}</td>
+            <td class="py-2 text-right text-graphite tabular-nums">{{ item.qty }}</td>
+            <td class="py-2 text-right text-graphite tabular-nums">{{ item.rate | money(invoice.currency_code) }}</td>
+            <td class="py-2 text-right text-ink tabular-nums">{{ item.amount | money(invoice.currency_code) }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -70,35 +70,35 @@
     <!-- Totals -->
     <div class="flex justify-end mt-4">
       <div class="text-right space-y-1 text-sm min-w-[200px]">
-        <div class="flex justify-between gap-8 text-gray-500 dark:text-gray-400">
+        <div class="flex justify-between gap-8 text-graphite">
           <span>Subtotal</span>
-          <span class="font-mono">{{ invoice.subtotal | money(invoice.currency_code) }}</span>
+          <span class="tabular-nums">{{ invoice.subtotal | money(invoice.currency_code) }}</span>
         </div>
         {% if invoice.tax_rate %}
-        <div class="flex justify-between gap-8 text-gray-500 dark:text-gray-400">
+        <div class="flex justify-between gap-8 text-graphite">
           <span>Tax ({{ invoice.tax_rate }}%)</span>
-          <span class="font-mono">{{ (invoice.subtotal * invoice.tax_rate / 100) | money(invoice.currency_code) }}</span>
+          <span class="tabular-nums">{{ (invoice.subtotal * invoice.tax_rate / 100) | money(invoice.currency_code) }}</span>
         </div>
         {% endif %}
         {% if invoice.discount %}
-        <div class="flex justify-between gap-8 text-gray-500 dark:text-gray-400">
+        <div class="flex justify-between gap-8 text-graphite">
           <span>Discount</span>
-          <span class="font-mono">{{ (invoice.discount * -1) | money(invoice.currency_code) }}</span>
+          <span class="tabular-nums">{{ (invoice.discount * -1) | money(invoice.currency_code) }}</span>
         </div>
         {% endif %}
-        <div class="flex justify-between gap-8 text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+        <div class="flex justify-between gap-8 text-graphite border-t border-rule pt-2 mt-2">
           <span>Total</span>
-          <span class="font-mono">{{ invoice.total | money(invoice.currency_code) }}</span>
+          <span class="tabular-nums">{{ invoice.total | money(invoice.currency_code) }}</span>
         </div>
         {% if invoice.amount_paid > 0 %}
-        <div class="flex justify-between gap-8 text-green-700 dark:text-green-400">
+        <div class="flex justify-between gap-8 text-paid">
           <span>Paid</span>
-          <span class="font-mono">{{ (invoice.amount_paid * -1) | money(invoice.currency_code) }}</span>
+          <span class="tabular-nums">{{ (invoice.amount_paid * -1) | money(invoice.currency_code) }}</span>
         </div>
         {% endif %}
-        <div class="flex justify-between gap-8 text-lg font-bold text-blue-700 dark:text-blue-400">
-          <span>Balance Due</span>
-          <span class="font-mono">{{ invoice.balance_due | money(invoice.currency_code) }}</span>
+        <div class="flex justify-between items-baseline gap-8 border-t border-rule pt-2 mt-2">
+          <span class="font-semibold text-ink">Balance due</span>
+          <span class="font-display text-xl font-semibold tracking-tight text-ink">{{ invoice.balance_due | money(invoice.currency_code) }}</span>
         </div>
       </div>
     </div>
@@ -109,29 +109,29 @@
          target="_blank"
          rel="noopener noreferrer nofollow"
          referrerpolicy="no-referrer"
-         class="block w-full rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-3 text-center text-base font-semibold text-white shadow-sm transition-colors">
+         class="block w-full rounded-md bg-accent hover:bg-accent-hover px-5 py-3 text-center text-base font-semibold text-accent-on transition-colors">
         Pay now · {{ invoice.balance_due | money(invoice.currency_code) }}
       </a>
-      <p class="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">You will continue to the payment page in a new tab.</p>
+      <p class="mt-2 text-center text-xs text-faint">You will continue to the payment page in a new tab.</p>
     </div>
     {% endif %}
 
     {% if invoice.payment_info %}
-    <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
-      <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">Payment Information</p>
-      <p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{{ invoice.payment_info }}</p>
+    <div class="mt-6 pt-4 border-t border-rule">
+      <p class="text-xs font-semibold uppercase tracking-wider text-faint mb-1">Payment details</p>
+      <p class="text-sm text-graphite whitespace-pre-wrap">{{ invoice.payment_info }}</p>
     </div>
     {% endif %}
 
     {% if invoice.notes %}
     <div class="mt-4">
-      <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">Notes</p>
-      <p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{{ invoice.notes }}</p>
+      <p class="text-xs font-semibold uppercase tracking-wider text-faint mb-1">Notes</p>
+      <p class="text-sm text-graphite whitespace-pre-wrap">{{ invoice.notes }}</p>
     </div>
     {% endif %}
   </div>
 
-  <p class="text-center text-xs text-gray-400 dark:text-gray-600">
+  <p class="text-center text-xs text-faint">
     Invoice generated with <a href="{{ url_for('public.landing') }}" class="hover:underline">PDFBillr</a>
   </p>
 </div>
