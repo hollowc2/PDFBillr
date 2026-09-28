@@ -162,6 +162,27 @@ def test_pdf_fetcher_allows_inline_logo_images():
         response.close()
 
 
+def test_pdf_fetcher_rejected_request_is_not_replayed(tmp_path):
+    from urllib.request import Request
+
+    secret = tmp_path / "secret.txt"
+    secret.write_text("TOP-SECRET-CANARY")
+    fetcher = RestrictedURLFetcher()
+    with pytest.raises(ValueError, match="disabled"):
+        fetcher.open(Request(secret.as_uri()))
+
+    response = fetcher.fetch(
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAA"
+        "DUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+    )
+    try:
+        body = response.read()
+    finally:
+        response.close()
+    assert b"TOP-SECRET-CANARY" not in body
+    assert body.startswith(b"\x89PNG")
+
+
 def test_pdf_render_blocks_local_stylesheets(tmp_path):
     from weasyprint import HTML
 

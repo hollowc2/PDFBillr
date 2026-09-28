@@ -189,6 +189,9 @@ class RestrictedURLFetcher(URLFetcher):
         super().__init__(allowed_protocols=("data",), allow_redirects=False)
 
     def fetch(self, url, headers=None):
+        # URLFetcher.open(Request) queues the request for the parent fetch(); drop it
+        # so a URL rejected here can never be opened by a later, allowed fetch.
+        self._request = None
         parsed = urlsplit(url)
         if parsed.scheme != "data" or not url.lower().startswith(_ALLOWED_DATA_PREFIXES):
             raise ValueError("External and local PDF resources are disabled.")
