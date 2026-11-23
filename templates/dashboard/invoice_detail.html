@@ -52,6 +52,24 @@
     {% endfor %}
   </div>
 
+  <div class="overflow-x-auto mb-6">
+    <table class="w-full text-sm">
+      <thead><tr class="border-b border-rule text-left text-xs text-graphite">
+        <th scope="col" class="py-2 font-medium">Description</th>
+        <th scope="col" class="py-2 font-medium text-right">Qty</th>
+        <th scope="col" class="py-2 font-medium text-right">Rate</th>
+        <th scope="col" class="py-2 font-medium text-right">Amount</th>
+      </tr></thead>
+      <tbody class="divide-y divide-rule">
+        {% for item in line_items %}
+        <tr><td class="py-2">{{ item.description }}</td><td class="py-2 text-right">{{ item.qty }}</td>
+          <td class="py-2 text-right tabular-nums">{{ item.get('rate', 0) | money(invoice.currency_code) }}</td>
+          <td class="py-2 text-right tabular-nums">{{ item.get('amount', 0) | money(invoice.currency_code) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
   <dl class="ml-auto w-full sm:w-80 space-y-1.5 text-sm tabular-nums">
     <div class="flex justify-between"><dt class="text-graphite">Subtotal</dt><dd>{{ invoice.subtotal | money(invoice.currency_code) }}</dd></div>
     {% if invoice.tax_rate %}

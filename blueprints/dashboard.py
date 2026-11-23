@@ -184,12 +184,20 @@ def index():
 @login_required
 def invoice_detail(invoice_id: int):
     inv = _own_invoice(invoice_id)
+    try:
+        line_items = json.loads(inv.line_items_json or "[]")
+    except (TypeError, ValueError):
+        line_items = []
+    if not isinstance(line_items, list):
+        line_items = []
+    line_items = [item for item in line_items if isinstance(item, dict)]
     public_view_url = (
         external_url("public.invoice_view", token=inv.view_token) if inv.view_token else None
     )
     return render_template(
         "dashboard/invoice_detail.html",
         invoice=inv,
+        line_items=line_items,
         public_view_url=public_view_url,
         dashboard_today=_dashboard_today(),
         payment_dates={

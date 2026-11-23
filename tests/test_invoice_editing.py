@@ -380,3 +380,15 @@ def test_pro_edit_can_apply_selected_theme_and_current_logo(
         stored = db.session.get(Invoice, invoice.id)
         assert stored.theme == "creative"
         assert stored.logo_filename == "current-logo.png"
+
+
+def test_detail_shows_line_items(client, make_user, make_invoice, login):
+    user = make_user("detail-items@example.test")
+    inv = make_invoice(
+        user.id,
+        line_items_json='[{"description":"Design consulting","qty":2,"rate":25,"amount":50}]',
+    )
+    login(user.email)
+    response = client.get(f"/dashboard/invoice/{inv.id}")
+    assert b"Design consulting" in response.data
+    assert b"$50.00" in response.data
