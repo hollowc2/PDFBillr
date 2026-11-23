@@ -56,3 +56,7 @@ changes. For a release rollback, return to the prior known-good Git revision,
 review migration compatibility, and bring the stack up again. Do not roll back
 database schema blindly; Alembic migrations require an explicit, tested
 rollback plan.
+
+Gunicorn defaults to the `/pdfbillr` URL prefix. Set `SCRIPT_NAME` to another
+prefix, or to an empty string to serve at the root. Keep `PUBLIC_BASE_URL` and
+your reverse proxy routing consistent with that prefix.

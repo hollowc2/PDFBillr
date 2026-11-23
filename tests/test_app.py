@@ -244,3 +244,15 @@ def test_favicon(client):
     assert client.get("/static/favicon.svg").status_code == 200
     for path in ["/", "/app", "/missing-page"]:
         assert b'type="image/svg+xml"' in client.get(path).data
+
+
+@pytest.mark.parametrize("prefix", [None, "", "/billing"])
+def test_gunicorn_mount_prefix(monkeypatch, prefix):
+    import runpy
+
+    if prefix is None:
+        monkeypatch.delenv("SCRIPT_NAME", raising=False)
+    else:
+        monkeypatch.setenv("SCRIPT_NAME", prefix)
+    settings = runpy.run_path("gunicorn.conf.py")
+    assert settings["raw_env"] == ["SCRIPT_NAME=" + ("/pdfbillr" if prefix is None else prefix)]

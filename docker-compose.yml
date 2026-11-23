@@ -8,6 +8,7 @@ x-app-environment: &app-environment
   DATABASE_URL: ${DATABASE_URL:-sqlite:///pdfbillr.db}
   RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-memory://}
   WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+  SCRIPT_NAME: ${SCRIPT_NAME-/pdfbillr}
   SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
   ENABLE_HSTS: ${ENABLE_HSTS:-false}
   SCHEDULER_TIMEZONE: ${SCHEDULER_TIMEZONE:-UTC}
@@ -58,7 +59,7 @@ services:
       <<: *app-environment
       DISABLE_SCHEDULER: "true"
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/pdfbillr/health')"]
+      test: ["CMD", "python3", "-c", "import os, urllib.request; urllib.request.urlopen('http://localhost:8000' + os.environ.get('SCRIPT_NAME', '/pdfbillr') + '/health')"]
       interval: 30s
       timeout: 10s
       retries: 3

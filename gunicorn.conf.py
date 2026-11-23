@@ -22,4 +22,4 @@ access_log_format = '%(h)s "%(m)s" %(s)s %(b)s %(L)s'
 errorlog = "-"
 loglevel = "info"
 forwarded_allow_ips = os.environ.get("FORWARDED_ALLOW_IPS", "127.0.0.1")
-raw_env = ["SCRIPT_NAME=/pdfbillr"]
+raw_env = [f"SCRIPT_NAME={os.environ.get('SCRIPT_NAME', '/pdfbillr')}"]
