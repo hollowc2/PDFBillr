@@ -276,3 +276,27 @@ def test_recurring_occurrence_prevents_duplicate_and_retries_auto_send(
         assert invoices[0].status == "sent"
 
     assert len(calls) == 2
+
+
+@pytest.mark.parametrize("status", ["void", "paid", "partial"])
+def test_recurring_delivery_preserves_status(app, make_user, make_invoice, monkeypatch, status):
+    user = make_user("closed-recurring@example.test", pro=True)
+    invoice = make_invoice(
+        user.id, status=status, to_email="client@example.test", view_token="recurring-token"
+    )
+    with app.app_context():
+        db.session.add(
+            InvoiceDelivery(
+                invoice_id=invoice.id, delivery_kind="recurring_auto_send", status="pending"
+            )
+        )
+        db.session.commit()
+    calls = []
+    monkeypatch.setattr("extensions.mail.send", calls.append)
+    retry_invoice_deliveries(app)
+    with app.app_context():
+        assert db.session.get(Invoice, invoice.id).status == status
+        assert InvoiceDelivery.query.one().status == (
+            "sent" if status == "partial" else "discarded"
+        )
+    assert len(calls) == (1 if status == "partial" else 0)

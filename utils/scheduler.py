@@ -404,6 +404,8 @@ def _send_invoice_delivery(
         raise PermanentDeliveryError("delivery owner is no longer eligible")
 
     if delivery.delivery_kind == "recurring_auto_send":
+        if inv.status in {"paid", "void"}:
+            raise PermanentDeliveryError("recurring invoice is closed")
         if render_pdf_fn is None:
             raise RuntimeError("PDF renderer is required for recurring delivery")
         _send_generated_invoice(
@@ -627,5 +629,6 @@ def _send_generated_invoice(
     )
     msg.attach(filename, "application/pdf", pdf_bytes)
     mail_obj.send(msg)
-    inv.status = "sent"
+    if inv.status == "draft":
+        inv.status = "sent"
     inv.sent_at = datetime.now(timezone.utc)
