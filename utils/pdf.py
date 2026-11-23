@@ -145,6 +145,8 @@ def context_from_invoice(invoice) -> dict:
         remove_footer = bool(invoice.user.branding.remove_footer)
 
     return {
+        "amount_paid": invoice.amount_paid,
+        "balance_due": invoice.balance_due,
         "invoice_number": invoice.invoice_number,
         "invoice_date": invoice.invoice_date,
         "due_date": invoice.due_date,

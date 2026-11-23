@@ -172,7 +172,13 @@ body {
         <tr><td class="t-label">Subtotal</td><td class="t-value">{{ subtotal | money(currency_code) }}</td></tr>
         {% if tax_rate %}<tr><td class="t-label">Tax ({{ tax_rate | int if tax_rate == tax_rate | int else tax_rate }}%)</td><td class="t-value">{{ tax_amount | money(currency_code) }}</td></tr>{% endif %}
         {% if discount %}<tr><td class="t-label">Discount</td><td class="t-value">{{ (discount * -1) | money(currency_code) }}</td></tr>{% endif %}
+        {% if amount_paid is defined and amount_paid > 0 %}
+        <tr class="total-row"><td class="t-label">Total</td><td class="t-value">{{ total | money(currency_code) }}</td></tr>
+        <tr><td class="t-label">Paid</td><td class="t-value">{{ (amount_paid * -1) | money(currency_code) }}</td></tr>
+        <tr class="total-row"><td class="t-label">Balance due</td><td class="t-value">{{ balance_due | money(currency_code) }}</td></tr>
+        {% else %}
         <tr class="total-row"><td class="t-label">Total due</td><td class="t-value">{{ total | money(currency_code) }}</td></tr>
+        {% endif %}
       </table>
     </td>
   </tr>
