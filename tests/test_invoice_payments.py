@@ -243,7 +243,7 @@ def test_payment_routes_deny_cross_user_access(
         assert stored.amount_paid == Decimal("0.00")
 
 
-def test_deleting_invoice_cascades_payment_records(client, app, make_user, make_invoice, login):
+def test_invoice_with_payments_cannot_be_deleted(client, app, make_user, make_invoice, login):
     owner = make_user("owner@example.test")
     invoice = make_invoice(owner.id, total=10.0)
     login(owner.email)
@@ -255,5 +255,5 @@ def test_deleting_invoice_cascades_payment_records(client, app, make_user, make_
     client.post(f"/dashboard/invoice/{invoice.id}/delete")
 
     with app.app_context():
-        assert db.session.get(Invoice, invoice.id) is None
-        assert InvoicePayment.query.filter_by(invoice_id=invoice.id).count() == 0
+        assert db.session.get(Invoice, invoice.id) is not None
+        assert InvoicePayment.query.filter_by(invoice_id=invoice.id).count() == 1

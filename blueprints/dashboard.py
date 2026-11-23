@@ -610,7 +610,10 @@ def invoice_duplicate(invoice_id: int):
 @bp.route("/invoice/<int:invoice_id>/delete", methods=["POST"])
 @login_required
 def invoice_delete(invoice_id: int):
-    inv = _own_invoice(invoice_id)
+    inv = _own_invoice_for_update(invoice_id)
+    if inv.status != "draft" or inv.payments:
+        flash("Only drafts can be deleted. Void this invoice instead.", "error")
+        return redirect(url_for("dashboard.invoice_detail", invoice_id=inv.id))
     db.session.delete(inv)
     db.session.commit()
     flash("Invoice deleted.", "info")

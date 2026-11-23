@@ -392,3 +392,29 @@ def test_detail_shows_line_items(client, make_user, make_invoice, login):
     response = client.get(f"/dashboard/invoice/{inv.id}")
     assert b"Design consulting" in response.data
     assert b"$50.00" in response.data
+
+
+@pytest.mark.parametrize("status", ["draft", "sent", "partial", "paid", "void"])
+def test_delete_only_drafts(client, app, make_user, make_invoice, login, status):
+    user = make_user("delete-status@example.test")
+    inv = make_invoice(user.id, status=status)
+    login(user.email)
+    response = client.post(f"/dashboard/invoice/{inv.id}/delete", follow_redirects=True)
+    with app.app_context():
+        assert (db.session.get(Invoice, inv.id) is None) == (status == "draft")
+    if status != "draft":
+        assert b"Only drafts can be deleted" in response.data
+
+
+def test_draft_with_payments_cannot_be_deleted(client, app, make_user, make_invoice, login):
+    from models import InvoicePayment
+
+    user = make_user("draft-payment-delete@example.test")
+    inv = make_invoice(user.id)
+    with app.app_context():
+        db.session.add(InvoicePayment(invoice_id=inv.id, amount=1))
+        db.session.commit()
+    login(user.email)
+    client.post(f"/dashboard/invoice/{inv.id}/delete")
+    with app.app_context():
+        assert db.session.get(Invoice, inv.id) is not None

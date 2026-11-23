@@ -242,12 +242,14 @@
   </form>
   {% endif %}
 
+  {% if invoice.status == 'draft' and not invoice.payments %}
   <form method="POST" action="{{ url_for('dashboard.invoice_delete', invoice_id=invoice.id) }}"
         class="ml-auto"
         data-confirm="Delete this invoice? This cannot be undone.">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
     <button type="submit" class="btn-danger">Delete invoice</button>
   </form>
+  {% endif %}
 </div>
 
 <!-- Send email modal -->
