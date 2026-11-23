@@ -19,6 +19,7 @@ from utils.helpers import (
 )
 from utils.currency import normalize_currency_code
 from utils.invoice_calculations import calculate_invoice, calculate_tax_amount
+from utils.gating import is_pro
 from utils.uploads import resolve_logo_path
 from utils.validation import normalize_payment_url
 from utils.branding import DEFAULT_ACCENT_COLOR, normalize_page_size
@@ -139,7 +140,7 @@ def context_from_invoice(invoice) -> dict:
     # Pull branding profile fields if available
     accent_color = DEFAULT_ACCENT_COLOR
     remove_footer = False
-    if invoice.user and invoice.user.branding:
+    if invoice.user and is_pro(invoice.user) and invoice.user.branding:
         raw_accent = invoice.user.branding.accent_color or DEFAULT_ACCENT_COLOR
         accent_color = raw_accent if _HEX_RE.match(raw_accent) else DEFAULT_ACCENT_COLOR
         remove_footer = bool(invoice.user.branding.remove_footer)

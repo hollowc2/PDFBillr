@@ -24,3 +24,17 @@ def test_pdf_payment_totals(app, make_user, make_invoice, theme):
         assert "$60.00" in html
         assert "-$40.00" in html
         assert "Total due" not in html
+
+
+def test_free_branding_uses_defaults(app, make_user, make_invoice):
+    from models import BrandingProfile
+    from utils.branding import DEFAULT_ACCENT_COLOR
+
+    user = make_user("free-brand@example.test")
+    item = make_invoice(user.id)
+    with app.app_context():
+        db.session.add(BrandingProfile(user_id=user.id, accent_color="#abcdef", remove_footer=True))
+        db.session.commit()
+        context = context_from_invoice(db.session.get(Invoice, item.id))
+        assert context["accent_color"] == DEFAULT_ACCENT_COLOR
+        assert context["remove_footer"] is False
