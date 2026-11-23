@@ -56,10 +56,12 @@
             Upgrade
           </a>
           {% endif %}
+          {% if endpoint != 'dashboard.index' %}
           <a href="{{ url_for('public.index') }}"
              class="hidden sm:inline-flex items-center h-9 px-4 rounded-md bg-accent hover:bg-accent-hover text-accent-on text-sm font-semibold transition-colors">
             New invoice
           </a>
+          {% endif %}
 
           <details class="relative" data-menu>
             <summary class="list-none [&::-webkit-details-marker]:hidden cursor-pointer {{ nav_link }} {{ nav_on if endpoint in settings_endpoints else nav_idle }} inline-flex items-center gap-1.5">

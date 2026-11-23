@@ -256,3 +256,11 @@ def test_gunicorn_mount_prefix(monkeypatch, prefix):
         monkeypatch.setenv("SCRIPT_NAME", prefix)
     settings = runpy.run_path("gunicorn.conf.py")
     assert settings["raw_env"] == ["SCRIPT_NAME=" + ("/pdfbillr" if prefix is None else prefix)]
+
+
+def test_dashboard_has_one_desktop_new_invoice(client, make_user, make_invoice, login):
+    user = make_user("one-new@example.test")
+    make_invoice(user.id)
+    login(user.email)
+    html = client.get("/dashboard/").get_data(as_text=True)
+    assert html.count(">New invoice</a>") == 2  # Page action and mobile menu.
