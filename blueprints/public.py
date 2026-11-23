@@ -1,4 +1,3 @@
-import json
 import secrets
 from datetime import datetime, timezone
 from urllib.parse import quote
@@ -28,6 +27,7 @@ from utils.financial_shadow_values import (
     invoice_shadow_values,
 )
 from utils.helpers import _safe_filename
+from utils.invoices import apply_invoice_fields
 from utils.invoice_calculations import InvoiceCalculationError
 from utils.invoice_numbers import invoice_number_exists
 from utils.pdf import build_invoice_context, context_from_invoice, render_pdf
@@ -163,37 +163,12 @@ def _save_invoice(
     inv = Invoice(
         user_id=cu.id,
         client_id=client_id,
-        invoice_number=invoice_number,
-        currency_code=context["currency_code"],
-        page_size=context["page_size"],
-        invoice_date=context["invoice_date"],
-        due_date=context["due_date"],
-        from_company=context["from_company"],
-        from_address=context["from_address"],
-        from_email=context["from_email"],
-        from_phone=context["from_phone"],
-        to_name=context["to_name"],
-        to_address=context["to_address"],
-        to_email=context["to_email"],
-        line_items_json=json.dumps(context["line_items"]),
-        tax_rate=context["tax_rate"],
-        discount=context["discount"],
-        subtotal=context["subtotal"],
-        total=context["total"],
-        invoice_date_value=shadow_values["invoice_date_value"],
-        due_date_value=shadow_values["due_date_value"],
-        tax_rate_decimal=shadow_values["tax_rate_decimal"],
-        discount_decimal=shadow_values["discount_decimal"],
-        subtotal_decimal=shadow_values["subtotal_decimal"],
-        total_decimal=shadow_values["total_decimal"],
-        notes=context["notes"],
-        payment_info=context["payment_info"],
-        payment_url=context["payment_url"],
         logo_filename=(cu.branding.logo_filename if cu.branding and is_pro(cu) else None),
         theme=theme,
         status="draft",
         view_token=secrets.token_urlsafe(32),
     )
+    apply_invoice_fields(inv, context, shadow_values)
     db.session.add(inv)
     try:
         db.session.commit()

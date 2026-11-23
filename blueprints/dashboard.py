@@ -47,6 +47,7 @@ from utils.financial_shadow_values import (
 )
 from utils.gating import is_pro, pro_required
 from utils.helpers import _safe_filename
+from utils.invoices import apply_invoice_fields
 from utils.invoice_calculations import InvoiceCalculationError, calculate_invoice
 from utils.invoice_numbers import invoice_number_exists, next_available_invoice_number
 from utils.branding import DEFAULT_ACCENT_COLOR, HEX_COLOR_RE, resolve_branding, resolve_theme
@@ -427,32 +428,7 @@ def invoice_edit(invoice_id: int):
 
     due_date_changed = inv.due_date != context["due_date"]
     inv.client_id = selected_client_id
-    inv.invoice_number = context["invoice_number"]
-    inv.currency_code = context["currency_code"]
-    inv.page_size = context["page_size"]
-    inv.invoice_date = context["invoice_date"]
-    inv.due_date = context["due_date"]
-    inv.from_company = context["from_company"]
-    inv.from_address = context["from_address"]
-    inv.from_email = context["from_email"]
-    inv.from_phone = context["from_phone"]
-    inv.to_name = context["to_name"]
-    inv.to_address = context["to_address"]
-    inv.to_email = context["to_email"]
-    inv.line_items_json = json.dumps(context["line_items"])
-    inv.tax_rate = context["tax_rate"]
-    inv.discount = context["discount"]
-    inv.subtotal = context["subtotal"]
-    inv.total = context["total"]
-    inv.invoice_date_value = shadow_values["invoice_date_value"]
-    inv.due_date_value = shadow_values["due_date_value"]
-    inv.tax_rate_decimal = shadow_values["tax_rate_decimal"]
-    inv.discount_decimal = shadow_values["discount_decimal"]
-    inv.subtotal_decimal = shadow_values["subtotal_decimal"]
-    inv.total_decimal = shadow_values["total_decimal"]
-    inv.notes = context["notes"]
-    inv.payment_info = context["payment_info"]
-    inv.payment_url = context["payment_url"]
+    apply_invoice_fields(inv, context, shadow_values)
     inv.logo_filename = logo_filename
     inv.theme = theme
     if due_date_changed:
