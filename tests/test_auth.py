@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app import create_app
 from extensions import db, mail
 from models import User
 
@@ -260,3 +261,45 @@ def test_account_email_uniqueness(client, make_user, login):
     data["email"] = " NEW@example.test "
     assert client.post("/auth/account", data=data).status_code == 302
     assert b"new@example.test" in client.get("/auth/account").data
+
+
+def test_account_rate_limit_only_applies_to_posts(tmp_path):
+    class RateLimitConfig:
+        TESTING = True
+        APP_ENV = "test"
+        SECRET_KEY = "tests-only-deterministic-secret-key-000000"
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{tmp_path / 'rate-limit.db'}"
+        SQLALCHEMY_TRACK_MODIFICATIONS = False
+        AUTO_CREATE_DB = True
+        RATELIMIT_ENABLED = True
+        RATELIMIT_STORAGE_URI = "memory://"
+        WTF_CSRF_ENABLED = False
+        MAIL_SUPPRESS_SEND = True
+        PUBLIC_BASE_URL = "https://billing.example.test/pdfbillr"
+        TRUST_PROXY_HEADERS = False
+        TRUSTED_HOSTS = ["localhost"]
+        STRIPE_WEBHOOK_SECRET = "whsec_test"
+
+    application = create_app(RateLimitConfig)
+    with application.app_context():
+        user = User(email="rate-limit@example.test")
+        user.set_password("correct horse")
+        db.session.add(user)
+        db.session.commit()
+
+    client = application.test_client()
+    assert (
+        client.post(
+            "/auth/login",
+            data={"email": "rate-limit@example.test", "password": "correct horse"},
+        ).status_code
+        == 302
+    )
+    for _ in range(11):
+        assert client.get("/auth/account").status_code == 200
+    data = {"action": "email", "current_password": "wrong", "email": "new@example.test"}
+    for _ in range(10):
+        assert client.post("/auth/account", data=data).status_code == 422
+        assert client.get("/auth/account").status_code == 200
+    assert client.post("/auth/account", data=data).status_code == 429
+    assert client.get("/auth/account").status_code == 200

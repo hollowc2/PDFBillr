@@ -286,6 +286,7 @@ def reset_password(token: str):
 
 
 @bp.route("/account", methods=["GET", "POST"])
+@limiter.limit("10 per minute", methods=["POST"])
 @login_required
 def account():
     if request.method == "POST":
