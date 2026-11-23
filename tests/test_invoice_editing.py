@@ -433,3 +433,13 @@ def test_duplicate_refreshes_dates(client, app, make_user, make_invoice, login, 
         assert dup.invoice_date == "2026-11-22"
         assert dup.due_date == "2026-12-06"
         assert dup.due_date_value == date(2026, 12, 6)
+
+
+def test_mobile_list_contains_client_and_status(client, make_user, make_invoice, login):
+    user = make_user("mobile-list@example.test")
+    make_invoice(user.id, to_name="Mobile client", status="sent")
+    login(user.email)
+    html = client.get("/dashboard/").get_data(as_text=True)
+    mobile = html.split('class="md:hidden mt-1 space-y-1"')[1].split("</div>")[0]
+    assert "Mobile client" in mobile
+    assert "Sent" in mobile

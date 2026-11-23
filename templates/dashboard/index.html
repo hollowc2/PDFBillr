@@ -98,6 +98,10 @@
              class="font-medium text-ink hover:text-accent truncate block max-w-[10rem]">
             {{ inv.invoice_number }}
           </a>
+          <div class="md:hidden mt-1 space-y-1">
+            <p class="text-xs text-graphite">{{ inv.to_name or '—' }}</p>
+            {{ status_pill(inv.effective_status(as_of=dashboard_today)) }}
+          </div>
         </td>
         <td class="px-4 py-3 text-ink hidden sm:table-cell">{{ inv.to_name or '—' }}</td>
         <td class="px-4 py-3 text-graphite tabular-nums whitespace-nowrap hidden md:table-cell">{{ inv.invoice_date or '—' }}</td>
