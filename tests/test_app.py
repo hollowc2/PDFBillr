@@ -279,3 +279,16 @@ def test_nice_date_objects(app):
 
     for value in [date(2026, 10, 3), datetime(2026, 10, 3, 12)]:
         assert app.jinja_env.filters["nice_date"](value) == "Oct 3, 2026"
+
+
+def test_fonts_are_local(client):
+    response = client.get("/app")
+    assert b"fonts.googleapis.com" not in response.data
+    csp = response.headers["Content-Security-Policy"]
+    assert "style-src 'self' 'unsafe-inline';" in csp
+    assert "font-src 'self';" in csp
+    assert "fonts.gstatic.com" not in csp
+    for font in ["inter", "schibsted-grotesk"]:
+        response = client.get(f"/static/fonts/{font}-latin.woff2")
+        assert response.status_code == 200
+        assert response.data.startswith(b"wOF2")
