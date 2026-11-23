@@ -2,14 +2,12 @@ import base64
 import json
 import mimetypes
 import os
-import re as _re
 from urllib.parse import urlsplit
 
 from flask import current_app, render_template
 from weasyprint import HTML
 from weasyprint.urls import URLFetcher
 
-_HEX_RE = _re.compile(r"^#[0-9a-fA-F]{6}$")
 
 from utils.helpers import (
     MAX_ITEMS,
@@ -19,10 +17,9 @@ from utils.helpers import (
 )
 from utils.currency import normalize_currency_code
 from utils.invoice_calculations import calculate_invoice, calculate_tax_amount
-from utils.gating import is_pro
 from utils.uploads import resolve_logo_path
 from utils.validation import normalize_payment_url
-from utils.branding import DEFAULT_ACCENT_COLOR, normalize_page_size
+from utils.branding import DEFAULT_ACCENT_COLOR, normalize_page_size, resolve_branding
 
 ALLOWED_THEMES = {"default", "minimal", "corporate", "creative"}
 
@@ -137,13 +134,7 @@ def context_from_invoice(invoice) -> dict:
     )
     logo_url = _logo_data_uri(invoice.logo_filename) if invoice.logo_filename else None
 
-    # Pull branding profile fields if available
-    accent_color = DEFAULT_ACCENT_COLOR
-    remove_footer = False
-    if invoice.user and is_pro(invoice.user) and invoice.user.branding:
-        raw_accent = invoice.user.branding.accent_color or DEFAULT_ACCENT_COLOR
-        accent_color = raw_accent if _HEX_RE.match(raw_accent) else DEFAULT_ACCENT_COLOR
-        remove_footer = bool(invoice.user.branding.remove_footer)
+    _, accent_color, remove_footer = resolve_branding(invoice.user)
 
     return {
         "amount_paid": invoice.amount_paid,

@@ -1,7 +1,6 @@
 import json
 import math
 import os
-import re
 import secrets
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -50,7 +49,7 @@ from utils.gating import is_pro, pro_required
 from utils.helpers import _safe_filename
 from utils.invoice_calculations import InvoiceCalculationError, calculate_invoice
 from utils.invoice_numbers import invoice_number_exists, next_available_invoice_number
-from utils.branding import DEFAULT_ACCENT_COLOR
+from utils.branding import DEFAULT_ACCENT_COLOR, HEX_COLOR_RE, resolve_branding, resolve_theme
 from utils.pdf import (
     ALLOWED_THEMES,
     build_invoice_context,
@@ -360,21 +359,9 @@ def invoice_edit(invoice_id: int):
     if request.method == "GET":
         return _render_invoice_edit(inv, _invoice_form_data(inv))
 
-    logo_filename = None
-    accent_color = DEFAULT_ACCENT_COLOR
-    remove_footer = False
-    branding = current_user.branding
-    if branding and is_pro():
-        logo_filename = branding.logo_filename
-        raw_accent = branding.accent_color or DEFAULT_ACCENT_COLOR
-        accent_color = (
-            raw_accent if re.fullmatch(r"#[0-9a-fA-F]{6}", raw_accent) else DEFAULT_ACCENT_COLOR
-        )
-        remove_footer = bool(branding.remove_footer)
+    logo_filename, accent_color, remove_footer = resolve_branding(current_user)
 
-    theme = request.form.get("theme", "default")
-    if theme not in ALLOWED_THEMES or (theme != "default" and not is_pro()):
-        theme = "default"
+    theme = resolve_theme(request.form.get("theme", "default"), pro=is_pro())
 
     from blueprints.clients import selected_owned_client_id
 
@@ -738,7 +725,7 @@ def branding():
 
         # Accent color — validate strict hex to prevent CSS injection
         accent = request.form.get("accent_color", DEFAULT_ACCENT_COLOR).strip()
-        if not re.match(r"^#[0-9a-fA-F]{6}$", accent):
+        if not HEX_COLOR_RE.fullmatch(accent):
             flash(
                 f"Enter the accent color as a 6-digit hex code, for example {DEFAULT_ACCENT_COLOR}.",
                 "error",
@@ -871,23 +858,12 @@ def reminder_settings():
 @bp.route("/save-draft", methods=["POST"])
 @login_required
 def save_draft():
-    from blueprints.public import _HEX_RE, _render_invoice_form, _save_invoice
+    from blueprints.public import _render_invoice_form, _save_invoice
     from utils.pdf import build_invoice_context
 
-    logo_filename = None
-    accent_color = DEFAULT_ACCENT_COLOR
-    remove_footer = False
+    logo_filename, accent_color, remove_footer = resolve_branding(current_user)
 
-    branding = current_user.branding
-    if branding and is_pro():
-        logo_filename = branding.logo_filename
-        raw_accent = branding.accent_color or DEFAULT_ACCENT_COLOR
-        accent_color = raw_accent if _HEX_RE.match(raw_accent) else DEFAULT_ACCENT_COLOR
-        remove_footer = branding.remove_footer
-
-    theme = request.form.get("theme", "default")
-    if theme not in ALLOWED_THEMES or (theme != "default" and not is_pro()):
-        theme = "default"
+    theme = resolve_theme(request.form.get("theme", "default"), pro=is_pro())
 
     try:
         context = build_invoice_context(

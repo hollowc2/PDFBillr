@@ -1,11 +1,9 @@
 import json
-import re as _re
 import secrets
 from datetime import datetime, timezone
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
-_HEX_RE = _re.compile(r"^#[0-9a-fA-F]{6}$")
 
 from flask import (
     Blueprint,
@@ -23,7 +21,7 @@ from sqlalchemy import func, update
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db, limiter
-from models import BrandingProfile, Invoice
+from models import Invoice
 from utils.gating import is_pro
 from utils.financial_shadow_values import (
     FinancialShadowValueError,
@@ -32,8 +30,8 @@ from utils.financial_shadow_values import (
 from utils.helpers import _safe_filename
 from utils.invoice_calculations import InvoiceCalculationError
 from utils.invoice_numbers import invoice_number_exists
-from utils.pdf import ALLOWED_THEMES, build_invoice_context, context_from_invoice, render_pdf
-from utils.branding import DEFAULT_ACCENT_COLOR
+from utils.pdf import build_invoice_context, context_from_invoice, render_pdf
+from utils.branding import resolve_branding, resolve_theme
 from utils.validation import PaymentURLValidationError
 
 bp = Blueprint("public", __name__)
@@ -61,22 +59,9 @@ def generate():
     saving = current_user.is_authenticated and action == "download"
 
     # Determine logo and branding for authenticated Pro users
-    logo_filename = None
-    accent_color = DEFAULT_ACCENT_COLOR
-    remove_footer = False
+    logo_filename, accent_color, remove_footer = resolve_branding(current_user)
 
-    if current_user.is_authenticated:
-        branding: BrandingProfile | None = current_user.branding
-        if branding and is_pro():
-            logo_filename = branding.logo_filename
-            raw_accent = branding.accent_color or DEFAULT_ACCENT_COLOR
-            accent_color = raw_accent if _HEX_RE.match(raw_accent) else DEFAULT_ACCENT_COLOR
-            remove_footer = branding.remove_footer
-
-    # Determine theme (Pro only for non-default)
-    theme = request.form.get("theme", "default")
-    if theme not in ALLOWED_THEMES or (theme != "default" and not is_pro()):
-        theme = "default"
+    theme = resolve_theme(request.form.get("theme", "default"), pro=is_pro())
 
     selected_client_id = None
     if current_user.is_authenticated:
