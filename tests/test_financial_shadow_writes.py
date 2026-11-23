@@ -165,7 +165,7 @@ def test_malformed_invoice_date_is_rejected_before_render_or_persistence(
         data=_invoice_form(invoice_date="not-a-date"),
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 422
     assert b"Invoice date must be a valid date" in response.data
     assert render_calls == []
     with app.app_context():

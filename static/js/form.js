@@ -223,7 +223,8 @@
     if (prefillEl) {
       try {
         var prefill = JSON.parse(prefillEl.textContent);
-        var descriptions = prefill.descriptions || [];
+        showActionError('');
+      var descriptions = prefill.descriptions || [];
         var qtys = prefill.qtys || [];
         var rates = prefill.rates || [];
         descriptions.forEach(function (desc, i) {
@@ -344,19 +345,27 @@
       }
     }
 
+    var actionError = document.getElementById('form-action-error');
+    function showActionError(message) {
+      actionError.textContent = message;
+      actionError.classList.toggle('hidden', !message);
+    }
+
     function handlePdfButton(e, btn) {
       e.preventDefault();
 
+      showActionError('');
       var descriptions = form.querySelectorAll('input[name="description[]"]');
       var hasItem = false;
       descriptions.forEach(function (inp) {
         if (inp.value.trim()) hasItem = true;
       });
       if (!hasItem) {
-        alert('Please add at least one line item with a description.');
+        showActionError('Please add at least one line item with a description.');
         return;
       }
 
+      var win = btn.value === 'preview' ? window.open('', '_blank') : null;
       setSpinner(btn);
 
       var formData = new FormData(form);
@@ -364,19 +373,33 @@
 
       fetch(form.getAttribute('action'), { method: 'POST', body: formData })
         .then(function (response) {
-          if (!response.ok) throw new Error('Server error');
+          if (!response.ok || !(response.headers.get('Content-Type') || '').startsWith('application/pdf')) {
+            if (win) win.close();
+            var action = form.querySelector('input[type="hidden"][name="action"]');
+            if (!action) {
+              action = document.createElement('input');
+              action.type = 'hidden';
+              action.name = 'action';
+              form.appendChild(action);
+            }
+            action.value = btn.value;
+            form.submit();
+            return null;
+          }
           // Extract filename from Content-Disposition header
           var cd = response.headers.get('Content-Disposition') || '';
           var match = cd.match(/filename="([^"]+)"/);
           var filename = match ? match[1] : 'invoice.pdf';
           return response.blob().then(function (blob) {
-            return { blob: blob, filename: filename };
+            return { blob: blob, filename: filename, invoiceUrl: response.headers.get('X-Invoice-URL') };
           });
         })
         .then(function (result) {
+          if (!result) return;
           var url = URL.createObjectURL(result.blob);
           if (btn.value === 'preview') {
-            window.open(url, '_blank');
+            if (win) win.location = url;
+            else showActionError('Please allow pop-ups to preview the PDF.');
           } else {
             var a = document.createElement('a');
             a.href = url;
@@ -384,11 +407,13 @@
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
+            if (result.invoiceUrl) window.location.assign(result.invoiceUrl);
           }
           setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
         })
         .catch(function () {
-          alert('Failed to generate PDF. Please try again.');
+          if (win) win.close();
+          showActionError('Failed to generate PDF. Please try again.');
         })
         .finally(function () {
           resetBtn(btn);

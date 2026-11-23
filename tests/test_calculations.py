@@ -123,7 +123,7 @@ def test_authenticated_generation_rejects_duplicate_invoice_number(
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 422
     assert b"invoice number is already in use" in response.data
     assert render_calls == []
     with app.app_context():
@@ -174,7 +174,7 @@ def test_malformed_generation_does_not_persist_invoice(client, app, make_user, l
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 422
     assert b"must be finite" in response.data
     with app.app_context():
         assert Invoice.query.filter_by(user_id=user.id).count() == 0

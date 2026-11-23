@@ -16,6 +16,7 @@ from flask import (
     make_response,
     render_template,
     request,
+    url_for,
 )
 from flask_login import current_user
 from sqlalchemy import func, update
@@ -56,6 +57,9 @@ def index():
 @bp.route("/generate", methods=["POST"])
 @limiter.limit("10 per minute; 50 per hour")
 def generate():
+    action = request.form.get("action", "download")
+    saving = current_user.is_authenticated and action == "download"
+
     # Determine logo and branding for authenticated Pro users
     logo_filename = None
     accent_color = DEFAULT_ACCENT_COLOR
@@ -88,27 +92,25 @@ def generate():
         )
     except (InvoiceCalculationError, PaymentURLValidationError) as exc:
         flash(str(exc), "error")
-        return _render_invoice_form(request.form)
+        return _render_invoice_form(request.form), 422
     context["remove_footer"] = remove_footer
 
     # Validate at least one non-empty line item exists
     if not context.get("line_items"):
         flash("Please add at least one line item with a description.", "error")
-        return _render_invoice_form(request.form)
+        return _render_invoice_form(request.form), 422
 
     # Reject known number conflicts before the expensive PDF render. The
     # database constraint still closes a concurrent race in _save_invoice.
-    if current_user.is_authenticated and invoice_number_exists(
-        current_user.id, context["invoice_number"]
-    ):
+    if saving and invoice_number_exists(current_user.id, context["invoice_number"]):
         flash(
             "That invoice number is already in use. Choose a different number.",
             "error",
         )
-        return _render_invoice_form(request.form)
+        return _render_invoice_form(request.form), 422
 
     shadow_values = None
-    if current_user.is_authenticated:
+    if saving:
         try:
             shadow_values = invoice_shadow_values(
                 invoice_date=context["invoice_date"],
@@ -120,30 +122,27 @@ def generate():
             )
         except FinancialShadowValueError as exc:
             flash(str(exc), "error")
-            return _render_invoice_form(request.form)
+            return _render_invoice_form(request.form), 422
 
     pdf_bytes = render_pdf(context, theme=theme)
 
     # Persist only after rendering succeeds so a PDF failure cannot leave an
     # unexpected saved invoice behind.
-    if current_user.is_authenticated and not _save_invoice(
-        context,
-        theme,
-        shadow_values,
-        client_id=selected_client_id,
-    ):
-        flash(
-            "That invoice number was just used by another request. Choose a different number.",
-            "error",
-        )
-        return _render_invoice_form(request.form)
+    saved_invoice = None
+    if saving:
+        saved_invoice = _save_invoice(context, theme, shadow_values, client_id=selected_client_id)
+        if saved_invoice is None:
+            flash(
+                "That invoice number was just used by another request. Choose a different number.",
+                "error",
+            )
+            return _render_invoice_form(request.form), 422
 
     invoice_number = context["invoice_number"]
     safe_number = _safe_filename(invoice_number)
     filename = f"Invoice-{safe_number}.pdf"
     encoded = quote(filename, safe="")
 
-    action = request.form.get("action", "download")
     disp_type = "inline" if action == "preview" else "attachment"
     content_disp = f"{disp_type}; filename=\"{filename}\"; filename*=UTF-8''{encoded}"
 
@@ -151,6 +150,10 @@ def generate():
     response.headers["Content-Type"] = "application/pdf"
     response.headers["Content-Disposition"] = content_disp
     response.headers["Cache-Control"] = "no-store"
+    if saved_invoice is not None:
+        response.headers["X-Invoice-URL"] = url_for(
+            "dashboard.invoice_detail", invoice_id=saved_invoice.id
+        )
     return response
 
 
@@ -160,13 +163,13 @@ def _save_invoice(
     shadow_values: dict,
     *,
     client_id: int | None = None,
-) -> bool:
-    """Persist an invoice, returning false for a same-user number conflict."""
+) -> Invoice | None:
+    """Persist an invoice, returning None for a same-user number conflict."""
     from flask_login import current_user as cu
 
     invoice_number = context["invoice_number"]
     if invoice_number_exists(cu.id, invoice_number):
-        return False
+        return None
     if client_id is None:
         from blueprints.clients import selected_owned_client_id
 
@@ -214,9 +217,9 @@ def _save_invoice(
         # Close the race between the friendly pre-check and the database
         # uniqueness constraint without hiding unrelated integrity failures.
         if invoice_number_exists(cu.id, invoice_number):
-            return False
+            return None
         raise
-    return True
+    return inv
 
 
 def _render_invoice_form(
