@@ -7,6 +7,8 @@ flows such as duplicate and recurring generation may use
 
 from __future__ import annotations
 
+import re
+
 from models import Invoice
 
 
@@ -41,3 +43,16 @@ def next_available_invoice_number(user_id: int, preferred: str) -> str:
         if not invoice_number_exists(user_id, candidate):
             return candidate
         sequence += 1
+
+
+def suggest_invoice_number(user_id: int) -> str:
+    latest = (
+        Invoice.query.filter_by(user_id=user_id)
+        .order_by(Invoice.created_at.desc(), Invoice.id.desc())
+        .first()
+    )
+    candidate = "INV-001"
+    if latest and (match := re.fullmatch(r"(.*?)(\d+)", latest.invoice_number)):
+        prefix, digits = match.groups()
+        candidate = prefix + str(int(digits) + 1).zfill(len(digits))
+    return next_available_invoice_number(user_id, candidate)

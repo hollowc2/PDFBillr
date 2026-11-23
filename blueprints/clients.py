@@ -176,8 +176,13 @@ def invoice_form_context(
     selected_service_id=None,
 ) -> dict:
     """Build optional saved-data context for the invoice form."""
+    from utils.invoice_numbers import suggest_invoice_number
+
     today = date.today()
     context = {
+        "suggested_invoice_number": suggest_invoice_number(current_user.id)
+        if current_user.is_authenticated
+        else "INV-001",
         "today": today.isoformat(),
         "form_data": form_data,
         "clients": [],

@@ -98,7 +98,7 @@
       <div>
         <label for="field-invoice-number" class="field-label">Invoice number</label>
         <input id="field-invoice-number" type="text" name="invoice_number" class="input-field" required
-               value="{{ form_data.get('invoice_number', 'INV-001') if form_data else 'INV-001' }}" />
+               value="{{ form_data.get('invoice_number', suggested_invoice_number) if form_data else suggested_invoice_number }}" />
       </div>
       <div>
         <label for="field-invoice-date" class="field-label">Invoice date</label>
