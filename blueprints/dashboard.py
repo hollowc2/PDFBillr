@@ -851,7 +851,7 @@ def reminder_settings():
 @bp.route("/save-draft", methods=["POST"])
 @login_required
 def save_draft():
-    from blueprints.public import _HEX_RE, _save_invoice
+    from blueprints.public import _HEX_RE, _render_invoice_form, _save_invoice
     from utils.pdf import build_invoice_context
 
     logo_filename = None
@@ -877,12 +877,12 @@ def save_draft():
         )
     except (InvoiceCalculationError, PaymentURLValidationError) as exc:
         flash(str(exc), "error")
-        return redirect(url_for("public.index"))
+        return _render_invoice_form(request.form), 422
     context["remove_footer"] = remove_footer
 
     if not context.get("line_items"):
         flash("Please add at least one line item to save a draft.", "error")
-        return redirect(url_for("public.index"))
+        return _render_invoice_form(request.form), 422
 
     try:
         shadow_values = invoice_shadow_values(
@@ -895,14 +895,14 @@ def save_draft():
         )
     except FinancialShadowValueError as exc:
         flash(str(exc), "error")
-        return redirect(url_for("public.index"))
+        return _render_invoice_form(request.form), 422
 
     if not _save_invoice(context, theme, shadow_values):
         flash(
             "That invoice number is already in use. Choose a different number.",
             "error",
         )
-        return redirect(url_for("public.index"))
+        return _render_invoice_form(request.form), 422
     flash("Draft saved.", "success")
     return redirect(url_for("dashboard.index"))
 
@@ -934,8 +934,11 @@ def recurring_new():
             flash("Recurring invoice created.", "success")
             return redirect(url_for("dashboard.recurring_list"))
         return render_template(
-            "dashboard/recurring_form.html", tmpl=None, intervals=_VALID_INTERVALS
-        )
+            "dashboard/recurring_form.html",
+            tmpl=None,
+            intervals=_VALID_INTERVALS,
+            form_data=request.form,
+        ), 422
 
     return render_template("dashboard/recurring_form.html", tmpl=None, intervals=_VALID_INTERVALS)
 
@@ -951,8 +954,11 @@ def recurring_edit(tmpl_id: int):
             flash("Recurring invoice updated.", "success")
             return redirect(url_for("dashboard.recurring_list"))
         return render_template(
-            "dashboard/recurring_form.html", tmpl=tmpl, intervals=_VALID_INTERVALS
-        )
+            "dashboard/recurring_form.html",
+            tmpl=tmpl,
+            intervals=_VALID_INTERVALS,
+            form_data=request.form,
+        ), 422
     return render_template("dashboard/recurring_form.html", tmpl=tmpl, intervals=_VALID_INTERVALS)
 
 
@@ -1340,6 +1346,19 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
         flash("Please add at least one line item.", "error")
         return None
 
+    to_email = normalize_email(request.form.get("to_email", ""))
+    if to_email and not is_valid_email(to_email):
+        flash("A valid client email address is required.", "error")
+        return None
+    try:
+        payment_url = normalize_payment_url(request.form.get("payment_url"))
+    except PaymentURLValidationError as exc:
+        flash(str(exc), "error")
+        return None
+    shadow_values = recurring_invoice_shadow_values(
+        tax_rate=calculated.tax_rate, discount=calculated.discount
+    )
+
     if tmpl is None:
         tmpl = RecurringInvoice(user_id=current_user.id)
         db.session.add(tmpl)
@@ -1354,27 +1373,15 @@ def _save_recurring_template(tmpl: RecurringInvoice | None) -> RecurringInvoice 
     tmpl.from_phone = request.form.get("from_phone", "")[:200]
     tmpl.to_name = request.form.get("to_name", "")[:200]
     tmpl.to_address = request.form.get("to_address", "")[:1000]
-    to_email = normalize_email(request.form.get("to_email", ""))
-    if to_email and not is_valid_email(to_email):
-        flash("A valid client email address is required.", "error")
-        return None
     tmpl.to_email = to_email
     tmpl.line_items_json = json.dumps(calculated.line_items)
     tmpl.tax_rate = float(calculated.tax_rate)
     tmpl.discount = float(calculated.discount)
-    shadow_values = recurring_invoice_shadow_values(
-        tax_rate=calculated.tax_rate,
-        discount=calculated.discount,
-    )
     tmpl.tax_rate_decimal = shadow_values["tax_rate_decimal"]
     tmpl.discount_decimal = shadow_values["discount_decimal"]
     tmpl.notes = request.form.get("notes", "")[:2000]
     tmpl.payment_info = request.form.get("payment_info", "")[:2000]
-    try:
-        tmpl.payment_url = normalize_payment_url(request.form.get("payment_url"))
-    except PaymentURLValidationError as exc:
-        flash(str(exc), "error")
-        return None
+    tmpl.payment_url = payment_url
     theme = request.form.get("theme", "default")
     tmpl.theme = theme if theme in ALLOWED_THEMES else "default"
     tmpl.interval = interval

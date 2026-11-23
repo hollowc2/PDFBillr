@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Edit' if tmpl else 'New' }} recurring invoice — PDFBillr{% endblock %}
 
+{% macro field(name, default='') -%}
+  {%- set value = form_data.get(name, default) if form_data is defined and form_data is not none else ((tmpl|attr(name)) if tmpl else default) -%}
+  {{- value if value is not none else default -}}
+{%- endmacro %}
+
 {% block content %}
 <div class="mb-6">
   <a href="{{ url_for('dashboard.recurring_list') }}" class="text-sm text-graphite hover:text-ink">
@@ -24,7 +29,7 @@
         <label for="field-interval" class="field-label">Repeat</label>
         <select id="field-interval" name="interval" class="input-field">
           {% for iv in ['weekly', 'biweekly', 'monthly', 'quarterly'] %}
-          <option value="{{ iv }}" {{ 'selected' if tmpl and tmpl.interval == iv else ('selected' if not tmpl and iv == 'monthly' else '') }}>
+          <option value="{{ iv }}" {{ 'selected' if field('interval', 'monthly') == iv else '' }}>
             {{ iv | capitalize }}
           </option>
           {% endfor %}
@@ -33,26 +38,26 @@
       <div>
         <label for="field-next-run-date" class="field-label">First run date</label>
         <input id="field-next-run-date" type="date" name="next_run_date" required
-               value="{{ tmpl.next_run_date.isoformat() if tmpl else '' }}"
+               value="{{ field('next_run_date') }}"
                class="input-field" />
       </div>
       <div>
         <label for="field-net-days" class="field-label">Payment terms (days)</label>
         <input id="field-net-days" type="number" name="net_days" min="0" max="365"
-               value="{{ tmpl.net_days if tmpl else 30 }}"
+               value="{{ field('net_days', 30) }}"
                class="input-field" />
       </div>
       <div>
         <label for="field-invoice-number-prefix" class="field-label">Invoice number prefix</label>
         <input id="field-invoice-number-prefix" type="text" name="invoice_number_prefix" maxlength="50"
-               value="{{ tmpl.invoice_number_prefix if tmpl else 'INV' }}"
+               value="{{ field('invoice_number_prefix', 'INV') }}"
                placeholder="INV"
                class="input-field" />
       </div>
       <div>
         <label for="currency-code" class="field-label">Currency</label>
         <select id="currency-code" name="currency_code" class="input-field">
-          {% set selected_currency = tmpl.currency_code if tmpl else 'USD' %}
+          {% set selected_currency = field('currency_code', 'USD') %}
           {% for currency in currency_options %}
           <option value="{{ currency.code }}"
                   data-symbol="{{ currency.symbol }}"
@@ -67,7 +72,7 @@
     </div>
     <div class="mt-4 flex items-center gap-3">
       <input type="checkbox" id="auto_send" name="auto_send" value="1"
-             {{ 'checked' if tmpl and tmpl.auto_send else '' }}
+             {{ 'checked' if (form_data.get('auto_send') if form_data is defined and form_data is not none else tmpl and tmpl.auto_send) else '' }}
              class="w-4 h-4 rounded border-rule-strong text-accent focus:ring-accent" />
       <label for="auto_send" class="text-sm text-ink">
         Auto-send to client when generated
@@ -83,24 +88,24 @@
       <div>
         <label for="field-from-company" class="field-label">Your name or business</label>
         <input id="field-from-company" type="text" name="from_company" maxlength="200"
-               value="{{ tmpl.from_company or '' }}"
+               value="{{ field('from_company') }}"
                class="input-field" placeholder="Your Company" />
       </div>
       <div>
         <label for="field-from-email" class="field-label">Email</label>
         <input id="field-from-email" type="email" name="from_email" maxlength="200"
-               value="{{ tmpl.from_email or '' }}"
+               value="{{ field('from_email') }}"
                class="input-field" placeholder="you@example.com" />
       </div>
       <div>
         <label for="field-from-address" class="field-label">Address</label>
         <textarea id="field-from-address" name="from_address" rows="2" maxlength="1000"
-                  class="input-field">{{ tmpl.from_address or '' }}</textarea>
+                  class="input-field">{{ field('from_address') }}</textarea>
       </div>
       <div>
         <label for="field-from-phone" class="field-label">Phone</label>
         <input id="field-from-phone" type="tel" name="from_phone" maxlength="200"
-               value="{{ tmpl.from_phone or '' }}"
+               value="{{ field('from_phone') }}"
                class="input-field" placeholder="+1 555 000 0000" />
       </div>
     </div>
@@ -113,19 +118,19 @@
       <div>
         <label for="field-to-name" class="field-label">Client name</label>
         <input id="field-to-name" type="text" name="to_name" maxlength="200"
-               value="{{ tmpl.to_name or '' }}"
+               value="{{ field('to_name') }}"
                class="input-field" placeholder="Client name" />
       </div>
       <div>
         <label for="field-to-email" class="field-label">Client email</label>
         <input id="field-to-email" type="email" name="to_email" maxlength="200"
-               value="{{ tmpl.to_email or '' }}"
+               value="{{ field('to_email') }}"
                class="input-field" placeholder="client@example.com" />
       </div>
       <div class="sm:col-span-2">
         <label for="field-to-address" class="field-label">Client address</label>
         <textarea id="field-to-address" name="to_address" rows="2" maxlength="1000"
-                  class="input-field">{{ tmpl.to_address or '' }}</textarea>
+                  class="input-field">{{ field('to_address') }}</textarea>
       </div>
     </div>
   </div>
@@ -141,21 +146,21 @@
       Add line
     </button>
     <input type="hidden" name="line_items_json" id="line_items_json"
-           value="{{ tmpl.line_items_json if tmpl else '[]' }}" />
+           value="{{ field('line_items_json', '[]') }}" />
 
     <!-- Financials -->
     <div class="grid sm:grid-cols-2 gap-4 mt-6 pt-4 border-t border-rule">
       <div>
         <label for="field-tax-rate" class="field-label">Tax rate (%)</label>
         <input id="field-tax-rate" type="number" name="tax_rate" min="0" max="100" step="0.01"
-               value="{{ tmpl.tax_rate if tmpl else 0 }}"
+               value="{{ field('tax_rate', 0) }}"
                class="input-field" />
       </div>
       <div>
-        <label for="discount-input" class="field-label">Discount (<span id="discount-currency-code">{{ tmpl.currency_code if tmpl else 'USD' }}</span>)</label>
+        <label for="discount-input" class="field-label">Discount (<span id="discount-currency-code">{{ field('currency_code', 'USD') }}</span>)</label>
         <input id="discount-input" type="number" name="discount" min="0"
-               step="{{ currency_input_step(tmpl.currency_code if tmpl else 'USD') }}"
-               value="{{ tmpl.discount if tmpl else 0 }}"
+               step="{{ currency_input_step(field('currency_code', 'USD')) }}"
+               value="{{ field('discount', 0) }}"
                class="input-field" />
       </div>
     </div>
@@ -167,18 +172,18 @@
     <div class="grid sm:grid-cols-2 gap-4">
       <div>
         <label for="field-notes" class="field-label">Notes</label>
-        <textarea id="field-notes" name="notes" rows="3" maxlength="2000" class="input-field">{{ tmpl.notes or '' }}</textarea>
+        <textarea id="field-notes" name="notes" rows="3" maxlength="2000" class="input-field">{{ field('notes') }}</textarea>
       </div>
       <div>
         <label for="field-payment-info" class="field-label">Payment details</label>
-        <textarea id="field-payment-info" name="payment_info" rows="3" maxlength="2000" class="input-field">{{ tmpl.payment_info or '' }}</textarea>
+        <textarea id="field-payment-info" name="payment_info" rows="3" maxlength="2000" class="input-field">{{ field('payment_info') }}</textarea>
       </div>
     </div>
     <div class="mt-4">
       <label for="field-payment-url" class="field-label">Pay now link</label>
       <input id="field-payment-url" name="payment_url" type="url" maxlength="2048" autocomplete="url"
              placeholder="https://pay.example.com/invoice"
-             value="{{ tmpl.payment_url or '' if tmpl else '' }}"
+             value="{{ field('payment_url') }}"
              class="input-field" />
       <p class="mt-1 text-xs text-graphite">Adds a Pay now button to every generated invoice. Must start with https://.</p>
     </div>

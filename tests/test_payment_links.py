@@ -247,7 +247,7 @@ def test_recurring_rejects_non_https_payment_link(client, app, make_user, login)
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 422
     assert b"must use HTTPS" in response.data
     with app.app_context():
         assert RecurringInvoice.query.filter_by(user_id=owner.id).first() is None
