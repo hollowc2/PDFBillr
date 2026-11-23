@@ -238,3 +238,9 @@ def test_csrf_rejects_unprotected_post(client, app):
         },
     )
     assert response.status_code == 400
+
+
+def test_favicon(client):
+    assert client.get("/static/favicon.svg").status_code == 200
+    for path in ["/", "/app", "/missing-page"]:
+        assert b'type="image/svg+xml"' in client.get(path).data
