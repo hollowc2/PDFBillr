@@ -17,7 +17,7 @@
 <body class="font-sans antialiased bg-paper text-ink min-h-screen flex flex-col">
 
   {% set endpoint = request.endpoint or '' %}
-  {% set settings_endpoints = ('dashboard.branding', 'dashboard.reminder_settings', 'clients.defaults') %}
+  {% set settings_endpoints = ('auth.account', 'dashboard.branding', 'dashboard.reminder_settings', 'clients.defaults') %}
   {% set nav_link = 'px-3 py-2 rounded-md text-sm font-medium transition-colors' %}
   {% set nav_idle = 'text-graphite hover:text-ink hover:bg-ink/5' %}
   {% set nav_on = 'text-ink bg-ink/5' %}
@@ -80,6 +80,7 @@
               </div>
 
               <div class="border-t border-rule pt-1.5 mt-0.5">
+                <a href="{{ url_for('auth.account') }}" class="{{ menu_item }} text-ink">Account</a>
                 <a href="{{ url_for('clients.defaults') }}" class="{{ menu_item }} text-ink">Business defaults</a>
                 {% for label, endpoint_name in [('Branding', 'dashboard.branding'), ('Payment reminders', 'dashboard.reminder_settings')] %}
                 <a href="{{ url_for(endpoint_name) if is_pro() else url_for('billing.upgrade') }}" class="{{ menu_item }} text-ink">

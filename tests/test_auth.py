@@ -229,3 +229,34 @@ def test_logout_requires_post(client, make_user, login):
     assert response.status_code == 302
     assert response.headers["Location"] == "/"
     assert client.get("/dashboard/").status_code == 302
+
+
+def test_account_password_revokes_other_sessions(client, app, make_user, login):
+    user = make_user("account@example.test")
+    login(user.email)
+    other = app.test_client()
+    other.post(
+        "/auth/login", data={"email": user.email, "password": "correct horse", "remember": "1"}
+    )
+    data = {
+        "action": "password",
+        "current_password": "wrong",
+        "new_password": "new password",
+        "confirm_password": "new password",
+    }
+    assert client.post("/auth/account", data=data).status_code == 422
+    data["current_password"] = "correct horse"
+    assert client.post("/auth/account", data=data).status_code == 302
+    assert client.get("/auth/account").status_code == 200
+    assert other.get("/auth/account").status_code == 302
+
+
+def test_account_email_uniqueness(client, make_user, login):
+    user = make_user("email-change@example.test")
+    make_user("taken@example.test")
+    login(user.email)
+    data = {"action": "email", "current_password": "correct horse", "email": "TAKEN@example.test"}
+    assert client.post("/auth/account", data=data).status_code == 422
+    data["email"] = " NEW@example.test "
+    assert client.post("/auth/account", data=data).status_code == 302
+    assert b"new@example.test" in client.get("/auth/account").data

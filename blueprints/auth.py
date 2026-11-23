@@ -283,3 +283,42 @@ def reset_password(token: str):
         return redirect(url_for("auth.login"))
 
     return render_template("auth/reset_password.html", token=token)
+
+
+@bp.route("/account", methods=["GET", "POST"])
+@login_required
+def account():
+    if request.method == "POST":
+        user = current_user._get_current_object()
+        action = request.form.get("action")
+        error = None
+        if not user.check_password(request.form.get("current_password", "")):
+            error = "Current password is incorrect."
+        elif action == "password":
+            password = request.form.get("new_password", "")
+            if len(password) < 8:
+                error = "Password must be at least 8 characters."
+            elif password != request.form.get("confirm_password", ""):
+                error = "Passwords do not match."
+            else:
+                user.set_password(password)
+                db.session.commit()
+                login_user(user)
+        elif action == "email":
+            email = normalize_email(request.form.get("email"))
+            if (
+                not is_valid_email(email)
+                or User.query.filter(User.email == email, User.id != user.id).first()
+            ):
+                error = "Email could not be updated. Please check your details."
+            else:
+                user.email = email
+                db.session.commit()
+        else:
+            error = "Choose an account setting to update."
+        if error:
+            flash(error, "error")
+            return render_template("auth/account.html"), 422
+        flash("Account updated.", "success")
+        return redirect(url_for("auth.account"))
+    return render_template("auth/account.html")

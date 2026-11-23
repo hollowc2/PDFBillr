@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Account — PDFBillr{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto mt-8 space-y-6">
+  <h1 class="font-display text-2xl font-semibold">Account</h1>
+  {% include "partials/flashes.html" %}
+  {% for action, title in [('password', 'Change password'), ('email', 'Change email')] %}
+  <form method="post" class="card p-6 space-y-4">
+    <h2 class="text-base font-semibold">{{ title }}</h2>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="{{ action }}">
+    <div><label for="{{ action }}-current" class="field-label">Current password</label>
+      <input id="{{ action }}-current" type="password" name="current_password" autocomplete="current-password" required class="input-field"></div>
+    {% if action == 'password' %}
+    <div><label for="new-password" class="field-label">New password</label>
+      <input id="new-password" type="password" name="new_password" autocomplete="new-password" minlength="8" required class="input-field"></div>
+    <div><label for="confirm-password" class="field-label">Confirm password</label>
+      <input id="confirm-password" type="password" name="confirm_password" autocomplete="new-password" required class="input-field"></div>
+    {% else %}
+    <div><label for="account-email" class="field-label">Email</label>
+      <input id="account-email" type="email" name="email" autocomplete="email" required value="{{ current_user.email }}" class="input-field"></div>
+    {% endif %}
+    <button type="submit" class="btn-primary">{{ title }}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endblock %}
