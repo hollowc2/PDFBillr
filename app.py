@@ -138,15 +138,6 @@ def create_app(config_class: type = Config) -> Flask:
         """Upgrade fresh, versioned, or verified unversioned databases."""
         _run_database_bootstrap()
 
-    @app.cli.command("db-upgrade")
-    def db_upgrade_command():
-        """Deprecated compatibility alias for db-bootstrap."""
-        click.echo(
-            "Warning: db-upgrade is deprecated; use db-bootstrap.",
-            err=True,
-        )
-        _run_database_bootstrap()
-
     @app.cli.command("financial-data-audit")
     def financial_data_audit_command():
         """Read-only preflight for the typed financial-data migration."""

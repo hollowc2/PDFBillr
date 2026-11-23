@@ -118,8 +118,7 @@ small cohesive services.
 - Compose: `docker compose up --build`
 - Syntax check: `python -m compileall .`
 - Tests: no test suite or pytest dependency existed at the starting commit
-- Migration command: `flask --app app db-bootstrap` (`db-upgrade` remains a
-  deprecated visible alias)
+- Migration command: `flask --app app db-bootstrap`
 - Scheduler command: `DISABLE_SCHEDULER=false python scheduler_worker.py`
 
 ## Baseline test results
@@ -327,7 +326,7 @@ review environment.
     flag false for retry.
   - Replaced broad silent startup DDL with inspect-before-alter,
     dialect-aware, rerunnable `_upgrade_legacy_schema()` behind the explicit
-    `flask --app app db-upgrade` command. Development/test auto-create remains
+    `flask --app app db-bootstrap` command. Development/test auto-create remains
     configurable; production defaults it off. Added the legacy invoice-token
     index and Stripe event-order column upgrade.
   - Stripe webhooks now commit domain effects and processed-event markers in
@@ -452,7 +451,7 @@ Final verification:
   scoped correctness lint and tests, not repository-wide formatting yet.
 - `python -m compileall -q -x ... .` — PASS.
 - `SECRET_KEY=... docker compose config --quiet` — PASS.
-- Fresh `/tmp` `flask --app app db-upgrade` — PASS; immediate rerun — PASS.
+- Fresh `/tmp` `flask --app app db-bootstrap` — PASS; immediate rerun — PASS.
 - `flask --app app routes` under the smoke configuration — PASS; 31 routes,
   including liveness/readiness and owner-only logo serving.
 - `gunicorn --check-config --config gunicorn.conf.py wsgi:app` — PASS.

@@ -34,7 +34,6 @@ def app(tmp_path: Path):
         REMEMBER_COOKIE_SAMESITE = "Lax"
         DISABLE_SCHEDULER = True
         STRIPE_SECRET_KEY = "sk_test_not_real"
-        STRIPE_PUBLISHABLE_KEY = "pk_test_not_real"
         STRIPE_WEBHOOK_SECRET = "whsec_test_not_real"
         STRIPE_PRICE_ID_PRO = "price_pro"
         PUBLIC_BASE_URL = "https://billing.example.test/pdfbillr"

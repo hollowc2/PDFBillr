@@ -64,7 +64,6 @@ class Config:
 
     # Stripe
     STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
-    STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
     STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
     STRIPE_PRICE_ID_PRO = os.environ.get("STRIPE_PRICE_ID_PRO", "")
 

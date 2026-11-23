@@ -414,16 +414,6 @@ def test_duplicate_invoice_numbers_block_constraint_migration(tmp_path):
         assert revision == BASELINE_REVISION
 
 
-def test_deprecated_database_command_uses_alembic_bootstrap(tmp_path):
-    application = _migration_app(tmp_path / "alias.db")
-
-    result = application.test_cli_runner().invoke(args=["db-upgrade"])
-
-    assert result.exit_code == 0, result.output
-    assert "deprecated" in result.output
-    assert "Alembic head" in result.output
-
-
 def test_clients_catalog_migration_is_additive_and_reversible(tmp_path):
     application = _migration_app(tmp_path / "clients-catalog.db")
     runner = application.test_cli_runner()
