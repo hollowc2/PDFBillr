@@ -443,3 +443,12 @@ def test_mobile_list_contains_client_and_status(client, make_user, make_invoice,
     mobile = html.split('class="md:hidden mt-1 space-y-1"')[1].split("</div>")[0]
     assert "Mobile client" in mobile
     assert "Sent" in mobile
+
+
+@pytest.mark.parametrize("status", ["draft", "paid", "void"])
+def test_reminder_panel_visibility(client, make_user, make_invoice, login, status):
+    user = make_user("panel@example.test", pro=True)
+    inv = make_invoice(user.id, status=status)
+    login(user.email)
+    html = client.get(f"/dashboard/invoice/{inv.id}").get_data(as_text=True)
+    assert ("Automatic payment reminders" in html) == (status == "draft")

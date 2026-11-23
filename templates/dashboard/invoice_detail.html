@@ -206,6 +206,7 @@
   </section>
 
   <!-- Reminders -->
+  {% if invoice.status not in ('paid', 'void') %}
   <section class="card p-6" aria-labelledby="reminders-heading">
     <h2 id="reminders-heading" class="section-title">Automatic payment reminders</h2>
     {% if is_pro() %}
@@ -225,6 +226,7 @@
       <a href="{{ url_for('billing.upgrade') }}" class="btn-secondary mt-4">{{ lock() }} Upgrade to Pro</a>
     {% endif %}
   </section>
+  {% endif %}
 </div>
 
 <!-- Secondary actions -->
