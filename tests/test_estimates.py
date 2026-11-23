@@ -394,3 +394,46 @@ def test_unaccepted_estimate_cannot_convert(
         estimate = db.session.get(Estimate, estimate_id)
         assert estimate.converted_invoice_id is None
         assert Invoice.query.filter_by(user_id=owner.id).count() == 0
+
+
+def test_delete_draft_and_refuse_sent(client, app, make_user, login):
+    user = make_user("estimate-delete@example.test")
+    draft = _make_estimate(app, user.id)
+    login(user.email)
+    assert client.post(f"/estimates/{draft}/delete").status_code == 302
+    with app.app_context():
+        assert db.session.get(Estimate, draft) is None
+    sent = _make_estimate(app, user.id, status="sent")
+    client.post(f"/estimates/{sent}/delete")
+    with app.app_context():
+        assert db.session.get(Estimate, sent) is not None
+
+
+def test_accept_notifies_owner_once(client, app, make_user):
+    from extensions import mail
+
+    user = make_user("estimate-notify@example.test")
+    _make_estimate(app, user.id, status="sent")
+    with app.app_context(), mail.record_messages() as messages:
+        for _ in range(2):
+            client.post(
+                "/estimates/view/" + "a" * 43 + "/accept", data={"client_comment": "Looks good"}
+            )
+        assert len(messages) == 1
+        assert messages[0].recipients == [user.email]
+        assert messages[0].subject == "Estimate EST-001 was accepted"
+        assert "Looks good" in messages[0].body
+
+
+def test_estimate_response_survives_mail_failure(client, app, make_user, monkeypatch):
+    user = make_user("estimate-mail-failure@example.test")
+    item = _make_estimate(app, user.id, status="sent")
+
+    def fail(message):
+        raise OSError("SMTP unavailable")
+
+    monkeypatch.setattr("extensions.mail.send", fail)
+    response = client.post("/estimates/view/" + "a" * 43 + "/decline")
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.get(Estimate, item).status == "declined"

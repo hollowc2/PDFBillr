@@ -8,6 +8,7 @@ from itertools import zip_longest
 
 from flask import (
     Blueprint,
+    current_app,
     abort,
     flash,
     redirect,
@@ -19,7 +20,7 @@ from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 from werkzeug.datastructures import MultiDict
 
-from extensions import db, limiter
+from extensions import db, limiter, mail
 from models import BusinessDefaults, Client, Estimate, Invoice, ServiceItem
 from utils.branding import account_page_size
 from utils.currency import SUPPORTED_CURRENCIES
@@ -88,6 +89,19 @@ def create():
 
     flash("Estimate created.", "success")
     return redirect(url_for("estimates.detail", estimate_id=estimate.id))
+
+
+@bp.route("/<int:estimate_id>/delete", methods=["POST"])
+@login_required
+def delete(estimate_id: int):
+    estimate = _own_estimate(estimate_id, for_update=True)
+    if estimate.status != "draft":
+        flash("Only draft estimates can be deleted.", "error")
+        return redirect(url_for("estimates.detail", estimate_id=estimate.id))
+    db.session.delete(estimate)
+    db.session.commit()
+    flash("Estimate deleted.", "info")
+    return redirect(url_for("estimates.index"))
 
 
 @bp.route("/<int:estimate_id>")
@@ -318,6 +332,22 @@ def _public_response(token: str, new_status: str):
     estimate.client_comment = comment or None
     estimate.responded_at = datetime.now(timezone.utc)
     db.session.commit()
+    from flask_mail import Message
+
+    try:
+        mail.send(
+            Message(
+                subject=f"Estimate {estimate.estimate_number} was {new_status}",
+                recipients=[estimate.user.email],
+                body=render_template(
+                    "emails/estimate_response.txt",
+                    estimate=estimate,
+                    detail_url=external_url("estimates.detail", estimate_id=estimate.id),
+                ),
+            )
+        )
+    except Exception as exc:
+        current_app.logger.warning("Estimate response email failed: %s", type(exc).__name__)
     flash(
         "Estimate accepted." if new_status == "accepted" else "Estimate declined.",
         "success",

@@ -14,6 +14,12 @@
     <p class="mt-1 text-sm text-graphite">Issued {{ estimate.issue_date.isoformat() }} · Expires {{ estimate.expiry_date.isoformat() }}</p>
   </div>
   <div class="flex flex-wrap gap-2">
+    {% if estimate.status == 'draft' %}
+    <form method="post" action="{{ url_for('estimates.delete', estimate_id=estimate.id) }}" data-confirm="Delete this estimate? This cannot be undone.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn-quiet text-overdue hover:text-overdue">Delete estimate</button>
+    </form>
+    {% endif %}
     {% if not estimate.is_terminal %}
     <a href="{{ url_for('estimates.edit', estimate_id=estimate.id) }}" class="btn-secondary">Edit</a>
     <form method="post" action="{{ url_for('estimates.send', estimate_id=estimate.id) }}">
@@ -67,4 +73,8 @@
   {% if estimate.notes %}<div class="mt-6 border-t pt-4"><p class="text-xs font-bold uppercase text-faint">Notes</p><p class="mt-1 whitespace-pre-line text-sm">{{ estimate.notes }}</p></div>{% endif %}
   {% if estimate.client_comment %}<div class="mt-4 rounded-lg bg-paper p-4"><p class="text-xs font-bold uppercase text-faint">Client comment</p><p class="mt-1 whitespace-pre-line text-sm">{{ estimate.client_comment }}</p></div>{% endif %}
 </article>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

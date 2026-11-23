@@ -1,0 +1,7 @@
+Estimate {{ estimate.estimate_number }} was {{ estimate.status }}.
+
+Client: {{ estimate.to_name }}
+{% if estimate.client_comment %}
+Comment: {{ estimate.client_comment }}
+{% endif %}
+View estimate: {{ detail_url }}
