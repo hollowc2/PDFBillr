@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from sqlalchemy.exc import IntegrityError
+
 from app import create_app
 from extensions import db, mail
 from models import User
@@ -303,3 +305,34 @@ def test_account_rate_limit_only_applies_to_posts(tmp_path):
         assert client.get("/auth/account").status_code == 200
     assert client.post("/auth/account", data=data).status_code == 429
     assert client.get("/auth/account").status_code == 200
+
+
+def test_account_email_change_handles_duplicate_race(app, client, make_user, login, monkeypatch):
+    user = make_user("email-race@example.test")
+    login(user.email)
+    original_commit = db.session.commit
+    attempts = 0
+
+    def fail_once():
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise IntegrityError(None, None, Exception())
+        return original_commit()
+
+    with monkeypatch.context() as patch:
+        patch.setattr(db.session, "commit", fail_once)
+        response = client.post(
+            "/auth/account",
+            data={
+                "action": "email",
+                "current_password": "correct horse",
+                "email": "new@example.test",
+            },
+        )
+
+    assert attempts == 1
+    assert response.status_code == 422
+    assert b"Email could not be updated. Please check your details." in response.data
+    with app.app_context():
+        assert db.session.get(User, user.id).email == user.email

@@ -12,6 +12,7 @@ from flask import (
 )
 from flask_login import current_user, login_required, login_user, logout_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from sqlalchemy.exc import IntegrityError
 
 from extensions import db, limiter, mail, login_manager
 from models import User
@@ -314,7 +315,11 @@ def account():
                 error = "Email could not be updated. Please check your details."
             else:
                 user.email = email
-                db.session.commit()
+                try:
+                    db.session.commit()
+                except IntegrityError:
+                    db.session.rollback()
+                    error = "Email could not be updated. Please check your details."
         else:
             error = "Choose an account setting to update."
         if error:
