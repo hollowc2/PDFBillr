@@ -223,8 +223,7 @@
     if (prefillEl) {
       try {
         var prefill = JSON.parse(prefillEl.textContent);
-        showActionError('');
-      var descriptions = prefill.descriptions || [];
+        var descriptions = prefill.descriptions || [];
         var qtys = prefill.qtys || [];
         var rates = prefill.rates || [];
         descriptions.forEach(function (desc, i) {
