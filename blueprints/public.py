@@ -245,20 +245,21 @@ def _render_invoice_form(
 def invoice_view(token: str):
     """Public invoice view link — records when a client opens the invoice."""
     inv = Invoice.query.filter_by(view_token=token).first_or_404()
-    update_result = db.session.execute(
-        update(Invoice)
-        .where(Invoice.id == inv.id, Invoice.view_token == token)
-        .values(
-            viewed_at=func.coalesce(Invoice.viewed_at, datetime.now(timezone.utc)),
-            view_count=func.coalesce(Invoice.view_count, 0) + 1,
+    if not (current_user.is_authenticated and current_user.id == inv.user_id):
+        update_result = db.session.execute(
+            update(Invoice)
+            .where(Invoice.id == inv.id, Invoice.view_token == token)
+            .values(
+                viewed_at=func.coalesce(Invoice.viewed_at, datetime.now(timezone.utc)),
+                view_count=func.coalesce(Invoice.view_count, 0) + 1,
+            )
+            .execution_options(synchronize_session=False)
         )
-        .execution_options(synchronize_session=False)
-    )
-    if update_result.rowcount != 1:
-        db.session.rollback()
-        abort(404)
-    db.session.commit()
-    db.session.refresh(inv)
+        if update_result.rowcount != 1:
+            db.session.rollback()
+            abort(404)
+        db.session.commit()
+        db.session.refresh(inv)
     context = context_from_invoice(inv)
     business_today = datetime.now(
         ZoneInfo(current_app.config.get("SCHEDULER_TIMEZONE", "UTC"))

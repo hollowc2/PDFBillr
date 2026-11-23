@@ -71,3 +71,20 @@ def test_authenticated_pages_are_not_cacheable(client, make_user, login):
     login(user.email)
     response = client.get("/dashboard/")
     assert response.headers["Cache-Control"] == "no-store, private"
+
+
+def test_owner_views_are_not_counted(client, app, make_user, make_invoice, login):
+    user = make_user("self-view@example.test")
+    inv = make_invoice(user.id, view_token="owner-view-token")
+    login(user.email)
+    assert client.get("/invoice/view/owner-view-token").status_code == 200
+    with app.app_context():
+        stored = db.session.get(Invoice, inv.id)
+        assert not stored.view_count
+        assert stored.viewed_at is None
+    client.post("/auth/logout")
+    assert client.get("/invoice/view/owner-view-token").status_code == 200
+    with app.app_context():
+        stored = db.session.get(Invoice, inv.id)
+        assert stored.view_count == 1
+        assert stored.viewed_at is not None
