@@ -234,8 +234,8 @@ def create_app(config_class: type = Config) -> Flask:
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data:; "
             "object-src 'none'; "
-            "base-uri 'self';"
-            "form-action 'self'; "
+            "base-uri 'self'; "
+            "form-action 'self' https://checkout.stripe.com; "
             "frame-ancestors 'none';"
         )
         response.headers["Permissions-Policy"] = (

@@ -102,7 +102,11 @@ def test_security_headers_are_present(client):
     assert response.headers["X-Frame-Options"] == "DENY"
     assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
     assert "frame-ancestors 'none'" in response.headers["Content-Security-Policy"]
-    assert "form-action 'self'" in response.headers["Content-Security-Policy"]
+    assert (
+        "form-action 'self' https://checkout.stripe.com;"
+        in response.headers["Content-Security-Policy"]
+    )
+    assert ";form-action" not in response.headers["Content-Security-Policy"]
     assert response.headers["Permissions-Policy"]
 
 
