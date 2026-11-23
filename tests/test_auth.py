@@ -53,7 +53,7 @@ def test_login_logout_and_unauthenticated_redirect(client, make_user):
     assert login_response.status_code == 302
     assert client.get("/dashboard/").status_code == 200
 
-    logout_response = client.get("/auth/logout")
+    logout_response = client.post("/auth/logout")
     assert logout_response.status_code == 302
     assert client.get("/dashboard/").status_code == 302
 
@@ -94,7 +94,7 @@ def test_login_next_accepts_only_local_absolute_path(client, make_user):
     ):
         response = client.post(f"/auth/login?next={target}", data=credentials)
         assert response.headers["Location"].endswith("/dashboard/")
-        client.get("/auth/logout")
+        client.post("/auth/logout")
 
     response = client.post("/auth/login?next=/app", data=credentials)
     assert response.headers["Location"].endswith("/app")
@@ -218,4 +218,14 @@ def test_login_identity_includes_current_auth_session_version(client, app, make_
         db.session.commit()
         assert stored.auth_session_version == 2
 
+    assert client.get("/dashboard/").status_code == 302
+
+
+def test_logout_requires_post(client, make_user, login):
+    user = make_user("post-logout@example.test")
+    login(user.email)
+    assert client.get("/auth/logout").status_code == 405
+    response = client.post("/auth/logout")
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/"
     assert client.get("/dashboard/").status_code == 302

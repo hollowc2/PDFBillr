@@ -131,7 +131,7 @@ def test_edit_duplicate_and_cross_owner_protection(client, app, make_user, make_
     )
     assert denied.status_code == 404
 
-    client.get("/auth/logout")
+    client.post("/auth/logout")
     login(owner.email)
     updated_url = "https://checkout.example.com/revised"
     edited = client.post(

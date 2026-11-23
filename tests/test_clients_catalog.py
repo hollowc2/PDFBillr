@@ -339,7 +339,7 @@ def test_same_normalized_names_are_allowed_for_different_owners(client, app, mak
     second = make_user("second@example.test")
     login(first.email)
     assert client.post("/clients/new", data=_client_payload()).status_code == 302
-    client.get("/auth/logout")
+    client.post("/auth/logout")
     login(second.email)
     assert client.post("/clients/new", data=_client_payload()).status_code == 302
 

@@ -37,7 +37,7 @@ def test_valid_logo_is_reencoded_and_served_only_to_owner(client, app, make_user
     assert logo_response.status_code == 200
     assert logo_response.mimetype == "image/png"
 
-    client.get("/auth/logout")
+    client.post("/auth/logout")
     other = make_user("other@example.test", pro=True)
     login(other.email)
     assert client.get("/dashboard/branding/logo").status_code == 404

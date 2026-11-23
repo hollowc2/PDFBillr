@@ -155,7 +155,7 @@ def test_estimate_number_is_unique_per_owner_but_reusable_between_owners(
     duplicate = client.post("/estimates/new", data=_estimate_form())
     assert duplicate.status_code == 400
 
-    client.get("/auth/logout")
+    client.post("/auth/logout")
     login(second.email)
     assert client.post("/estimates/new", data=_estimate_form()).status_code == 302
     with app.app_context():
@@ -243,7 +243,7 @@ def test_public_link_is_hidden_for_drafts_then_accepts_once(
 
     login(owner.email)
     assert client.post(f"/estimates/{estimate_id}/send").status_code == 302
-    client.get("/auth/logout")
+    client.post("/auth/logout")
     public_page = client.get(f"/estimates/view/{token}")
     assert public_page.status_code == 200
     assert b"Accept estimate" in public_page.data

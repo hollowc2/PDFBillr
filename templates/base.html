@@ -94,7 +94,10 @@
               </div>
 
               <div class="border-t border-rule pt-1.5 mt-1.5">
-                <a href="{{ url_for('auth.logout') }}" class="{{ menu_item }} text-graphite hover:text-ink">Sign out</a>
+                <form method="post" action="{{ url_for('auth.logout') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="{{ menu_item }} text-graphite hover:text-ink w-full text-left">Sign out</button>
+                </form>
               </div>
             </div>
           </details>
