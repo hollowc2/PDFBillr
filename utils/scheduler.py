@@ -114,8 +114,10 @@ def send_payment_reminders(app) -> None:
                 before_due_days is not None
                 and 0 < days_delta <= before_due_days
                 and before_due_days - days_delta <= _REMINDER_CATCH_UP_DAYS
-                and inv.sent_at is not None
-                and inv.sent_at.date() <= due - timedelta(days=before_due_days)
+                and (
+                    inv.sent_at is None
+                    or inv.sent_at.date() <= due - timedelta(days=before_due_days)
+                )
                 and not inv.reminder_3d_sent
             ):
                 delivery_kind = "reminder_3d"
