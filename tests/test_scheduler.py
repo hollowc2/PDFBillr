@@ -302,3 +302,16 @@ def test_recurring_delivery_preserves_status(app, make_user, make_invoice, monke
             "sent" if status == "partial" else "discarded"
         )
     assert len(calls) == (1 if status == "partial" else 0)
+
+
+def test_recurring_copies_pro_logo(app, make_user, make_recurring):
+    from models import BrandingProfile
+
+    user = make_user("recurring-logo@example.test", pro=True)
+    make_recurring(user.id)
+    with app.app_context():
+        db.session.add(BrandingProfile(user_id=user.id, logo_filename="saved-logo.png"))
+        db.session.commit()
+    process_recurring_invoices(app)
+    with app.app_context():
+        assert Invoice.query.one().logo_filename == "saved-logo.png"

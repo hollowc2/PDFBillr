@@ -535,6 +535,7 @@ def _next_run_date(current: date, interval: str) -> date:
 
 def _generate_from_template(tmpl, scheduled_for, db):
     """Create and stage one Invoice occurrence from a recurring template."""
+    from utils.gating import is_pro
     from utils.financial_shadow_values import invoice_shadow_values
     from utils.currency import normalize_currency_code
     from utils.invoice_calculations import calculate_invoice
@@ -573,6 +574,9 @@ def _generate_from_template(tmpl, scheduled_for, db):
 
     inv = Invoice(
         user_id=tmpl.user_id,
+        logo_filename=tmpl.user.branding.logo_filename
+        if is_pro(tmpl.user) and tmpl.user.branding
+        else None,
         invoice_number=invoice_number,
         currency_code=normalize_currency_code(tmpl.currency_code),
         page_size=account_page_size(tmpl.user),
