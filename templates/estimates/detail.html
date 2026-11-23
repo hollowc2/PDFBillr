@@ -11,7 +11,7 @@
       <h1 class="font-display tracking-tight text-2xl font-semibold">{{ estimate.estimate_number }}</h1>
       <span class="rounded-full bg-ink/5 px-2.5 py-1 text-xs font-bold capitalize">{{ estimate.display_status }}</span>
     </div>
-    <p class="mt-1 text-sm text-graphite">Issued {{ estimate.issue_date.isoformat() }} · Expires {{ estimate.expiry_date.isoformat() }}</p>
+    <p class="mt-1 text-sm text-graphite">Issued {{ estimate.issue_date | nice_date }} · Expires {{ estimate.expiry_date | nice_date }}</p>
   </div>
   <div class="flex flex-wrap gap-2">
     {% if estimate.status == 'draft' %}

@@ -264,3 +264,18 @@ def test_dashboard_has_one_desktop_new_invoice(client, make_user, make_invoice, 
     login(user.email)
     html = client.get("/dashboard/").get_data(as_text=True)
     assert html.count(">New invoice</a>") == 2  # Page action and mobile menu.
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [(None, "—"), ("", "—"), ("2026-10-03", "Oct 3, 2026"), ("invalid", "invalid")],
+)
+def test_nice_date(app, raw, expected):
+    assert app.jinja_env.filters["nice_date"](raw) == expected
+
+
+def test_nice_date_objects(app):
+    from datetime import date, datetime
+
+    for value in [date(2026, 10, 3), datetime(2026, 10, 3, 12)]:
+        assert app.jinja_env.filters["nice_date"](value) == "Oct 3, 2026"

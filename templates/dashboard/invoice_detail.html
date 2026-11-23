@@ -15,9 +15,9 @@
       {{ status_pill(invoice.effective_status(as_of=dashboard_today)) }}
     </div>
     <p class="mt-1 text-sm text-graphite tabular-nums">
-      Issued {{ invoice.invoice_date or '—' }}{% if invoice.due_date %} · Due {{ invoice.due_date }}{% endif %}
+      Issued {{ invoice.invoice_date | nice_date }}{% if invoice.due_date %} · Due {{ invoice.due_date | nice_date }}{% endif %}
       {% if invoice.sent_at %}
-        · {% if invoice.viewed_at %}<span class="text-paid">Viewed {{ invoice.viewed_at.strftime('%b %-d') }}</span>{% else %}Not yet viewed{% endif %}
+        · {% if invoice.viewed_at %}<span class="text-paid">Viewed {{ invoice.viewed_at | nice_date }}</span>{% else %}Not yet viewed{% endif %}
       {% endif %}
     </p>
   </div>

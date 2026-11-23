@@ -266,6 +266,19 @@ def create_app(config_class: type = Config) -> Flask:
     from utils.branding import PAGE_SIZE_OPTIONS
     from utils.gating import is_pro
 
+    def nice_date(value):
+        from datetime import date, datetime
+
+        if not value:
+            return "—"
+        if not isinstance(value, (date, datetime)):
+            try:
+                value = date.fromisoformat(str(value))
+            except ValueError:
+                return str(value)
+        return f"{value:%b} {value.day}, {value.year}"
+
+    app.jinja_env.filters["nice_date"] = nice_date
     app.jinja_env.filters["money"] = format_currency
     app.jinja_env.globals["currency_input_step"] = currency_input_step
     app.jinja_env.globals["currency_symbol"] = currency_symbol

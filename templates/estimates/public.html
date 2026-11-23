@@ -7,7 +7,7 @@
 <article class="mx-auto max-w-3xl rounded-md border border-rule bg-surface p-6 sm:p-8">
   <div class="flex flex-wrap items-start justify-between gap-4">
     <div><p class="text-sm font-bold uppercase tracking-widest text-accent">Estimate</p><h1 class="font-display tracking-tight mt-1 text-2xl font-semibold">{{ estimate.estimate_number }}</h1></div>
-    <div class="text-right"><span class="rounded-full bg-ink/5 px-3 py-1 text-xs font-bold capitalize">{{ estimate.display_status }}</span><p class="mt-2 text-xs text-graphite">Valid through {{ estimate.expiry_date.isoformat() }}</p></div>
+    <div class="text-right"><span class="rounded-full bg-ink/5 px-3 py-1 text-xs font-bold capitalize">{{ estimate.display_status }}</span><p class="mt-2 text-xs text-graphite">Valid through {{ estimate.expiry_date | nice_date }}</p></div>
   </div>
   <div class="mt-8 grid gap-6 sm:grid-cols-2">
     <div><p class="text-xs font-bold uppercase text-faint">From</p><p class="mt-1 font-semibold">{{ estimate.from_company or "PDFBillr customer" }}</p><p class="whitespace-pre-line text-sm text-graphite">{{ estimate.from_address or "" }}</p><p class="text-sm text-graphite">{{ estimate.from_email or "" }}</p></div>

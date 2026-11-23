@@ -104,8 +104,8 @@
           </div>
         </td>
         <td class="px-4 py-3 text-ink hidden sm:table-cell">{{ inv.to_name or '—' }}</td>
-        <td class="px-4 py-3 text-graphite tabular-nums whitespace-nowrap hidden md:table-cell">{{ inv.invoice_date or '—' }}</td>
-        <td class="px-4 py-3 text-graphite tabular-nums whitespace-nowrap hidden md:table-cell">{{ inv.due_date or '—' }}</td>
+        <td class="px-4 py-3 text-graphite tabular-nums whitespace-nowrap hidden md:table-cell">{{ inv.invoice_date | nice_date }}</td>
+        <td class="px-4 py-3 text-graphite tabular-nums whitespace-nowrap hidden md:table-cell">{{ inv.due_date | nice_date }}</td>
         <td class="px-4 py-3 hidden sm:table-cell">{{ status_pill(inv.effective_status(as_of=dashboard_today)) }}</td>
         <td class="px-4 py-3 text-right font-medium tabular-nums whitespace-nowrap">
           {{ inv.total_amount | money(inv.currency_code) }}

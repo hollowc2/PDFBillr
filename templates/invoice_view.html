@@ -10,8 +10,8 @@
         <p class="text-xs font-semibold uppercase tracking-wider text-faint mb-1">Invoice</p>
         <h1 class="font-display tracking-tight text-2xl font-semibold text-ink">{{ invoice.invoice_number }}</h1>
         <p class="text-sm text-graphite mt-1">
-          {% if invoice.invoice_date %}Issued {{ invoice.invoice_date }}{% endif %}
-          {% if invoice.due_date %} · Due {{ invoice.due_date }}{% endif %}
+          {% if invoice.invoice_date %}Issued {{ invoice.invoice_date | nice_date }}{% endif %}
+          {% if invoice.due_date %} · Due {{ invoice.due_date | nice_date }}{% endif %}
         </p>
       </div>
       <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
