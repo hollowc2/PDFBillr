@@ -538,10 +538,19 @@ def invoice_download(invoice_id: int):
 @login_required
 def invoice_duplicate(invoice_id: int):
     orig = _own_invoice(invoice_id)
+    today = _dashboard_today()
+    try:
+        original_date = date.fromisoformat(orig.invoice_date or "")
+        original_due = date.fromisoformat(orig.due_date or "")
+        terms = (original_due - original_date).days
+    except ValueError:
+        defaults = current_user.business_defaults
+        terms = defaults.default_payment_terms_days if defaults else 30
+    new_due = today + timedelta(days=terms)
     try:
         shadow_values = invoice_shadow_values(
-            invoice_date=orig.invoice_date,
-            due_date=orig.due_date,
+            invoice_date=today.isoformat(),
+            due_date=new_due.isoformat(),
             tax_rate=orig.tax_rate,
             discount=orig.discount,
             subtotal=orig.subtotal,
@@ -569,8 +578,8 @@ def invoice_duplicate(invoice_id: int):
         invoice_number=duplicate_number,
         currency_code=normalize_currency_code(orig.currency_code),
         page_size=orig.page_size,
-        invoice_date=orig.invoice_date,
-        due_date=orig.due_date,
+        invoice_date=today.isoformat(),
+        due_date=new_due.isoformat(),
         from_company=orig.from_company,
         from_address=orig.from_address,
         from_email=orig.from_email,

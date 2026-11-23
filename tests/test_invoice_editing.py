@@ -418,3 +418,18 @@ def test_draft_with_payments_cannot_be_deleted(client, app, make_user, make_invo
     client.post(f"/dashboard/invoice/{inv.id}/delete")
     with app.app_context():
         assert db.session.get(Invoice, inv.id) is not None
+
+
+def test_duplicate_refreshes_dates(client, app, make_user, make_invoice, login, monkeypatch):
+    from datetime import date
+
+    monkeypatch.setattr("blueprints.dashboard._dashboard_today", lambda: date(2026, 11, 22))
+    user = make_user("duplicate-dates@example.test")
+    make_invoice(user.id, invoice_date="2020-01-01", due_date="2020-01-15")
+    login(user.email)
+    client.post("/dashboard/invoice/1/duplicate")
+    with app.app_context():
+        dup = Invoice.query.order_by(Invoice.id.desc()).first()
+        assert dup.invoice_date == "2026-11-22"
+        assert dup.due_date == "2026-12-06"
+        assert dup.due_date_value == date(2026, 12, 6)

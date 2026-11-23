@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from extensions import db
@@ -52,6 +52,8 @@ def test_authenticated_invoice_dual_write_uses_server_calculation_and_typed_date
 def test_invoice_duplicate_populates_shadows_consistently(
     client, app, make_user, login, monkeypatch
 ):
+    today = date(2026, 11, 22)
+    monkeypatch.setattr("blueprints.dashboard._dashboard_today", lambda: today)
     user = make_user("shadow-duplicate@example.test")
     login(user.email)
     monkeypatch.setattr("blueprints.public.render_pdf", lambda *_args, **_kwargs: b"pdf")
@@ -68,10 +70,10 @@ def test_invoice_duplicate_populates_shadows_consistently(
         invoices = Invoice.query.filter_by(user_id=user.id).order_by(Invoice.id).all()
         assert len(invoices) == 2
         original, duplicate = invoices
-        assert duplicate.invoice_date == original.invoice_date
-        assert duplicate.due_date == original.due_date
-        assert duplicate.invoice_date_value == original.invoice_date_value
-        assert duplicate.due_date_value is None
+        assert duplicate.invoice_date == today.isoformat()
+        assert duplicate.due_date == (today + timedelta(days=30)).isoformat()
+        assert duplicate.invoice_date_value == today
+        assert duplicate.due_date_value == today + timedelta(days=30)
         assert duplicate.tax_rate_decimal == original.tax_rate_decimal
         assert duplicate.discount_decimal == original.discount_decimal
         assert duplicate.subtotal_decimal == original.subtotal_decimal
