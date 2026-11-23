@@ -51,6 +51,9 @@ def test_dashboard_metrics_are_owned_date_based_and_grouped_by_currency(
         owner.id,
         invoice_number="OVERDUE-OWNED",
         status="sent",
+        sent_at=datetime.combine(
+            today - timedelta(days=30), datetime.min.time(), tzinfo=timezone.utc
+        ),
         due_date_value=today - timedelta(days=1),
         total=100,
         currency_code="USD",
@@ -59,6 +62,9 @@ def test_dashboard_metrics_are_owned_date_based_and_grouped_by_currency(
         owner.id,
         invoice_number="SOON-OWNED",
         status="sent",
+        sent_at=datetime.combine(
+            today - timedelta(days=30), datetime.min.time(), tzinfo=timezone.utc
+        ),
         due_date_value=today + timedelta(days=7),
         total=50,
         currency_code="USD",
@@ -82,6 +88,9 @@ def test_dashboard_metrics_are_owned_date_based_and_grouped_by_currency(
         other.id,
         invoice_number="OTHER-IGNORED",
         status="sent",
+        sent_at=datetime.combine(
+            today - timedelta(days=30), datetime.min.time(), tzinfo=timezone.utc
+        ),
         due_date_value=today - timedelta(days=1),
         total=700,
     )
@@ -123,6 +132,9 @@ def test_dashboard_status_date_and_sort_filters_use_business_dates(
         owner.id,
         invoice_number="OVERDUE-LOW",
         status="sent",
+        sent_at=datetime.combine(
+            today - timedelta(days=30), datetime.min.time(), tzinfo=timezone.utc
+        ),
         due_date="1999-01-01",
         due_date_value=today - timedelta(days=1),
         total=10,
@@ -131,6 +143,9 @@ def test_dashboard_status_date_and_sort_filters_use_business_dates(
         owner.id,
         invoice_number="OVERDUE-HIGH",
         status="sent",
+        sent_at=datetime.combine(
+            today - timedelta(days=30), datetime.min.time(), tzinfo=timezone.utc
+        ),
         due_date_value=today - timedelta(days=2),
         total=90,
     )
@@ -138,6 +153,9 @@ def test_dashboard_status_date_and_sort_filters_use_business_dates(
         owner.id,
         invoice_number="DUE-TODAY-NOT-OVERDUE",
         status="sent",
+        sent_at=datetime.combine(
+            today - timedelta(days=30), datetime.min.time(), tzinfo=timezone.utc
+        ),
         due_date_value=today,
         total=100,
     )
@@ -278,6 +296,9 @@ def test_invoice_and_global_disable_prevent_new_and_retry_reminders(
         owner.id,
         invoice_number="DISABLED",
         status="sent",
+        sent_at=datetime.combine(
+            today - timedelta(days=30), datetime.min.time(), tzinfo=timezone.utc
+        ),
         due_date_value=today + timedelta(days=3),
         to_email="client@example.test",
         payment_reminders_enabled=False,
@@ -318,6 +339,9 @@ def test_custom_offset_delivers_and_disabled_preference_discards_retry(
         owner.id,
         invoice_number="CUSTOM",
         status="sent",
+        sent_at=datetime.combine(
+            today - timedelta(days=30), datetime.min.time(), tzinfo=timezone.utc
+        ),
         due_date_value=today + timedelta(days=5),
         due_date=(today + timedelta(days=5)).isoformat(),
         to_email="client@example.test",
@@ -378,6 +402,9 @@ def test_default_reminder_schedule_still_sends_at_three_days(
         owner.id,
         invoice_number="DEFAULT",
         status="sent",
+        sent_at=datetime.combine(
+            today - timedelta(days=30), datetime.min.time(), tzinfo=timezone.utc
+        ),
         due_date_value=today + timedelta(days=3),
         due_date=(today + timedelta(days=3)).isoformat(),
         to_email="client@example.test",

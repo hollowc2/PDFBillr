@@ -43,6 +43,7 @@ def test_reminder_mail_failure_leaves_flag_retryable(app, make_user, make_invoic
     invoice = make_invoice(
         user.id,
         status="sent",
+        sent_at=datetime.now(timezone.utc) - timedelta(days=30),
         due_date=(date.today() + timedelta(days=3)).isoformat(),
         to_email="client@example.test",
         view_token=None,
@@ -118,6 +119,7 @@ def test_queued_reminder_is_discarded_if_invoice_is_paid_before_retry(
     invoice = make_invoice(
         user.id,
         status="sent",
+        sent_at=datetime.now(timezone.utc) - timedelta(days=30),
         due_date=(date.today() + timedelta(days=3)).isoformat(),
         to_email="client@example.test",
         total=10.0,
@@ -165,7 +167,7 @@ def test_partial_invoice_reminder_uses_outstanding_balance(
     invoice = make_invoice(
         user.id,
         status="partial",
-        sent_at=datetime.now(timezone.utc),
+        sent_at=datetime.now(timezone.utc) - timedelta(days=30),
         due_date=(date.today() + timedelta(days=3)).isoformat(),
         to_email="client@example.test",
         total=100.0,

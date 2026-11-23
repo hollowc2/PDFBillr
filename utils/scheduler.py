@@ -53,6 +53,9 @@ class PermanentDeliveryError(ValueError):
     """The queued delivery can no longer become valid on retry."""
 
 
+_REMINDER_CATCH_UP_DAYS = 2
+
+
 def send_payment_reminders(app) -> None:
     """Enqueue and deliver due payment reminders.
 
@@ -109,7 +112,10 @@ def send_payment_reminders(app) -> None:
             delivery_kind = None
             if (
                 before_due_days is not None
-                and days_delta == before_due_days
+                and 0 < days_delta <= before_due_days
+                and before_due_days - days_delta <= _REMINDER_CATCH_UP_DAYS
+                and inv.sent_at is not None
+                and inv.sent_at.date() <= due - timedelta(days=before_due_days)
                 and not inv.reminder_3d_sent
             ):
                 delivery_kind = "reminder_3d"
@@ -117,7 +123,7 @@ def send_payment_reminders(app) -> None:
                 delivery_kind = "reminder_0d"
             elif (
                 overdue_days is not None
-                and days_delta == -overdue_days
+                and -(overdue_days + _REMINDER_CATCH_UP_DAYS) <= days_delta <= -overdue_days
                 and not inv.reminder_7d_sent
             ):
                 delivery_kind = "reminder_7d"
@@ -395,6 +401,7 @@ def _send_invoice_delivery(
     *,
     render_pdf_fn,
 ) -> None:
+    from flask import current_app
     from utils.gating import is_pro
 
     inv = delivery.invoice
@@ -443,6 +450,12 @@ def _send_invoice_delivery(
     }[delivery.delivery_kind]
     if reminder_days is None:
         raise PermanentDeliveryError("payment reminder stage was disabled")
+
+    if delivery.delivery_kind == "reminder_3d":
+        due = inv.due_date_as_date
+        reminder_days = (due - _business_today(current_app)).days if due else 0
+        if reminder_days <= 0:
+            raise PermanentDeliveryError("due-soon reminder is stale")
 
     _send_reminder(
         mail_obj,
